@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -63,8 +63,11 @@ export type Database = {
           description: string
           due_date: string
           id: string
+          method: string | null
+          notes: string | null
           paid_date: string | null
           patient_id: string | null
+          received_date: string | null
           status: Database["public"]["Enums"]["account_status"] | null
           updated_at: string | null
         }
@@ -74,8 +77,11 @@ export type Database = {
           description: string
           due_date: string
           id?: string
+          method?: string | null
+          notes?: string | null
           paid_date?: string | null
           patient_id?: string | null
+          received_date?: string | null
           status?: Database["public"]["Enums"]["account_status"] | null
           updated_at?: string | null
         }
@@ -85,8 +91,11 @@ export type Database = {
           description?: string
           due_date?: string
           id?: string
+          method?: string | null
+          notes?: string | null
           paid_date?: string | null
           patient_id?: string | null
+          received_date?: string | null
           status?: Database["public"]["Enums"]["account_status"] | null
           updated_at?: string | null
         }
@@ -765,12 +774,12 @@ export type Database = {
       }
       http_delete: {
         Args:
+          | { content: string; content_type: string; uri: string }
           | { uri: string }
-          | { uri: string; content: string; content_type: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_get: {
-        Args: { uri: string } | { uri: string; data: Json }
+        Args: { data: Json; uri: string } | { uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_head: {
@@ -789,17 +798,17 @@ export type Database = {
         }[]
       }
       http_patch: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_post: {
         Args:
-          | { uri: string; content: string; content_type: string }
-          | { uri: string; data: Json }
+          | { content: string; content_type: string; uri: string }
+          | { data: Json; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_put: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_reset_curlopt: {
@@ -820,9 +829,9 @@ export type Database = {
       }
       process_whatsapp_confirmation: {
         Args: {
-          p_phone: string
-          p_message_content: string
           p_evolution_message_id: string
+          p_message_content: string
+          p_phone: string
         }
         Returns: Json
       }
@@ -831,12 +840,16 @@ export type Database = {
         Returns: undefined
       }
       test_send_physio_notification: {
-        Args: { p_appointment_id: string; p_action: string }
+        Args: { p_action: string; p_appointment_id: string }
         Returns: Json
       }
       text_to_bytea: {
         Args: { data: string }
         Returns: string
+      }
+      update_overdue_accounts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
