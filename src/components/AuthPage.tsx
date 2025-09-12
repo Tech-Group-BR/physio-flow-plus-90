@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AuthPage() {
   const { signIn, signUp, user, loading } = useAuth();
@@ -23,6 +24,25 @@ export function AuthPage() {
       navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);
+
+  // Seed automático do usuário admin (idempotente)
+  useEffect(() => {
+    let cancelled = false;
+    const seed = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('seed-admin', {
+          body: { email: 'admin@sistema.com', password: '123456789' }
+        });
+        if (!cancelled && !error) {
+          console.log('🌱 Seed admin:', data);
+        }
+      } catch (e) {
+        console.warn('Seed admin falhou (pode já existir):', e);
+      }
+    };
+    seed();
+    return () => { cancelled = true; };
+  }, []);
 
   const [loginForm, setLoginForm] = useState({
     email: 'admin@sistema.com',
