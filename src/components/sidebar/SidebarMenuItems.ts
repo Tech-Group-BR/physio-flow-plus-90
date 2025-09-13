@@ -41,12 +41,12 @@ export const physiotherapistItems: MenuItem[] = [
     icon: Users,
     description: "Cadastros de pacientes"
   },
-  {
-    title: "Prontuários",
-    url: "/prontuarios",
-    icon: FileText,
-    description: "Registros médicos"
-  },
+  // {
+  //   title: "Prontuários",
+  //   url: "/prontuarios",
+  //   icon: FileText,
+  //   description: "Registros médicos"
+  // },
   {
     title: "Financeiro",
     url: "/financeiro",
