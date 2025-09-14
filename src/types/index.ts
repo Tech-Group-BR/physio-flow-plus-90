@@ -46,7 +46,6 @@ export interface Patient {
   isActive: boolean;
   isMinor: boolean;
   guardianId?: string;
-  sessionValue?: number;
   createdAt: string;
   updatedAt: string;
 }

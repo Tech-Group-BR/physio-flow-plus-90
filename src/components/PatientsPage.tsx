@@ -97,7 +97,7 @@ export function PatientsPage() {
     setSelectedRecord(record);
     setIsEvolutionFormOpen(true);
   };
-  const handleOpenDeleteConfirm = (patient: Patient) => { // <<< NOVO HANDLER
+  const handleOpenDeleteConfirm = (patient: Patient) => { 
     setSelectedPatient(patient);
     setIsConfirmDeleteOpen(true);
   };
@@ -319,7 +319,6 @@ export function PatientsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Demais modais (Formulários) continuam os mesmos */}
       <Dialog open={isPatientFormOpen} onOpenChange={setIsPatientFormOpen}><DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{selectedPatient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle><DialogDescription>{selectedPatient ? 'Altere os dados do paciente.' : 'Preencha os dados para cadastrar um novo paciente.'}</DialogDescription></DialogHeader><PatientForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/></DialogContent></Dialog>
       <Dialog open={isAnamnesisFormOpen} onOpenChange={setIsAnamnesisFormOpen}><DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nova Anamnese para: {selectedPatient?.fullName}</DialogTitle><DialogDescription>Preencha as informações do prontuário inicial do paciente.</DialogDescription></DialogHeader>{selectedPatient && (<MedicalRecordForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}</DialogContent></Dialog>
       <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}><DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nova Evolução</DialogTitle><DialogDescription>Registre a evolução do tratamento para o paciente.</DialogDescription></DialogHeader>{selectedRecord && (<EvolutionForm record={selectedRecord} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}</DialogContent></Dialog>

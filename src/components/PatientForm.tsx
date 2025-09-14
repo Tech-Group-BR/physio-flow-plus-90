@@ -37,8 +37,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
     emergencyPhone: patient?.emergencyContact?.phone || '',
     emergencyRelationship: patient?.emergencyContact?.relationship || '',
     notes: patient?.notes || '',
-    medicalHistory: patient?.medicalHistory || '',
-    sessionValue: patient?.sessionValue || 0
+    medicalHistory: patient?.medicalHistory || ''
   });
 
   const genderOptions = [
@@ -116,7 +115,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
 
       if (patient) {
         console.log('Editando paciente existente:', patient.id);
-        // Para edição, passar apenas os campos que devem ser atualizados
+    
         const updateData = {
           fullName: formData.fullName,
           phone: formData.phone,
@@ -143,7 +142,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           emergencyPhone: formData.emergencyPhone,
           medicalHistory: formData.medicalHistory,
           notes: formData.notes,
-          isActive: patient.isActive, // Manter o status atual
+          isActive: patient.isActive,
           isMinor: isMinor,
           sessionValue: formData.sessionValue
         };
@@ -152,6 +151,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
 
         try {
           onSave(updateData);
+          await updatePatient(patient.id, updateData);
           console.log('Dados enviados para atualização');
         } catch (error) {
           console.error('Erro ao enviar dados para atualização:', error);
