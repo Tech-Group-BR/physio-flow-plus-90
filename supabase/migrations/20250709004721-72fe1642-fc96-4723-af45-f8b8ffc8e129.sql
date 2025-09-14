@@ -26,7 +26,7 @@ SELECT COUNT(*) as total_appointments FROM appointments;
 SELECT 
     id,
     patient_id,
-    physiotherapist_id,
+    professional_id,
     date,
     time,
     status,

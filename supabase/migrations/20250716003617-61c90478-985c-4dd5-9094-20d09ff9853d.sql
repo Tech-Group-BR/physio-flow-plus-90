@@ -44,7 +44,7 @@ BEGIN
   -- Buscar dados do fisioterapeuta
   SELECT * INTO physio_record
   FROM profiles 
-  WHERE id = appointment_record.physiotherapist_id;
+  WHERE id = appointment_record.professional_id;
 
   -- Verificar se é confirmação (SIM, CONFIRMO, OK, etc.)
   IF LOWER(TRIM(p_message_content)) ~ '^(sim|confirmo|ok|confirmar|s|1|yes|confirmado)' THEN

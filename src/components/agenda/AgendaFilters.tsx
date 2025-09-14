@@ -10,7 +10,7 @@ interface AgendaFiltersProps {
   viewMode: "day" | "week";
   selectedPhysio: string;
   selectedRoom: string;
-  physiotherapists: any[];
+  professionals: any[];
   rooms: any[];
   onViewModeChange: (mode: "day" | "week") => void;
   onPhysioChange: (physio: string) => void;
@@ -23,7 +23,7 @@ export function AgendaFilters({
   viewMode,
   selectedPhysio,
   selectedRoom,
-  physiotherapists,
+  professionals,
   rooms,
   onViewModeChange,
   onPhysioChange,
@@ -74,7 +74,7 @@ export function AgendaFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                {physiotherapists.map((physio) => (
+                {professionals.map((physio) => (
                   <SelectItem key={physio.id} value={physio.id}>
                     {physio.name}
                   </SelectItem>

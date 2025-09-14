@@ -23,7 +23,7 @@ import { format, isToday, isThisWeek, isThisMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export function Dashboard() {
-  const { dashboardStats, appointments, patients, physiotherapists, payments, leads, loading } = useClinic();
+  const { dashboardStats, appointments, patients, professionals, payments, leads, loading } = useClinic();
 
   if (loading) {
     return (
@@ -161,7 +161,7 @@ export function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{physiotherapists.filter(p => p.isActive).length}</div>
+            <div className="text-2xl font-bold">{professionals.filter(p => p.isActive).length}</div>
             <p className="text-xs text-muted-foreground">ativos</p>
           </CardContent>
         </Card>
@@ -218,7 +218,7 @@ export function Dashboard() {
               <div className="space-y-3">
                 {upcomingAppointments.map((appointment) => {
                   const patient = patients.find(p => p.id === appointment.patientId);
-                  const physio = physiotherapists.find(p => p.id === appointment.physiotherapistId);
+                  const physio = professionals.find(p => p.id === appointment.professionalId);
                   
                   return (
                     <div key={appointment.id} className="flex items-center justify-between p-3 rounded-lg border">
@@ -319,7 +319,7 @@ export function Dashboard() {
               <span className="font-medium">Pacientes:</span> {patients.length}
             </div>
             <div>
-              <span className="font-medium">Fisioterapeutas:</span> {physiotherapists.length}
+              <span className="font-medium">Fisioterapeutas:</span> {professionals.length}
             </div>
             <div>
               <span className="font-medium">Agendamentos:</span> {appointments.length}

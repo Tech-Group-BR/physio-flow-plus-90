@@ -1,7 +1,12 @@
+import React from 'react';
+import { Routes, Route, useLocation } from "react-router-dom";
 
+// Componentes da UI e Layout
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Dashboard } from "@/components/Dashboard";
+
+// Componentes das Páginas
 import { PatientsPage } from "@/components/PatientsPage";
 import { AgendaPage } from "@/components/AgendaPage";
 import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
@@ -9,53 +14,18 @@ import { FinancialPage } from "@/components/FinancialPage";
 import { ReportsPage } from "@/components/ReportsPage";
 import { WhatsAppPage } from "@/components/WhatsAppPage";
 import { PackagesPage } from "@/components/PackagesPage";
-import { PhysiotherapistsPage } from "@/components/PhysiotherapistsPage";
+import { ProfessionalsPage } from "@/components/ProfessionalsPage";
 import { ConfigurationsPage } from "@/components/ConfigurationsPage";
 import { SalesPage } from "@/components/SalesPage";
 import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
-import { useLocation } from "react-router-dom";
+import { PatientDetailsPage } from "@/components/patientDetailsPage";
 
 const Index = () => {
   const location = useLocation();
 
   console.log('🎯 Current route:', location.pathname);
-
-  const getPageContent = () => {
-    switch (location.pathname) {
-      case '/':
-        return <Dashboard />;
-      case '/agenda':
-        return <AgendaPage />;
-      case '/pacientes':
-        return <PatientsPage />;
-      case '/prontuarios':
-        return <MedicalRecordsPage />;
-      case '/financeiro':
-        return <FinancialPage />;
-      case '/pacotes':
-        return <PackagesPage />;
-      case '/whatsapp':
-        return <WhatsAppPage />;
-      case '/relatorios':
-        return <ReportsPage />;
-      case '/fisioterapeutas':
-        return <PhysiotherapistsPage />;
-      case '/configuracoes':
-        return <ConfigurationsPage />;
-      case '/vendas':
-        return <SalesPage />;
-      case '/crm':
-        return <CRMPage />;
-      case '/portal-responsavel':
-        return <GuardianPortal />;
-      case '/relatorios/pacientes':
-        return <PatientFinancialReport />;
-      default:
-        return <Dashboard />;
-    }
-  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -73,7 +43,25 @@ const Index = () => {
           </header>
           <main className="flex-1 overflow-auto">
             <div className="p-4 md:p-6">
-              {getPageContent()}
+              {/* CORREÇÃO: Coloque as rotas aqui dentro do componente de layout */}
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/agenda" element={<AgendaPage />} />
+                <Route path="/pacientes" element={<PatientsPage />} />
+                <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
+                <Route path="/prontuarios" element={<MedicalRecordsPage />} />
+                <Route path="/financeiro" element={<FinancialPage />} />
+                <Route path="/pacotes" element={<PackagesPage />} />
+                <Route path="/whatsapp" element={<WhatsAppPage />} />
+                <Route path="/relatorios" element={<ReportsPage />} />
+                <Route path="/fisioterapeutas" element={<ProfessionalsPage />} />
+                <Route path="/configuracoes" element={<ConfigurationsPage />} />
+                <Route path="/vendas" element={<SalesPage />} />
+                <Route path="/crm" element={<CRMPage />} />
+                <Route path="/portal-responsavel" element={<GuardianPortal />} />
+                <Route path="/relatorios/pacientes" element={<PatientFinancialReport />} />
+                <Route path="*" element={<Dashboard />} />
+              </Routes>
             </div>
           </main>
         </div>

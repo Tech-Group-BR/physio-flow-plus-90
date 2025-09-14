@@ -54,7 +54,7 @@ export function AuthPage() {
     password: '',
     fullName: '',
     phone: '',
-    role: 'guardian' as 'admin' | 'physiotherapist' | 'guardian',
+    role: 'guardian' as 'admin' | 'Professional' | 'guardian',
     crefito: ''
   });
 
@@ -324,13 +324,13 @@ export function AuthPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="guardian">Responsável/Paciente</SelectItem>
-                          <SelectItem value="physiotherapist">Fisioterapeuta</SelectItem>
+                          <SelectItem value="Professional">Fisioterapeuta</SelectItem>
                           <SelectItem value="admin">🔑 Administrador</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {signupForm.role === 'physiotherapist' && (
+                    {signupForm.role === 'Professional' && (
                       <div>
                         <Label htmlFor="signup-crefito">CREFITO</Label>
                         <Input

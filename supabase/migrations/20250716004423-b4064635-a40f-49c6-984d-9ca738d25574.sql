@@ -15,7 +15,7 @@ WHERE status = 'marcado' AND date >= CURRENT_DATE;
 -- Verificar se temos fisioterapeutas ativos
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -24,7 +24,7 @@ INSERT INTO appointments (
   notes
 ) VALUES (
   (SELECT id FROM patients WHERE phone = '66996525791' LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' AND phone IS NOT NULL LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' AND phone IS NOT NULL LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '11:00:00',
@@ -43,5 +43,5 @@ SELECT
   pr.phone as physio_phone
 FROM appointments a
 JOIN patients p ON a.patient_id = p.id
-JOIN profiles pr ON a.physiotherapist_id = pr.id
+JOIN profiles pr ON a.professional_id = pr.id
 WHERE a.notes = 'Teste envio paciente + fisioterapeuta';

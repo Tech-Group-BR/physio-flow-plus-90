@@ -6,7 +6,7 @@ BEGIN
     DROP TYPE IF EXISTS user_role CASCADE;
     
     -- Criar o enum user_role
-    CREATE TYPE user_role AS ENUM ('admin', 'physiotherapist', 'guardian');
+    CREATE TYPE user_role AS ENUM ('admin', 'Professional', 'guardian');
 END $$;
 
 -- Recriar a tabela profiles se necessário

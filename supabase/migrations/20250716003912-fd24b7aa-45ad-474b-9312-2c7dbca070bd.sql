@@ -3,7 +3,7 @@
 -- Criar um agendamento para testar confirmação
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -12,7 +12,7 @@ INSERT INTO appointments (
   notes
 ) VALUES (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '10:00:00',
@@ -24,7 +24,7 @@ INSERT INTO appointments (
 -- Criar outro agendamento para testar cancelamento
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -33,7 +33,7 @@ INSERT INTO appointments (
   notes
 ) VALUES (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '14:00:00',

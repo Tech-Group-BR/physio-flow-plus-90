@@ -20,7 +20,7 @@ export function AgendaPage() {
     viewMode,
     setViewMode,
     patients,
-    physiotherapists,
+    professionals,
     rooms,
     getWeekDays,
     getAppointmentForSlot,
@@ -69,7 +69,7 @@ export function AgendaPage() {
         viewMode={viewMode}
         selectedPhysio={selectedPhysio}
         selectedRoom={selectedRoom}
-        physiotherapists={physiotherapists}
+        professionals={professionals}
         rooms={rooms}
         onViewModeChange={setViewMode}
         onPhysioChange={setSelectedPhysio}
@@ -83,7 +83,7 @@ export function AgendaPage() {
           weekDays={getWeekDays()}
           getAppointmentForSlot={getAppointmentForSlot}
           patients={patients}
-          physiotherapists={physiotherapists}
+          professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
@@ -94,7 +94,7 @@ export function AgendaPage() {
           selectedDate={selectedDate}
           getAppointmentForSlot={getAppointmentForSlot}
           patients={patients}
-          physiotherapists={physiotherapists}
+          professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}

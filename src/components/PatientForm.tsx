@@ -108,7 +108,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
         notes: formData.notes,
         isActive: true,
         isMinor: isMinor,
-        sessionValue: formData.sessionValue
+       
       };
 
       console.log('Dados do paciente preparados:', patientData);
@@ -144,7 +144,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           notes: formData.notes,
           isActive: patient.isActive,
           isMinor: isMinor,
-          sessionValue: formData.sessionValue
+       
         };
 
         console.log('Dados para atualização preparados:', updateData);
@@ -376,21 +376,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="sessionValue">Valor da Sessão (R$)</Label>
-              <Input
-                id="sessionValue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.sessionValue || 0}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value);
-                  setFormData({ ...formData, sessionValue: isNaN(value) ? 0 : value });
-                }}
-                placeholder="0,00"
-              />
-            </div>
+           
           </div>
         </CardContent>
       </Card>

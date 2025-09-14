@@ -19,7 +19,7 @@ STABLE
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles 
-    WHERE id = user_id AND role IN ('admin', 'physiotherapist')
+    WHERE id = user_id AND role IN ('admin', 'Professional')
   );
 $$;
 

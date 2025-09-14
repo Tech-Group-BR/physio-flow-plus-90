@@ -17,17 +17,17 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
     console.log('AppointmentEditForm iniciando renderização...');
 
     try {
-        const { patients, physiotherapists, rooms } = useClinic();
+        const { patients, professionals, rooms } = useClinic();
         console.log('useClinic executado com sucesso:', {
             patients: patients?.length,
-            physiotherapists: physiotherapists?.length,
+            professionals: professionals?.length,
             rooms: rooms?.length
         });
 
         const [submitting, setSubmitting] = useState(false);
         const [formData, setFormData] = useState({
             patientId: appointment.patientId || '',
-            physiotherapistId: appointment.physiotherapistId || '',
+            professionalId: appointment.professionalId || '',
             roomId: appointment.roomId || '',
             date: appointment.date || '',
             time: appointment.time || '',
@@ -58,7 +58,7 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
 
                 {/* Debug info */}
                 <div className="mb-4 p-3 bg-gray-100 rounded text-xs">
-                    <p><strong>Debug:</strong> Pacientes: {patients?.length || 0} | Fisioterapeutas: {physiotherapists?.length || 0} | Salas: {rooms?.length || 0}</p>
+                    <p><strong>Debug:</strong> Pacientes: {patients?.length || 0} | Fisioterapeutas: {professionals?.length || 0} | Salas: {rooms?.length || 0}</p>
                     <p><strong>Appointment ID:</strong> {appointment.id}</p>
                     <p><strong>FormData:</strong> {JSON.stringify(formData, null, 2)}</p>
                 </div>
@@ -75,11 +75,11 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
                     </div>
 
                     <div>
-                        <Label htmlFor="physiotherapistId">Fisioterapeuta ID</Label>
+                        <Label htmlFor="professionalId">Fisioterapeuta ID</Label>
                         <Input
-                            id="physiotherapistId"
-                            value={formData.physiotherapistId}
-                            onChange={(e) => setFormData({ ...formData, physiotherapistId: e.target.value })}
+                            id="professionalId"
+                            value={formData.professionalId}
+                            onChange={(e) => setFormData({ ...formData, professionalId: e.target.value })}
                             placeholder="ID do fisioterapeuta"
                         />
                     </div>

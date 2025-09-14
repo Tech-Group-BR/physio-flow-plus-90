@@ -4,7 +4,7 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useAgendaLogic = () => {
-  const { appointments, patients, physiotherapists, rooms, updateAppointment } = useClinic();
+  const { appointments, patients, professionals, rooms, updateAppointment } = useClinic();
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedPhysio, setSelectedPhysio] = useState("all");
@@ -55,7 +55,7 @@ export const useAgendaLogic = () => {
       dateMatch = appointmentDate >= weekStart && appointmentDate <= weekEnd;
     }
     
-    const physioMatch = selectedPhysio === "all" || appointment.physiotherapistId === selectedPhysio;
+    const physioMatch = selectedPhysio === "all" || appointment.professionalId === selectedPhysio;
     const roomMatch = selectedRoom === "all" || appointment.roomId === selectedRoom;
     
     return dateMatch && physioMatch && roomMatch;
@@ -155,7 +155,7 @@ export const useAgendaLogic = () => {
     setViewMode,
     appointments,
     patients,
-    physiotherapists,
+    professionals,
     rooms,
     filteredAppointments,
     getWeekDays,

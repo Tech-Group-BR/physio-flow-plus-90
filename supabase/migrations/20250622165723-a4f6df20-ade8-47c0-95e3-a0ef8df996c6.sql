@@ -68,7 +68,7 @@ CREATE POLICY "Staff can view WhatsApp logs"
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles 
-      WHERE id = auth.uid() AND role IN ('admin', 'physiotherapist')
+      WHERE id = auth.uid() AND role IN ('admin', 'Professional')
     )
   );
 

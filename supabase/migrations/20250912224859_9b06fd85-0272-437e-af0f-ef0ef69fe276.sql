@@ -1,6 +1,6 @@
 -- Criar tipos ENUM necessários
 DO $$ BEGIN
-    CREATE TYPE user_role AS ENUM ('admin', 'physiotherapist', 'guardian');
+    CREATE TYPE user_role AS ENUM ('admin', 'Professional', 'guardian');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS public.rooms (
 CREATE TABLE IF NOT EXISTS public.appointments (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     patient_id uuid NOT NULL,
-    physiotherapist_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
     room_id uuid,
     date date NOT NULL,
     time time NOT NULL,
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS public.evolutions (
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     record_id uuid NOT NULL,
     date date NOT NULL,
-    physiotherapist_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
     observations text NOT NULL,
     treatment_performed text NOT NULL,
     next_session text,
@@ -298,7 +298,7 @@ CREATE POLICY IF NOT EXISTS "Admins can manage WhatsApp settings" ON public.what
 CREATE POLICY IF NOT EXISTS "Service role can access whatsapp_settings" ON public.whatsapp_settings FOR ALL TO service_role USING (true);
 
 CREATE POLICY IF NOT EXISTS "Staff can view WhatsApp logs" ON public.whatsapp_logs FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'physiotherapist'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'Professional'))
 );
 
 CREATE POLICY IF NOT EXISTS "Service role can manage whatsapp_logs" ON public.whatsapp_logs FOR ALL TO service_role USING (true);
@@ -313,7 +313,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Inserir fisioterapeuta de teste
 INSERT INTO public.profiles (id, full_name, email, phone, role, crefito, specialties, is_active) 
-VALUES ('00000000-0000-0000-0000-000000000002', 'Dr. Maria Silva', 'maria@clinica.com', '(66) 98888-8888', 'physiotherapist', 'CREFITO-8 12345', ARRAY['Ortopedia', 'Neurologia'], true)
+VALUES ('00000000-0000-0000-0000-000000000002', 'Dr. Maria Silva', 'maria@clinica.com', '(66) 98888-8888', 'Professional', 'CREFITO-8 12345', ARRAY['Ortopedia', 'Neurologia'], true)
 ON CONFLICT (id) DO UPDATE SET 
     full_name = EXCLUDED.full_name,
     email = EXCLUDED.email,
@@ -362,7 +362,7 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status;
 
 -- Inserir agendamentos de teste
-INSERT INTO public.appointments (id, patient_id, physiotherapist_id, room_id, date, time, status) 
+INSERT INTO public.appointments (id, patient_id, professional_id, room_id, date, time, status) 
 VALUES 
     ('00000000-0000-0000-0000-000000000041', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000011', CURRENT_DATE + INTERVAL '1 day', '09:00', 'marcado'),
     ('00000000-0000-0000-0000-000000000042', '00000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000012', CURRENT_DATE + INTERVAL '2 days', '14:00', 'confirmado')

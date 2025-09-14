@@ -1,7 +1,7 @@
 -- Criar um agendamento completo para testar todas as informações na agenda
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -17,7 +17,7 @@ INSERT INTO appointments (
   patient_confirmed_at
 ) VALUES (
   (SELECT id FROM patients WHERE phone = '66996525791' LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' AND phone IS NOT NULL LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' AND phone IS NOT NULL LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '15:30:00',
@@ -49,6 +49,6 @@ SELECT
   r.name as room_name
 FROM appointments a
 JOIN patients p ON a.patient_id = p.id
-JOIN profiles pr ON a.physiotherapist_id = pr.id
+JOIN profiles pr ON a.professional_id = pr.id
 LEFT JOIN rooms r ON a.room_id = r.id
 WHERE a.notes LIKE '%bronquite%';

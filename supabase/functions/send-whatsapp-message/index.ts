@@ -10,7 +10,7 @@ const corsHeaders = {
 interface SendMessageRequest {
   appointmentId: string;
   messageType: 'confirmation' | 'reminder' | 'notification';
-  recipientType: 'patient' | 'physiotherapist';
+  recipientType: 'patient' | 'Professional';
 }
 
 serve(async (req) => {
@@ -113,19 +113,19 @@ serve(async (req) => {
     });
 
     // Buscar dados do fisioterapeuta
-    console.log('🔍 Fetching physiotherapist...');
-    const { data: physiotherapist, error: physioError } = await supabase
+    console.log('🔍 Fetching Professional...');
+    const { data: Professional, error: physioError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', appointment.physiotherapist_id)
+      .eq('id', appointment.professional_id)
       .single();
 
-    if (physioError || !physiotherapist) {
-      console.log('⚠️ Physiotherapist not found:', physioError);
+    if (physioError || !Professional) {
+      console.log('⚠️ Professional not found:', physioError);
     } else {
-      console.log('✅ Physiotherapist found:', {
-        name: physiotherapist.full_name,
-        phone: physiotherapist.phone ? `${physiotherapist.phone.substring(0, 4)}...` : 'missing'
+      console.log('✅ Professional found:', {
+        name: Professional.full_name,
+        phone: Professional.phone ? `${Professional.phone.substring(0, 4)}...` : 'missing'
       });
     }
 
@@ -144,10 +144,10 @@ serve(async (req) => {
       }
     } else {
       // Fisioterapeuta - detectar gênero para usar Dr/Dra
-      phoneNumber = physiotherapist?.phone || '';
+      phoneNumber = Professional?.phone || '';
 
       // Detectar se é homem ou mulher pelo nome ou campo gender se existir
-      const firstName = physiotherapist?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const firstName = Professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
       const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
       const title = isDra ? 'Dra' : 'Dr';
 
@@ -171,16 +171,16 @@ serve(async (req) => {
         .replace(/{nome}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time)
-        .replace(/{fisioterapeuta}/g, physiotherapist?.full_name || 'Fisioterapeuta');
+        .replace(/{fisioterapeuta}/g, Professional?.full_name || 'Fisioterapeuta');
     } else {
       // Para fisioterapeuta - detectar título Dr/Dra
-      const firstName = physiotherapist?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const firstName = Professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
       const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
       const title = isDra ? 'Dra' : 'Dr';
 
       message = templateToUse
         .replace(/{title}/g, title)
-        .replace(/{fisioterapeuta}/g, physiotherapist?.full_name || 'Fisioterapeuta')
+        .replace(/{fisioterapeuta}/g, Professional?.full_name || 'Fisioterapeuta')
         .replace(/{paciente}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time)

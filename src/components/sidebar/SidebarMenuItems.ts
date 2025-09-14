@@ -22,7 +22,7 @@ export interface MenuItem {
 }
 
 // Itens para fisioterapeutas - acesso completo às funcionalidades
-export const physiotherapistItems: MenuItem[] = [
+export const professionalItems: MenuItem[] = [
   {
     title: "Dashboard",
     url: "/",
@@ -199,7 +199,7 @@ export const guardianItems: MenuItem[] = [
 ];
 
 console.log('📋 Menu items initialized:', {
-  physiotherapistItems: physiotherapistItems.length,
+  professionalItems: professionalItems.length,
   adminMainItems: adminMainItems.length,
   adminManagementItems: adminManagementItems.length,
   guardianItems: guardianItems.length

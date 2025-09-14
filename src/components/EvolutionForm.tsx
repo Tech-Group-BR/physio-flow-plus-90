@@ -21,12 +21,12 @@ interface EvolutionFormProps {
 }
 
 export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) {
-  const { addEvolution, physiotherapists, currentUser } = useClinic();
+  const { addEvolution, professionals, currentUser } = useClinic();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
-    physiotherapistId: currentUser?.id || '',
+    professionalId: currentUser?.id || '',
     observations: '',
     painScale: '',
     mobilityScale: '',
@@ -163,7 +163,7 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
       const evolutionData = {
         recordId: record.id,
         date: formData.date,
-        physiotherapistId: formData.physiotherapistId,
+        professionalId: formData.professionalId,
         observations: formData.observations,
         painScale: formData.painScale ? parseInt(formData.painScale) : 0,
         mobilityScale: formData.mobilityScale ? parseInt(formData.mobilityScale) : 0,
@@ -214,13 +214,13 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
             </div>
 
             <div>
-              <Label htmlFor="physiotherapistId">Fisioterapeuta *</Label>
-              <Select value={formData.physiotherapistId} onValueChange={(value) => setFormData({ ...formData, physiotherapistId: value })}>
+              <Label htmlFor="professionalId">Fisioterapeuta *</Label>
+              <Select value={formData.professionalId} onValueChange={(value) => setFormData({ ...formData, professionalId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o fisioterapeuta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {physiotherapists.map((physio) => (
+                  {professionals.map((physio) => (
                     <SelectItem key={physio.id} value={physio.id}>
                       {physio.name}
                     </SelectItem>

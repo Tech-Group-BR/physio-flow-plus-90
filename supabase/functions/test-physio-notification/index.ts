@@ -31,7 +31,7 @@ serve(async (req) => {
         .select(`
           id, date, time, status, whatsapp_confirmed,
           patient:patients(full_name, phone),
-          physiotherapist:profiles(full_name, phone)
+          Professional:profiles(full_name, phone)
         `)
         .eq('id', appointmentId)
         .single();
@@ -47,7 +47,7 @@ serve(async (req) => {
         .select(`
           id, date, time, status, whatsapp_confirmed,
           patient:patients(full_name, phone),
-          physiotherapist:profiles(full_name, phone)
+          Professional:profiles(full_name, phone)
         `)
         .eq('whatsapp_confirmed', true)
         .is('physio_notified_at', null)
@@ -84,7 +84,7 @@ serve(async (req) => {
       throw new Error('Configurações do WhatsApp não encontradas');
     }
 
-    if (!appointmentData.physiotherapist?.phone) {
+    if (!appointmentData.Professional?.phone) {
       throw new Error('Telefone da fisioterapeuta não encontrado');
     }
 
@@ -114,7 +114,7 @@ serve(async (req) => {
     }
 
     // Formatação do número
-    const physioPhone = appointmentData.physiotherapist.phone.replace(/\D/g, '');
+    const physioPhone = appointmentData.Professional.phone.replace(/\D/g, '');
     let formattedPhysioPhone = physioPhone;
     
     if (physioPhone.length === 11) {

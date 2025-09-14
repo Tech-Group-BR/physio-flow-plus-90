@@ -8,7 +8,7 @@ BEGIN
     SELECT a.id, a.status, p.full_name as patient_name, pr.full_name as physio_name, pr.phone as physio_phone
     FROM appointments a
     JOIN patients p ON a.patient_id = p.id
-    JOIN profiles pr ON a.physiotherapist_id = pr.id
+    JOIN profiles pr ON a.professional_id = pr.id
     WHERE a.whatsapp_confirmed = true 
     AND a.physio_notified_at IS NULL
     LIMIT 3

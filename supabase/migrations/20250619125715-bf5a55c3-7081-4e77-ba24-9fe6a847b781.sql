@@ -9,7 +9,7 @@ BEGIN
     
     -- 2. Remover e recriar o enum
     DROP TYPE IF EXISTS user_role CASCADE;
-    CREATE TYPE user_role AS ENUM ('admin', 'physiotherapist', 'guardian');
+    CREATE TYPE user_role AS ENUM ('admin', 'Professional', 'guardian');
     
     -- 3. Remover e recriar a tabela profiles
     DROP TABLE IF EXISTS public.profiles CASCADE;

@@ -16,12 +16,12 @@ interface AppointmentFormProps {
 }
 
 export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
-  const { addAppointment, patients, physiotherapists, rooms, loading } = useClinic();
+  const { addAppointment, patients, professionals, rooms, loading } = useClinic();
   const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     patientId: '',
-    physiotherapistId: '',
+    professionalId: '',
     roomId: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     time: '',
@@ -48,16 +48,16 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
   useEffect(() => {
     console.log('AppointmentForm - Dados carregados:', {
       patients: patients.length,
-      physiotherapists: physiotherapists.length,
+      professionals: professionals.length,
       rooms: rooms.length,
       loading
     });
-  }, [patients, physiotherapists, rooms, loading]);
+  }, [patients, professionals, rooms, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.patientId || !formData.physiotherapistId || !formData.time || !formData.treatmentType) {
+    if (!formData.patientId || !formData.professionalId || !formData.time || !formData.treatmentType) {
       toast.error('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
@@ -67,7 +67,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     try {
       const appointmentData = {
         patientId: formData.patientId,
-        physiotherapistId: formData.physiotherapistId,
+        professionalId: formData.professionalId,
         roomId: formData.roomId || '',
         date: formData.date,
         time: formData.time,
@@ -135,14 +135,14 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="physiotherapistId">Fisioterapeuta *</Label>
-              <Select value={formData.physiotherapistId} onValueChange={(value) => setFormData({ ...formData, physiotherapistId: value })}>
+              <Label htmlFor="professionalId">Fisioterapeuta *</Label>
+              <Select value={formData.professionalId} onValueChange={(value) => setFormData({ ...formData, professionalId: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o fisioterapeuta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {physiotherapists.length > 0 ? (
-                    physiotherapists.filter(physio => physio.isActive).map((physio) => (
+                  {professionals.length > 0 ? (
+                    professionals.filter(physio => physio.isActive).map((physio) => (
                       <SelectItem key={physio.id} value={physio.id}>
                         {physio.name}
                       </SelectItem>
@@ -253,7 +253,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           </CardHeader>
           <CardContent className="text-xs">
             <p>Pacientes: {patients.length}</p>
-            <p>Fisioterapeutas: {physiotherapists.length}</p>
+            <p>Fisioterapeutas: {professionals.length}</p>
             <p>Salas: {rooms.length}</p>
             <p>Loading: {loading ? 'true' : 'false'}</p>
           </CardContent>

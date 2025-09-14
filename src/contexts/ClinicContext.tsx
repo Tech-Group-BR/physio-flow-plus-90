@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 // Use the types from the main types file
 import { 
   Patient as MainPatient, 
-  Physiotherapist as MainPhysiotherapist, 
+  Professional as MainProfessional, 
   Room as MainRoom, 
   Appointment as MainAppointment, 
   MedicalRecord as MainMedicalRecord, 
@@ -46,7 +46,7 @@ interface DbPatient {
   session_value?: number;
 }
 
-interface DbPhysiotherapist {
+interface DbProfessional {
   id: string;
   created_at: string;
   updated_at: string;
@@ -74,7 +74,7 @@ interface DbAppointment {
   created_at: string;
   updated_at: string;
   patient_id: string;
-  physiotherapist_id: string;
+  professional_id: string;
   room_id?: string;
   date: string;
   time: string;
@@ -125,7 +125,7 @@ interface DbEvolution {
   id: string;
   record_id: string;
   date: string;
-  physiotherapist_id: string;
+  professional_id: string;
   observations: string;
   pain_scale?: number;
   mobility_scale?: number;
@@ -164,7 +164,7 @@ interface DbLead {
 
 interface ClinicContextType {
   patients: MainPatient[];
-  physiotherapists: MainPhysiotherapist[];
+  professionals: MainProfessional[];
   rooms: MainRoom[];
   appointments: MainAppointment[];
   medicalRecords: MainMedicalRecord[];
@@ -180,10 +180,10 @@ interface ClinicContextType {
   addPatient: (patient: Omit<MainPatient, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updatePatient: (id: string, updates: Partial<MainPatient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
-  fetchPhysiotherapists: () => Promise<void>;
-  addPhysiotherapist: (physiotherapist: Omit<MainPhysiotherapist, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updatePhysiotherapist: (id: string, updates: Partial<MainPhysiotherapist>) => Promise<void>;
-  deletePhysiotherapist: (id: string) => Promise<void>;
+  fetchProfessionals: () => Promise<void>;
+  addProfessional: (Professional: Omit<MainProfessional, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateProfessional: (id: string, updates: Partial<MainProfessional>) => Promise<void>;
+  deleteProfessional: (id: string) => Promise<void>;
   fetchRooms: () => Promise<void>;
   addRoom: (room: Omit<MainRoom, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateRoom: (room: MainRoom) => Promise<void>;
@@ -256,12 +256,11 @@ const dbToMainPatient = (dbPatient: DbPatient): MainPatient => ({
   isActive: dbPatient.is_active,
   isMinor: dbPatient.is_minor || false,
   guardianId: dbPatient.guardian_id,
-  sessionValue: dbPatient.session_value,
   createdAt: dbPatient.created_at,
   updatedAt: dbPatient.updated_at
 });
 
-const dbToMainPhysiotherapist = (dbPhysio: DbPhysiotherapist): MainPhysiotherapist => ({
+const dbToMainProfessional = (dbPhysio: DbProfessional): MainProfessional => ({
   id: dbPhysio.id,
   name: dbPhysio.full_name,
   email: dbPhysio.email || '',
@@ -287,7 +286,7 @@ const dbToMainRoom = (dbRoom: DbRoom): MainRoom => ({
 const dbToMainAppointment = (dbAppt: DbAppointment): MainAppointment => ({
   id: dbAppt.id,
   patientId: dbAppt.patient_id,
-  physiotherapistId: dbAppt.physiotherapist_id,
+  professionalId: dbAppt.professional_id,
   roomId: dbAppt.room_id || '',
   date: dbAppt.date,
   time: dbAppt.time,
@@ -343,7 +342,7 @@ const dbToMainEvolution = (dbEvo: DbEvolution): MainEvolution => ({
   id: dbEvo.id,
   recordId: dbEvo.record_id,
   date: dbEvo.date,
-  physiotherapistId: dbEvo.physiotherapist_id,
+  professionalId: dbEvo.professional_id,
   observations: dbEvo.observations,
   painScale: dbEvo.pain_scale,
   mobilityScale: dbEvo.mobility_scale,
@@ -414,7 +413,7 @@ const dbToMainLead = (dbLead: DbLead): MainLead => {
 
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [patients, setPatients] = useState<MainPatient[]>([]);
-  const [physiotherapists, setPhysiotherapists] = useState<MainPhysiotherapist[]>([]);
+  const [professionals, setProfessionals] = useState<MainProfessional[]>([]);
   const [rooms, setRooms] = useState<MainRoom[]>([]);
   const [appointments, setAppointments] = useState<MainAppointment[]>([]);
   const [medicalRecords, setMedicalRecords] = useState<MainMedicalRecord[]>([]);
@@ -435,7 +434,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       
       Promise.all([
         fetchPatients(),
-        fetchPhysiotherapists(),
+        fetchProfessionals(),
         fetchRooms(),
         fetchAppointments(),
         fetchMedicalRecords(),
@@ -485,7 +484,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           is_active: patient.isActive,
           is_minor: patient.isMinor,
           guardian_id: patient.guardianId,
-          session_value: patient.sessionValue
         });
       if (error) throw error;
       await fetchPatients();
@@ -514,7 +512,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.isMinor !== undefined) updateData.is_minor = updates.isMinor;
       if (updates.guardianId !== undefined) updateData.guardian_id = updates.guardianId;
-      if (updates.sessionValue !== undefined) updateData.session_value = updates.sessionValue;
 
       const { error } = await supabase
         .from('patients')
@@ -541,43 +538,60 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   };
+const fetchProfessionals = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('professionals')
+      .select('*')
+      .order('full_name', { ascending: true }); 
 
-  const fetchPhysiotherapists = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('full_name', { ascending: true });
-      if (error) throw error;
-      const mappedPhysios = (data || []).map(dbToMainPhysiotherapist);
-      setPhysiotherapists(mappedPhysios);
-    } catch (error) {
-      console.error('Erro ao buscar fisioterapeutas:', error);
-    }
-  };
+    if (error) throw error;
 
-  const addPhysiotherapist = async (physiotherapist: Omit<MainPhysiotherapist, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .insert({ 
-          id: uuidv4(),
-          full_name: physiotherapist.name,
-          phone: physiotherapist.phone,
-          email: physiotherapist.email,
-          crefito: physiotherapist.crefito,
-          specialties: physiotherapist.specialties,
-          role: 'physiotherapist'
-        });
-      if (error) throw error;
-      await fetchPhysiotherapists();
-    } catch (error) {
-      console.error('Erro ao adicionar fisioterapeuta:', error);
-      throw error;
-    }
-  };
+    const mappedPhysios = (data || []).map(item => {
+      return {
+     id: item.id,
+    name: item.full_name,
+    email: item.email,
+    phone: String(item.phone), // <--- AQUI: converte o número para string
+    crefito: item.crefito,
+    specialties: item.specialties,
+    bio: item.bio,
+    isActive: item.is_active,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at
+      };
+    });
+    setProfessionals(mappedPhysios);
+  } catch (error) {
+    console.error('Erro ao buscar profissionais:', error);
+  }
+};
 
-  const updatePhysiotherapist = async (id: string, updates: Partial<MainPhysiotherapist>) => {
+ const addProfessional = async (Professional: Omit<MainProfessional, 'id' | 'createdAt' | 'updatedAt'>) => {
+  try {
+    const { error } = await supabase
+      .from('professionals')
+      .insert({
+        full_name: Professional.name,
+        phone: Professional.phone,
+        email: Professional.email,
+        crefito: Professional.crefito,
+        specialties: Professional.specialties,
+        bio: Professional.bio || null,
+        is_active: true,
+        profile_picture_url: null,
+        profile_id: Professional.profile_id || null
+
+      });
+    if (error) throw error;
+    await fetchProfessionals();
+  } catch (error) {
+    console.error('Erro ao adicionar fisioterapeuta:', error);
+    throw error;
+  }
+};
+
+  const updateProfessional = async (id: string, updates: Partial<MainProfessional>) => {
     try {
       const updateData: any = {};
       if (updates.name) updateData.full_name = updates.name;
@@ -588,25 +602,25 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
 
       const { error } = await supabase
-        .from('profiles')
+        .from('professionals')
         .update(updateData)
         .eq('id', id);
       if (error) throw error;
-      await fetchPhysiotherapists();
+      await fetchProfessionals();
     } catch (error) {
       console.error('Erro ao atualizar fisioterapeuta:', error);
       throw error;
     }
   };
 
-  const deletePhysiotherapist = async (id: string) => {
+  const deleteProfessional = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('professionals')
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchPhysiotherapists();
+      await fetchProfessionals();
     } catch (error) {
       console.error('Erro ao deletar fisioterapeuta:', error);
       throw error;
@@ -690,7 +704,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .insert({ 
           id: uuidv4(),
           patient_id: appointment.patientId,
-          physiotherapist_id: appointment.physiotherapistId,
+          professional_id: appointment.professionalId,
           room_id: appointment.roomId,
           date: appointment.date,
           time: appointment.time,
@@ -714,7 +728,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     try {
       const updateData: any = {};
       if (updates.patientId) updateData.patient_id = updates.patientId;
-      if (updates.physiotherapistId) updateData.physiotherapist_id = updates.physiotherapistId;
+      if (updates.professionalId) updateData.professional_id = updates.professionalId;
       if (updates.roomId !== undefined) updateData.room_id = updates.roomId;
       if (updates.date) updateData.date = updates.date;
       if (updates.time) updateData.time = updates.time;
@@ -981,7 +995,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .insert({
           record_id: evolution.recordId,
           date: evolution.date,
-          physiotherapist_id: evolution.physiotherapistId,
+          professional_id: evolution.professionalId,
           observations: evolution.observations,
           pain_scale: evolution.painScale,
           mobility_scale: evolution.mobilityScale,
@@ -1046,7 +1060,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      const mappedPayments = (data || []).map(item => dbToMainPayment(item as DbPayment));
+      const mappedPayments = (data || []).map(item => dbToMainPayment(item as any));
       setPayments(mappedPayments);
     } catch (error) {
       console.error('Erro ao buscar pagamentos:', error);
@@ -1317,7 +1331,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
 
   const value: ClinicContextType = {
     patients,
-    physiotherapists,
+    professionals,
     rooms,
     appointments,
     medicalRecords,
@@ -1333,10 +1347,10 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     addPatient,
     updatePatient,
     deletePatient,
-    fetchPhysiotherapists,
-    addPhysiotherapist,
-    updatePhysiotherapist,
-    deletePhysiotherapist,
+    fetchProfessionals,
+    addProfessional,
+    updateProfessional,
+    deleteProfessional,
     fetchRooms,
     addRoom,
     updateRoom,

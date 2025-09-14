@@ -3,14 +3,14 @@
 
 -- Primeiro, vamos garantir que temos fisioterapeutas com nomes que identifiquem gênero
 INSERT INTO profiles (id, full_name, email, phone, role) VALUES 
-(gen_random_uuid(), 'Dr. João Silva', 'joao@clinica.com', '66999887766', 'physiotherapist'),
-(gen_random_uuid(), 'Dra. Ana Santos', 'ana@clinica.com', '66988776655', 'physiotherapist')
+(gen_random_uuid(), 'Dr. João Silva', 'joao@clinica.com', '66999887766', 'Professional'),
+(gen_random_uuid(), 'Dra. Ana Santos', 'ana@clinica.com', '66988776655', 'Professional')
 ON CONFLICT (id) DO NOTHING;
 
 -- Criar agendamentos de teste para hoje com fisioterapeutas diferentes
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -21,7 +21,7 @@ INSERT INTO appointments (
 -- Agendamento com Dr. João (homem)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE full_name LIKE '%João%' AND role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE full_name LIKE '%João%' AND role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '16:00:00',
@@ -32,7 +32,7 @@ INSERT INTO appointments (
 -- Agendamento com Dra. Ana (mulher)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE full_name LIKE '%Ana%' AND role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE full_name LIKE '%Ana%' AND role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '17:30:00',

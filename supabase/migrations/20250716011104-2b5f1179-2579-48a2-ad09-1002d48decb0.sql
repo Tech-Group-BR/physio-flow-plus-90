@@ -16,7 +16,7 @@ WHERE id = '3be40d56-552d-4e18-89ae-03983b2798af';
 -- 3. Criar um agendamento faltante para testar cor vermelha
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -25,7 +25,7 @@ INSERT INTO appointments (
   notes
 ) VALUES (
   (SELECT id FROM patients WHERE phone = '66996525791' LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' AND phone IS NOT NULL LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' AND phone IS NOT NULL LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '14:00:00',

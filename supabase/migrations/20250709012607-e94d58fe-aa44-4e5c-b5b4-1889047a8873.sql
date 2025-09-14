@@ -6,7 +6,7 @@ VALUES (
   '11111111-1111-1111-1111-111111111111',
   'Dr. Teste Fisioterapeuta',
   'fisio@teste.com',
-  'physiotherapist',
+  'Professional',
   '11999999999',
   'CREFITO-123456',
   true
@@ -27,7 +27,7 @@ VALUES (
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Inserir agendamento de teste para hoje se não existir
-INSERT INTO public.appointments (id, patient_id, physiotherapist_id, date, time, status, treatment_type)
+INSERT INTO public.appointments (id, patient_id, professional_id, date, time, status, treatment_type)
 VALUES (
   '33333333-3333-3333-3333-333333333333',
   '22222222-2222-2222-2222-222222222222',

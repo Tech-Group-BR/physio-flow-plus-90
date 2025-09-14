@@ -10,7 +10,7 @@ interface DragDropAgendaDayViewProps {
   selectedDate: Date;
   getAppointmentForSlot: (date: Date, time: string) => any;
   patients: any[];
-  physiotherapists: any[];
+  professionals: any[];
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
@@ -21,7 +21,7 @@ export function DragDropAgendaDayView({
   selectedDate,
   getAppointmentForSlot,
   patients,
-  physiotherapists,
+  professionals,
   rooms,
   onUpdateStatus,
   onSendWhatsApp,
@@ -48,7 +48,7 @@ export function DragDropAgendaDayView({
   };
 
   const getPatient = (patientId: string) => patients.find(p => p.id === patientId);
-  const getPhysiotherapist = (physioId: string) => physiotherapists.find(p => p.id === physioId);
+  const getProfessional = (physioId: string) => professionals.find(p => p.id === physioId);
   const getRoom = (roomId: string) => rooms.find(r => r.id === roomId);
 
   return (
@@ -83,7 +83,7 @@ export function DragDropAgendaDayView({
                               <AppointmentCard
                                 appointment={appointment}
                                 patients={patients}
-                                physiotherapists={physiotherapists}
+                                professionals={professionals}
                                 rooms={rooms}
                                 onUpdateStatus={onUpdateStatus}
                                 onSendWhatsApp={onSendWhatsApp}
@@ -112,7 +112,7 @@ export function DragDropAgendaDayView({
         <AppointmentDetailsModal
           appointment={selectedAppointment}
           patient={getPatient(selectedAppointment.patientId)}
-          physiotherapist={getPhysiotherapist(selectedAppointment.physiotherapistId)}
+          Professional={getProfessional(selectedAppointment.professionalId)}
           room={getRoom(selectedAppointment.roomId)}
           isOpen={showModal}
           onClose={() => {

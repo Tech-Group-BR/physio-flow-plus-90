@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarMenuSection } from "./sidebar/SidebarMenuSection";
 import {
-  physiotherapistItems,
+  professionalItems,
   adminMainItems,
   adminManagementItems,
   guardianItems
@@ -23,7 +23,7 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   
   // FIXO: Sempre usar menu do fisioterapeuta
-  const userRole = 'physiotherapist';
+  const userRole = 'Professional';
 
   useEffect(() => {
     // Buscar apenas o nome, não o role
@@ -65,7 +65,7 @@ export function AppSidebar() {
   };
 
   // SEMPRE usar itens do fisioterapeuta
-  const mainItems = physiotherapistItems;
+  const mainItems = professionalItems;
   const managementItems: any[] = [];
 
   // Labels fixos

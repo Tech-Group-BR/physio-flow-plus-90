@@ -50,7 +50,7 @@ BEGIN
   -- Buscar dados do fisioterapeuta
   SELECT * INTO physio_record
   FROM profiles 
-  WHERE id = appointment_record.physiotherapist_id;
+  WHERE id = appointment_record.professional_id;
 
   -- Buscar dados do paciente
   SELECT * INTO patient_record

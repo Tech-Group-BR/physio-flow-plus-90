@@ -47,7 +47,7 @@ serve(async (req) => {
       .select(`
         *,
         patients!inner(*),
-        profiles!appointments_physiotherapist_id_fkey(*)
+        profiles!appointments_professional_id_fkey(*)
       `)
       .eq('date', confirmationDate)
       .eq('status', 'marcado')
@@ -91,7 +91,7 @@ serve(async (req) => {
             body: {
               appointmentId: appointment.id,
               messageType: 'notification',
-              recipientType: 'physiotherapist'
+              recipientType: 'Professional'
             }
           });
         }

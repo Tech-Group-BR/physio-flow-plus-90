@@ -50,23 +50,24 @@ export interface Patient {
   updatedAt: string;
 }
 
-export interface Physiotherapist {
+export interface Professional {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone: string; 
   crefito: string;
   specialties: string[];
-  bio?: string;
+  bio?: string | null;
   isActive: boolean;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt?: string | null;
+  profile_id?: string | null;
+  profile_picture_url?: string | null;
 }
-
 export interface Appointment {
   id: string;
   patientId: string;
-  physiotherapistId: string;
+  professionalId: string;
   roomId: string;
   date: string;
   time: string;
@@ -207,7 +208,7 @@ export interface Evolution {
   id: string;
   recordId: string;
   date: string;
-  physiotherapistId: string;
+  professionalId: string;
   observations: string;
   painScale: number;
   mobilityScale: number;
@@ -233,7 +234,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'physiotherapist' | 'receptionist' | 'guardian';
+  role: 'admin' | 'Professional' | 'receptionist' | 'guardian';
   permissions: string[];
   isActive: boolean;
   createdAt: string;

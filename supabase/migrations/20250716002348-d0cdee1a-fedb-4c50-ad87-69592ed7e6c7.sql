@@ -25,4 +25,4 @@ phone = CASE
   WHEN phone IS NULL THEN '66999887766'
   ELSE phone
 END
-WHERE role = 'physiotherapist';
+WHERE role = 'Professional';

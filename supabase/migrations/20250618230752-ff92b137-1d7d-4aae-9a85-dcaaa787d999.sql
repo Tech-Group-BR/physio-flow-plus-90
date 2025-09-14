@@ -8,7 +8,7 @@ BEGIN
     
     -- Recriar o enum user_role de forma segura
     DROP TYPE IF EXISTS user_role CASCADE;
-    CREATE TYPE user_role AS ENUM ('admin', 'physiotherapist', 'guardian');
+    CREATE TYPE user_role AS ENUM ('admin', 'Professional', 'guardian');
     
     -- Recriar a tabela profiles se necessário
     DROP TABLE IF EXISTS public.profiles CASCADE;

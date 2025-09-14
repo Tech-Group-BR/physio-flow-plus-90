@@ -1,6 +1,6 @@
 
 -- Criar enum para tipos de usuário
-CREATE TYPE user_role AS ENUM ('admin', 'physiotherapist', 'guardian');
+CREATE TYPE user_role AS ENUM ('admin', 'Professional', 'guardian');
 
 -- Criar enum para gênero
 CREATE TYPE gender_type AS ENUM ('male', 'female');
@@ -74,7 +74,7 @@ CREATE TABLE public.patients (
 CREATE TABLE public.appointments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   patient_id UUID REFERENCES public.patients(id) ON DELETE CASCADE NOT NULL,
-  physiotherapist_id UUID REFERENCES public.profiles(id) NOT NULL,
+  professional_id UUID REFERENCES public.profiles(id) NOT NULL,
   room_id UUID REFERENCES public.rooms(id),
   date DATE NOT NULL,
   time TIME NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE public.evolutions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   record_id UUID REFERENCES public.medical_records(id) ON DELETE CASCADE NOT NULL,
   date DATE NOT NULL,
-  physiotherapist_id UUID REFERENCES public.profiles(id) NOT NULL,
+  professional_id UUID REFERENCES public.profiles(id) NOT NULL,
   observations TEXT NOT NULL,
   pain_scale INTEGER CHECK (pain_scale >= 0 AND pain_scale <= 10),
   mobility_scale INTEGER CHECK (mobility_scale >= 0 AND mobility_scale <= 10),
@@ -213,26 +213,26 @@ CREATE POLICY "Admins can view all profiles" ON public.profiles
 
 -- Políticas RLS para rooms (apenas admins e fisioterapeutas)
 CREATE POLICY "Physios and admins can view rooms" ON public.rooms
-  FOR SELECT USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR SELECT USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para patients
 CREATE POLICY "Physios and admins can manage patients" ON public.patients
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 CREATE POLICY "Guardians can view their patients" ON public.patients
   FOR SELECT USING (guardian_id = auth.uid());
 
 -- Políticas RLS para appointments
 CREATE POLICY "Physios and admins can manage appointments" ON public.appointments
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para medical_records
 CREATE POLICY "Physios and admins can manage medical records" ON public.medical_records
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para evolutions
 CREATE POLICY "Physios and admins can manage evolutions" ON public.evolutions
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 CREATE POLICY "Guardians can view visible evolutions" ON public.evolutions
   FOR SELECT USING (
@@ -246,7 +246,7 @@ CREATE POLICY "Guardians can view visible evolutions" ON public.evolutions
 
 -- Políticas RLS para payments
 CREATE POLICY "Physios and admins can manage payments" ON public.payments
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para accounts_payable (apenas admins)
 CREATE POLICY "Admins can manage accounts payable" ON public.accounts_payable
@@ -254,15 +254,15 @@ CREATE POLICY "Admins can manage accounts payable" ON public.accounts_payable
 
 -- Políticas RLS para accounts_receivable
 CREATE POLICY "Physios and admins can manage accounts receivable" ON public.accounts_receivable
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para leads
 CREATE POLICY "Physios and admins can manage leads" ON public.leads
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 -- Políticas RLS para guardians
 CREATE POLICY "Physios and admins can manage guardians" ON public.guardians
-  FOR ALL USING (public.get_current_user_role() IN ('admin', 'physiotherapist'));
+  FOR ALL USING (public.get_current_user_role() IN ('admin', 'Professional'));
 
 CREATE POLICY "Guardians can view their own data" ON public.guardians
   FOR SELECT USING (user_id = auth.uid());

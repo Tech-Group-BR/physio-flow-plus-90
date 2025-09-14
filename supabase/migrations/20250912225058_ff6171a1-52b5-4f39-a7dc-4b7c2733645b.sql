@@ -8,7 +8,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Inserir fisioterapeuta de teste
 INSERT INTO public.profiles (id, full_name, email, phone, role, crefito, specialties, is_active) 
-VALUES ('00000000-0000-0000-0000-000000000002', 'Dr. Maria Silva', 'maria@clinica.com', '(66) 98888-8888', 'physiotherapist', 'CREFITO-8 12345', ARRAY['Ortopedia', 'Neurologia'], true)
+VALUES ('00000000-0000-0000-0000-000000000002', 'Dr. Maria Silva', 'maria@clinica.com', '(66) 98888-8888', 'Professional', 'CREFITO-8 12345', ARRAY['Ortopedia', 'Neurologia'], true)
 ON CONFLICT (id) DO UPDATE SET 
     full_name = EXCLUDED.full_name,
     email = EXCLUDED.email,
@@ -57,7 +57,7 @@ ON CONFLICT (id) DO UPDATE SET
     status = EXCLUDED.status;
 
 -- Inserir agendamentos de teste
-INSERT INTO public.appointments (id, patient_id, physiotherapist_id, room_id, date, time, status) 
+INSERT INTO public.appointments (id, patient_id, professional_id, room_id, date, time, status) 
 VALUES 
     ('00000000-0000-0000-0000-000000000041', '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000011', CURRENT_DATE + INTERVAL '1 day', '09:00', 'marcado'),
     ('00000000-0000-0000-0000-000000000042', '00000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000012', CURRENT_DATE + INTERVAL '2 days', '14:00', 'confirmado')

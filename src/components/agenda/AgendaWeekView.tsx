@@ -8,7 +8,7 @@ interface AgendaWeekViewProps {
   weekDays: Date[];
   getAppointmentForSlot: (date: Date, time: string) => any;
   patients: any[];
-  physiotherapists: any[];
+  professionals: any[];
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
@@ -18,7 +18,7 @@ export function AgendaWeekView({
   weekDays,
   getAppointmentForSlot,
   patients,
-  physiotherapists,
+  professionals,
   rooms,
   onUpdateStatus,
   onSendWhatsApp
@@ -60,7 +60,7 @@ export function AgendaWeekView({
                         <AppointmentCard
                           appointment={appointment}
                           patients={patients}
-                          physiotherapists={physiotherapists}
+                          professionals={professionals}
                           rooms={rooms}
                           onUpdateStatus={onUpdateStatus}
                           onSendWhatsApp={onSendWhatsApp}

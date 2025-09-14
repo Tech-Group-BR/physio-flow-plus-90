@@ -153,7 +153,7 @@ serve(async (req) => {
         time,
         status,
         patient_id,
-        physiotherapist_id,
+        professional_id,
         treatment_type
       `)
       .eq('patient_id', patientData.id)
@@ -228,10 +228,10 @@ serve(async (req) => {
     }
 
     // Buscar dados do fisioterapeuta para notificação
-    const { data: physiotherapist } = await supabase
+    const { data: Professional } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', appointment.physiotherapist_id)
+      .eq('id', appointment.professional_id)
       .single();
 
     // Buscar configurações do WhatsApp para notificar fisioterapeuta
@@ -246,7 +246,7 @@ serve(async (req) => {
     let physioNotified = false;
 
     // Notificar fisioterapeuta se tiver telefone e configurações
-    if (physiotherapist?.phone && settings?.api_key) {
+    if (Professional?.phone && settings?.api_key) {
       try {
         // Formatar mensagem para fisioterapeuta
         let physioMessage = '';
@@ -270,7 +270,7 @@ serve(async (req) => {
         }
 
         // Formatar telefone da fisioterapeuta
-        const physioPhone = physiotherapist.phone.replace(/\D/g, '');
+        const physioPhone = Professional.phone.replace(/\D/g, '');
         let formattedPhysioPhone = physioPhone;
         
         if (physioPhone.length === 11 && !physioPhone.startsWith('55')) {

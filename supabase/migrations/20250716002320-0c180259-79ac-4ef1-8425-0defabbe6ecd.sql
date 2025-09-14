@@ -4,13 +4,13 @@
 -- Atualizar alguns fisioterapeutas para ter nomes que identifiquem gênero
 UPDATE profiles 
 SET full_name = 'Dr. João Silva'
-WHERE role = 'physiotherapist' 
-  AND id = (SELECT id FROM profiles WHERE role = 'physiotherapist' ORDER BY created_at LIMIT 1);
+WHERE role = 'Professional' 
+  AND id = (SELECT id FROM profiles WHERE role = 'Professional' ORDER BY created_at LIMIT 1);
 
 UPDATE profiles 
 SET full_name = 'Dra. Maria Santos'
-WHERE role = 'physiotherapist' 
-  AND id = (SELECT id FROM profiles WHERE role = 'physiotherapist' ORDER BY created_at OFFSET 1 LIMIT 1);
+WHERE role = 'Professional' 
+  AND id = (SELECT id FROM profiles WHERE role = 'Professional' ORDER BY created_at OFFSET 1 LIMIT 1);
 
 -- Garantir que têm números de telefone para receber mensagens
 UPDATE profiles 
@@ -24,7 +24,7 @@ WHERE full_name = 'Dra. Maria Santos';
 -- Criar agendamentos de teste para hoje com fisioterapeutas diferentes
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -35,7 +35,7 @@ INSERT INTO appointments (
 -- Agendamento com Dr. João (homem)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE full_name LIKE '%João%' AND role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE full_name LIKE '%João%' AND role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '16:00:00',
@@ -46,7 +46,7 @@ INSERT INTO appointments (
 -- Agendamento com Dra. Maria (mulher)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE full_name LIKE '%Maria%' AND role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE full_name LIKE '%Maria%' AND role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '17:30:00',

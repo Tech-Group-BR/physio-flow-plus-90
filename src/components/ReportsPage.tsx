@@ -13,7 +13,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from "d
 import { ptBR } from "date-fns/locale";
 
 export function ReportsPage() {
-  const { appointments, patients, payments, physiotherapists } = useClinic();
+  const { appointments, patients, payments, professionals } = useClinic();
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [selectedPhysio, setSelectedPhysio] = useState('all');
@@ -25,7 +25,7 @@ export function ReportsPage() {
     const fromDate = new Date(dateFrom);
     const toDate = new Date(dateTo);
     const withinDateRange = isWithinInterval(aptDate, { start: fromDate, end: toDate });
-    const matchesPhysio = selectedPhysio === 'all' || apt.physiotherapistId === selectedPhysio;
+    const matchesPhysio = selectedPhysio === 'all' || apt.professionalId === selectedPhysio;
     return withinDateRange && matchesPhysio;
   });
 
@@ -82,11 +82,11 @@ export function ReportsPage() {
   }).filter(p => p.revenue > 0).sort((a, b) => b.revenue - a.revenue);
 
   // Performance dos fisioterapeutas
-  const physiotherapistStats = physiotherapists.map(physio => {
-    const physioAppointments = filteredAppointments.filter(apt => apt.physiotherapistId === physio.id);
+  const professionalStats = professionals.map(physio => {
+    const physioAppointments = filteredAppointments.filter(apt => apt.professionalId === physio.id);
     const physioRevenue = filteredPayments.filter(p => {
       const appointment = appointments.find(a => a.patientId === p.patientId);
-      return appointment?.physiotherapistId === physio.id;
+      return appointment?.professionalId === physio.id;
     }).reduce((sum, p) => sum + p.amount, 0);
 
     return {
@@ -134,7 +134,7 @@ export function ReportsPage() {
       appointmentsByStatus,
       treatmentData,
       revenueByPatient: revenueByPatient.slice(0, 10),
-      physiotherapistStats,
+      professionalStats,
       monthlyData: last12Months,
       growthData
     };
@@ -216,14 +216,14 @@ export function ReportsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="physiotherapist">Fisioterapeuta</Label>
+              <Label htmlFor="Professional">Fisioterapeuta</Label>
               <Select value={selectedPhysio} onValueChange={setSelectedPhysio}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos fisioterapeutas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {physiotherapists.map((physio) => (
+                  {professionals.map((physio) => (
                     <SelectItem key={physio.id} value={physio.id}>
                       {physio.name}
                     </SelectItem>
@@ -328,7 +328,7 @@ export function ReportsPage() {
           <TabsTrigger value="financial">Financeiro</TabsTrigger>
           <TabsTrigger value="appointments">Consultas</TabsTrigger>
           <TabsTrigger value="patients">Pacientes</TabsTrigger>
-          <TabsTrigger value="physiotherapists">Fisioterapeutas</TabsTrigger>
+          <TabsTrigger value="professionals">Fisioterapeutas</TabsTrigger>
           <TabsTrigger value="growth">Crescimento</TabsTrigger>
           <TabsTrigger value="detailed">Detalhado</TabsTrigger>
         </TabsList>
@@ -510,7 +510,7 @@ export function ReportsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="physiotherapists" className="space-y-4">
+        <TabsContent value="professionals" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -518,7 +518,7 @@ export function ReportsPage() {
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => exportCSV(physiotherapistStats, 'performance-fisioterapeutas')}
+                  onClick={() => exportCSV(professionalStats, 'performance-fisioterapeutas')}
                 >
                   <Download className="h-3 w-3 mr-1" />
                   CSV
@@ -527,7 +527,7 @@ export function ReportsPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={physiotherapistStats}>
+                <BarChart data={professionalStats}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -576,7 +576,7 @@ export function ReportsPage() {
                     <li>• Taxa de confirmação: <strong>{totalAppointments > 0 ? ((confirmedAppointments / totalAppointments) * 100).toFixed(1) : 0}%</strong></li>
                     <li>• Taxa de falta: <strong>{totalAppointments > 0 ? ((missedAppointments / totalAppointments) * 100).toFixed(1) : 0}%</strong></li>
                     <li>• Pacientes ativos: <strong>{patients.filter(p => p.isActive).length}</strong></li>
-                    <li>• Fisioterapeutas: <strong>{physiotherapists.length}</strong></li>
+                    <li>• Fisioterapeutas: <strong>{professionals.length}</strong></li>
                   </ul>
                 </div>
                 

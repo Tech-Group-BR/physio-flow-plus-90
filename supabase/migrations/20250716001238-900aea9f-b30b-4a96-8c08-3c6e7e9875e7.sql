@@ -1,7 +1,7 @@
 -- Criar agendamentos de teste para hoje e amanhã para demonstrar o funcionamento do WhatsApp
 INSERT INTO appointments (
   patient_id,
-  physiotherapist_id,
+  professional_id,
   room_id,
   date,
   time,
@@ -12,7 +12,7 @@ INSERT INTO appointments (
 -- Agendamento para hoje (teste de lembrete)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE,
   '14:00:00',
@@ -23,7 +23,7 @@ INSERT INTO appointments (
 -- Agendamento para amanhã (teste de confirmação)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '09:00:00',
@@ -34,7 +34,7 @@ INSERT INTO appointments (
 -- Agendamento para amanhã (teste de confirmação 2)
 (
   (SELECT id FROM patients LIMIT 1),
-  (SELECT id FROM profiles WHERE role = 'physiotherapist' LIMIT 1),
+  (SELECT id FROM profiles WHERE role = 'Professional' LIMIT 1),
   (SELECT id FROM rooms LIMIT 1),
   CURRENT_DATE + INTERVAL '1 day',
   '15:30:00',

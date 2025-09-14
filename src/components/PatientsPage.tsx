@@ -1,54 +1,20 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Plus, Search, Edit, Trash2, Phone, Mail, FileText, DollarSign, FilePlus, MoreHorizontal, AlertTriangle } from "lucide-react";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Patient, MedicalRecord, Evolution } from "@/types";
-
-// Componentes da UI (shadcn/ui)
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-
-// Ícones
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Phone, 
-  Mail, 
-  FileText, 
-  DollarSign, 
-  FilePlus,
-  MoreHorizontal, // Novo ícone para o menu
-  AlertTriangle // Ícone para o alerta de exclusão
-} from "lucide-react";
-
-// Formulários
 import { PatientForm } from "@/components/PatientForm";
 import { MedicalRecordForm } from "@/components/MedicalRecordForm";
 import { EvolutionForm } from "@/components/EvolutionForm";
+import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+
 
 export function PatientsPage() {
   // Hooks do Contexto da Clínica
@@ -57,10 +23,12 @@ export function PatientsPage() {
     medicalRecords, 
     evolutions,
     updatePatient,
-    deletePatient, // <<< NOVA FUNÇÃO (precisa ser criada no seu contexto)
+    deletePatient, 
     addMedicalRecord, 
     addEvolution 
   } = useClinic();
+
+  const navigate = useNavigate();
 
   // Estados de Controle da UI
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,12 +36,13 @@ export function PatientsPage() {
   const [isAnamnesisFormOpen, setIsAnamnesisFormOpen] = useState(false);
   const [isEvolutionFormOpen, setIsEvolutionFormOpen] = useState(false);
   const [isConfirmInactivateOpen, setIsConfirmInactivateOpen] = useState(false);
-  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false); // <<< NOVO ESTADO
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false); 
 
   // Estados para Gerenciar Dados Selecionados
   const [selectedPatient, setSelectedPatient] = useState<Patient | undefined>();
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | undefined>();
 
+  // Filtra os pacientes com base no termo de busca
   const filteredPatients = patients.filter(patient =>
     patient.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.phone.includes(searchTerm) ||
@@ -85,18 +54,22 @@ export function PatientsPage() {
     setSelectedPatient(undefined);
     setIsPatientFormOpen(true);
   };
+
   const handleEditPatient = (patient: Patient) => {
     setSelectedPatient(patient);
     setIsPatientFormOpen(true);
   };
+  
   const handleCreateAnamnesis = (patient: Patient) => {
     setSelectedPatient(patient);
     setIsAnamnesisFormOpen(true);
   };
+  
   const handleAddEvolution = (record: MedicalRecord) => {
     setSelectedRecord(record);
     setIsEvolutionFormOpen(true);
   };
+  
   const handleOpenDeleteConfirm = (patient: Patient) => { 
     setSelectedPatient(patient);
     setIsConfirmDeleteOpen(true);
@@ -131,7 +104,7 @@ export function PatientsPage() {
     }
   };
 
-  const handleConfirmDelete = async () => { // <<< NOVA FUNÇÃO
+  const handleConfirmDelete = async () => {
     if (!selectedPatient) return;
     try {
       await deletePatient(selectedPatient.id);
@@ -165,14 +138,19 @@ export function PatientsPage() {
         {filteredPatients.map((patient) => {
           const patientRecord = medicalRecords.find(r => r.patientId === patient.id);
           const patientEvolutions = evolutions.filter(e => e.recordId === patientRecord?.id);
-          
+
           return (
             <Card key={patient.id} className="hover:shadow-lg transition-shadow duration-300">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-xl font-semibold">{patient.fullName}</h3>
+                      {/* AQUI ESTÁ A ALTERAÇÃO: use o Link para navegar */}
+                      <h3 className="text-xl font-semibold">
+                        <Link to={`/pacientes/${patient.id}`} className="cursor-pointer hover:underline">
+                          {patient.fullName}
+                        </Link>
+                      </h3>
                       
                       <Badge 
                         variant={patient.isActive ? "default" : "secondary"} 
@@ -183,9 +161,9 @@ export function PatientsPage() {
                       </Badge>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                       <div className="flex items-center space-x-2 truncate"><Phone className="h-4 w-4 flex-shrink-0" /><span>{patient.phone}</span></div>
-                       <div className="flex items-center space-x-2 truncate"><Mail className="h-4 w-4 flex-shrink-0" /><span>{patient.email || "Não informado"}</span></div>
-                       <div className="flex items-center space-x-2 truncate font-medium"><strong>Tratamento: </strong>   <span>{patient.treatmentType}</span></div>
+                      <div className="flex items-center space-x-2 truncate"><Phone className="h-4 w-4 flex-shrink-0" /><span>{patient.phone}</span></div>
+                      <div className="flex items-center space-x-2 truncate"><Mail className="h-4 w-4 flex-shrink-0" /><span>{patient.email || "Não informado"}</span></div>
+                      <div className="flex items-center space-x-2 truncate font-medium"><strong>Tratamento: </strong> <span>{patient.treatmentType}</span></div>
                     </div>
                   </div>
 
@@ -218,19 +196,17 @@ export function PatientsPage() {
                   </DropdownMenu>
                 </div>
                 
-          
                 <Accordion type="single" collapsible className="w-full mt-4">
-              
-                   <AccordionItem value="item-1">
+                  <AccordionItem value="item-1">
                     <AccordionTrigger className="font-semibold text-base">
                       <div className="flex items-center space-x-2">
                         <FileText className="h-5 w-5"/>
                         <span>Prontuário Médico</span>
-                         {patientRecord ? (
-                           <Badge variant="outline">{patientEvolutions.length} Evoluções</Badge>
-                         ) : (
-                           <Badge variant="secondary">Sem Anamnese</Badge>
-                         )}
+                        {patientRecord ? (
+                          <Badge variant="outline">{patientEvolutions.length} Evoluções</Badge>
+                        ) : (
+                          <Badge variant="secondary">Sem Anamnese</Badge>
+                        )}
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pt-4 space-y-4">
@@ -238,17 +214,16 @@ export function PatientsPage() {
                         <div>
                           <div className="flex justify-between items-center mb-4">
                             <h4 className="font-bold">Resumo da Anamnese</h4>
-                             <Button size="sm" onClick={() => handleAddEvolution(patientRecord)}>
-                                <Plus className="h-4 w-4 mr-1"/> Nova Evolução
+                            <Button size="sm" onClick={() => handleAddEvolution(patientRecord)}>
+                              <Plus className="h-4 w-4 mr-1"/> Nova Evolução
                             </Button>
                           </div>
                           <div className="p-4 border rounded-md bg-muted/50 space-y-2">
                             <p><strong>Queixa Principal:</strong> {patientRecord.anamnesis.chiefComplaint}</p>
-                             <p className="text-sm text-muted-foreground">
-                               <strong>Histórico:</strong> {patientRecord.anamnesis.historyOfPresentIllness}
-                             </p>
+                            <p className="text-sm text-muted-foreground">
+                              <strong>Histórico:</strong> {patientRecord.anamnesis.historyOfPresentIllness}
+                            </p>
                           </div>
-
                           <h4 className="font-bold mt-4 mb-2">Últimas Evoluções</h4>
                           {patientEvolutions.length > 0 ? (
                             <div className="max-h-72 overflow-y-auto space-y-3 pr-4">
@@ -262,7 +237,7 @@ export function PatientsPage() {
                               ))}
                             </div>
                           ) : (
-                             <p className="text-sm text-muted-foreground">Nenhuma evolução registrada.</p>
+                            <p className="text-sm text-muted-foreground">Nenhuma evolução registrada.</p>
                           )}
                         </div>
                       ) : (
@@ -278,16 +253,14 @@ export function PatientsPage() {
                 </Accordion>
               </CardContent>
             </Card>
-          )
+          );
         })}
         {filteredPatients.length === 0 && (
           <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">{searchTerm ? "Nenhum paciente encontrado." : "Nenhum paciente cadastrado."}</p></CardContent></Card>
         )}
       </div>
       
-  
-
-      {/* Modal de Inativação */}
+      {/* Modais (Diálogos) */}
       <Dialog open={isConfirmInactivateOpen} onOpenChange={setIsConfirmInactivateOpen}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Confirmar Inativação</DialogTitle><DialogDescription>Tem certeza que deseja inativar o paciente <strong>{selectedPatient?.fullName}</strong>? Ele não aparecerá em novos agendamentos, mas seu histórico será mantido.</DialogDescription></DialogHeader>
@@ -295,7 +268,6 @@ export function PatientsPage() {
         </DialogContent>
       </Dialog>
       
-      {/* // <<< NOVO MODAL: Confirmação de Exclusão Permanente */}
       <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -319,9 +291,33 @@ export function PatientsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isPatientFormOpen} onOpenChange={setIsPatientFormOpen}><DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{selectedPatient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle><DialogDescription>{selectedPatient ? 'Altere os dados do paciente.' : 'Preencha os dados para cadastrar um novo paciente.'}</DialogDescription></DialogHeader><PatientForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/></DialogContent></Dialog>
-      <Dialog open={isAnamnesisFormOpen} onOpenChange={setIsAnamnesisFormOpen}><DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nova Anamnese para: {selectedPatient?.fullName}</DialogTitle><DialogDescription>Preencha as informações do prontuário inicial do paciente.</DialogDescription></DialogHeader>{selectedPatient && (<MedicalRecordForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}</DialogContent></Dialog>
-      <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}><DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nova Evolução</DialogTitle><DialogDescription>Registre a evolução do tratamento para o paciente.</DialogDescription></DialogHeader>{selectedRecord && (<EvolutionForm record={selectedRecord} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}</DialogContent></Dialog>
+      <Dialog open={isPatientFormOpen} onOpenChange={setIsPatientFormOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedPatient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
+            <DialogDescription>{selectedPatient ? 'Altere os dados do paciente.' : 'Preencha os dados para cadastrar um novo paciente.'}</DialogDescription>
+          </DialogHeader>
+          <PatientForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isAnamnesisFormOpen} onOpenChange={setIsAnamnesisFormOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova Anamnese para: {selectedPatient?.fullName}</DialogTitle>
+            <DialogDescription>Preencha as informações do prontuário inicial do paciente.</DialogDescription>
+          </DialogHeader>
+          {selectedPatient && (<MedicalRecordForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova Evolução</DialogTitle>
+            <DialogDescription>Registre a evolução do tratamento para o paciente.</DialogDescription>
+          </DialogHeader>
+          {selectedRecord && (<EvolutionForm record={selectedRecord} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

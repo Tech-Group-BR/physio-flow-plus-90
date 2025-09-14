@@ -10,7 +10,7 @@ import { Clock, MapPin, User } from "lucide-react";
 interface AppointmentCardProps {
   appointment: any;
   patients: any[];
-  physiotherapists: any[];
+  professionals: any[];
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
@@ -21,7 +21,7 @@ interface AppointmentCardProps {
 export function AppointmentCard({
   appointment,
   patients,
-  physiotherapists,
+  professionals,
   rooms,
   onUpdateStatus,
   onSendWhatsApp,
@@ -29,7 +29,7 @@ export function AppointmentCard({
   onClick
 }: AppointmentCardProps) {
   const patient = patients.find(p => p.id === appointment.patientId);
-  const physiotherapist = physiotherapists.find(p => p.id === appointment.physiotherapistId);
+  const Professional = professionals.find(p => p.id === appointment.professionalId);
   const room = rooms.find(r => r.id === appointment.roomId);
 
   if (variant === 'compact') {
@@ -43,7 +43,7 @@ export function AppointmentCard({
             {patient?.fullName || 'Paciente'}
           </Badge>
           <div className="text-xs text-gray-600 truncate">
-            {physiotherapist?.name}
+            {Professional?.name}
           </div>
           {room && (
             <div className="text-xs text-gray-500 truncate">
@@ -76,7 +76,7 @@ export function AppointmentCard({
 
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Clock className="h-4 w-4 text-gray-400" />
-              <span>{physiotherapist?.name || 'Fisioterapeuta não encontrado'}</span>
+              <span>{Professional?.name || 'Fisioterapeuta não encontrado'}</span>
             </div>
 
             {room && (

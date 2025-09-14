@@ -36,7 +36,7 @@ CREATE POLICY "Admins can manage WhatsApp settings" ON public.whatsapp_settings 
 CREATE POLICY "Service role can access whatsapp_settings" ON public.whatsapp_settings FOR ALL TO service_role USING (true);
 
 CREATE POLICY "Staff can view WhatsApp logs" ON public.whatsapp_logs FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'physiotherapist'))
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'Professional'))
 );
 
 CREATE POLICY "Service role can manage whatsapp_logs" ON public.whatsapp_logs FOR ALL TO service_role USING (true);
