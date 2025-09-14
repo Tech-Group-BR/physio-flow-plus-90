@@ -55,6 +55,7 @@ export function PatientsPage() {
   const { 
     patients, 
     medicalRecords, 
+    evolutions,
     updatePatient,
     deletePatient, // <<< NOVA FUNÇÃO (precisa ser criada no seu contexto)
     addMedicalRecord, 
@@ -163,6 +164,8 @@ export function PatientsPage() {
       <div className="grid gap-6">
         {filteredPatients.map((patient) => {
           const patientRecord = medicalRecords.find(r => r.patientId === patient.id);
+          const patientEvolutions = evolutions.filter(e => e.recordId === patientRecord?.id);
+          
           return (
             <Card key={patient.id} className="hover:shadow-lg transition-shadow duration-300">
               <CardContent className="p-6">
@@ -170,7 +173,7 @@ export function PatientsPage() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-xl font-semibold">{patient.fullName}</h3>
-                      {/* // <<< ALTERAÇÃO AQUI: Badge agora é clicável */}
+                      
                       <Badge 
                         variant={patient.isActive ? "default" : "secondary"} 
                         onClick={() => handleToggleStatus(patient)}
@@ -182,11 +185,10 @@ export function PatientsPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm text-muted-foreground">
                        <div className="flex items-center space-x-2 truncate"><Phone className="h-4 w-4 flex-shrink-0" /><span>{patient.phone}</span></div>
                        <div className="flex items-center space-x-2 truncate"><Mail className="h-4 w-4 flex-shrink-0" /><span>{patient.email || "Não informado"}</span></div>
-                       <div className="flex items-center space-x-2 truncate font-medium"><strong>Tratamento:</strong> {patient.treatmentType}</div>
+                       <div className="flex items-center space-x-2 truncate font-medium"><strong>Tratamento: </strong>   <span>{patient.treatmentType}</span></div>
                     </div>
                   </div>
 
-                  {/* // <<< ALTERAÇÃO AQUI: Novo DropdownMenu de Ações */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
@@ -216,16 +218,16 @@ export function PatientsPage() {
                   </DropdownMenu>
                 </div>
                 
-                {/* Seção do Prontuário (sem alterações) */}
+          
                 <Accordion type="single" collapsible className="w-full mt-4">
-                  {/* ... (o conteúdo do Accordion continua exatamente o mesmo de antes) ... */}
+              
                    <AccordionItem value="item-1">
                     <AccordionTrigger className="font-semibold text-base">
                       <div className="flex items-center space-x-2">
                         <FileText className="h-5 w-5"/>
                         <span>Prontuário Médico</span>
                          {patientRecord ? (
-                           <Badge variant="outline">{patientRecord.evolutions.length} Evoluções</Badge>
+                           <Badge variant="outline">{patientEvolutions.length} Evoluções</Badge>
                          ) : (
                            <Badge variant="secondary">Sem Anamnese</Badge>
                          )}
@@ -248,9 +250,9 @@ export function PatientsPage() {
                           </div>
 
                           <h4 className="font-bold mt-4 mb-2">Últimas Evoluções</h4>
-                          {patientRecord.evolutions.length > 0 ? (
-                            <div className="space-y-3">
-                              {patientRecord.evolutions.slice(-3).reverse().map((evo: Evolution) => (
+                          {patientEvolutions.length > 0 ? (
+                            <div className="max-h-72 overflow-y-auto space-y-3 pr-4">
+                              {patientEvolutions.reverse().map((evo: Evolution) => (
                                 <div key={evo.id} className="border-l-2 border-primary pl-4">
                                   <p className="text-xs text-muted-foreground mb-1">
                                     {new Date(evo.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -283,7 +285,7 @@ export function PatientsPage() {
         )}
       </div>
       
-      {/* Modais (a maioria sem alteração, exceto pelo nome e um novo modal adicionado) */}
+  
 
       {/* Modal de Inativação */}
       <Dialog open={isConfirmInactivateOpen} onOpenChange={setIsConfirmInactivateOpen}>
