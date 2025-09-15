@@ -24,6 +24,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { Database } from '@/integrations/supabase/types';
 import { useMemo, useState } from "react";
 import { AccountsPayableForm } from "./AccountsPayableForm";
 import { AccountsReceivableForm } from "./AccountsReceivableForm";
@@ -138,18 +139,17 @@ export function FinancialPage() {
     setShowPayableForm(false);
     setShowReceivableForm(false);
   };
-
-  const handleMarkReceivableAsPaid = async (
-    id: string,
-    method: "dinheiro" | "cartao" | "pix" | "transferencia",
-  ) => {
-    try {
-      await markReceivableAsPaid(id, method);
-    } catch (error) {
-      console.error("Erro ao marcar como recebido:", error);
-      alert("Erro ao marcar como recebido: " + (error as Error).message);
-    }
-  };
+const handleMarkReceivableAsPaid = async (
+  id: string,
+  method: Database['public']['Enums']['payment_method_enum'],
+) => {
+  try {
+    await markReceivableAsPaid(id, method);
+  } catch (error) {
+    console.error("Erro ao marcar como recebido:", error);
+    alert("Erro ao marcar como recebido: " + (error as Error).message);
+  }
+};
 
   const handleMarkPayableAsPaid = async (id: string) => {
     try {

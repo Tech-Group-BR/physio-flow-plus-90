@@ -277,7 +277,7 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
             <div className="space-y-2"><Label htmlFor="payment-method">Método de Pagamento *</Label>
             <Select onValueChange={setPaymentMethod} value={paymentMethod}><SelectTrigger>
               <SelectValue placeholder="Selecione o método" /></SelectTrigger><SelectContent>
-                <SelectItem value="PIX">PIX</SelectItem>
+                <SelectItem value="pix">pix</SelectItem>
                 <SelectItem value="credit_card">Cartão de Crédito</SelectItem><SelectItem value="debit_card">Cartão de Débito</SelectItem><SelectItem value="cash">Dinheiro</SelectItem></SelectContent></Select></div>
             <div className="text-lg font-bold">Valor: R$ {selectedPackageToSell?.price.toFixed(2)}</div>
           </div>

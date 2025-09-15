@@ -201,7 +201,7 @@ interface ClinicContextType {
   updateLead: (lead: MainLead) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
-  markReceivableAsPaid: (id: string, method: 'dinheiro' | 'cartao' | 'pix' | 'transferencia') => Promise<void>;
+ markReceivableAsPaid: (id: string, method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
   markPayableAsPaid: (id: string) => Promise<void>;
 }
 
@@ -1204,15 +1204,20 @@ const deleteAccountsReceivable = async (id: string) => {
   };
 
 
-const markReceivableAsPaid = async (id: string, method: 'dinheiro' | 'cartao' | 'pix' | 'transferencia') => {
+
+const markReceivableAsPaid = async (id: string, method: Database['public']['Enums']['payment_method_enum']) => {
   const originalState = [...accountsReceivable];
   const receivedDate = new Date().toISOString();
   
-  // 1. Atualiza a UI otimistamente
   setAccountsReceivable(current =>
     current.map(acc => 
       acc.id === id 
-        ? { ...acc, status: 'recebido', receivedDate: receivedDate, method: method } 
+        ? { 
+            ...acc, 
+            status: 'recebido', 
+            receivedDate: receivedDate, 
+            method: method 
+          } as MainAccountsReceivable 
         : acc
     )
   );

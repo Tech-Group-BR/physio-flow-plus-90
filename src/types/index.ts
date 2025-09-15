@@ -1,3 +1,5 @@
+import { Database } from '@/integrations/supabase/types';
+
 
 export interface Address {
   street: string;
@@ -118,13 +120,15 @@ export interface AccountsReceivable {
   dueDate: string;
   receivedDate?: string;
   status: 'pendente' | 'recebido' | 'vencido' | 'cancelado';
-  method?: 'dinheiro' | 'cartao' | 'pix' | 'transferencia';
+  method?: Database['public']['Enums']['payment_method_enum'];
   notes?: string;
   createdAt: string;
   updatedAt?: string;
   appointment_id?: string;
 
 }
+
+
 
 export interface Lead {
   id: string;
@@ -256,6 +260,20 @@ export interface DashboardStats {
   accountsPayableTotal: number;
   accountsReceivableTotal: number;
 }
+
+export interface SessionPackage {
+  id: string;
+  name: string;
+  description?: string;
+  sessions: number;
+  price: number;
+  validity_days: number;
+  treatment_type?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface FinancialReport {
   period: string;

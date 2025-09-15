@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Database } from '@/integrations/supabase/types';
+
 
 // Tipos para os dados que vamos buscar
 interface Patient { id: string; full_name: string; }
@@ -60,7 +62,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     fetchInitialData();
   }, []);
 
-  // EFEITO "INTELIGENTE": Roda sempre que um novo paciente é selecionado
+  
   useEffect(() => {
     if (!selectedPatientId) {
       setPatientPackages([]);
@@ -90,11 +92,9 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           .filter(p => p.sessions_remaining > 0);
 
         setPatientPackages(formattedPackages);
-        // Se o paciente tiver pacotes, a opção "Usar Pacote" se torna o padrão
         if (formattedPackages.length > 0) {
           setAppointmentType('package');
         } else {
-          // Se não, "Nova Consulta" é o padrão
           setAppointmentType('standard');
         }
       }
@@ -133,7 +133,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
       }
       rpcParams.p_patient_package_id = formData.selectedPackageId;
       rpcParams.p_appointment_type = 'Sessão de Pacote';
-      rpcParams.p_price = null; // Garante que não haverá cobrança
+      rpcParams.p_price = null;
     } else if (appointmentType === 'standard') {
       rpcParams.p_appointment_type = 'Consulta';
       rpcParams.p_price = 180;
@@ -148,12 +148,11 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     }
     
     try {
-      // Chama a ÚNICA função, que sabe lidar com todos os casos
       const { error: rpcError } = await supabase.rpc('create_appointment', rpcParams);
       if (rpcError) throw rpcError;
       
       toast.success("Agendamento criado com sucesso!");
-      onSave(); // Avisa a página pai (AgendaPage) que o formulário foi salvo
+      onSave();
 
     } catch (err: any) {
       toast.error(err.message || "Ocorreu um erro ao salvar.");
@@ -164,7 +163,6 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
 
   return (
     <div className="space-y-6 p-4 border rounded-lg bg-slate-50">
-      {/* SELETOR DE PACIENTE - SEMPRE VISÍVEL */}
       <div className="space-y-2">
         <Label htmlFor="patient">Paciente *</Label>
         <Select onValueChange={setSelectedPatientId} value={selectedPatientId}>
@@ -173,13 +171,11 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
         </Select>
       </div>
 
-      {/* O RESTO DO FORMULÁRIO SÓ APARECE DEPOIS DE SELECIONAR UM PACIENTE */}
       {selectedPatientId && (
         <>
           <div className="space-y-2">
             <Label>Tipo de Agendamento *</Label>
             <RadioGroup value={appointmentType} onValueChange={setAppointmentType} className="flex flex-col sm:flex-row gap-4 pt-2">
-              {/* Opção de pacote só aparece se o paciente tiver pacotes ativos */}
               {patientPackages.length > 0 && (
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="package" id="r1" />
@@ -197,7 +193,6 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
             </RadioGroup>
           </div>
 
-          {/* CAMPOS DINÂMICOS */}
           {appointmentType === 'package' && (
             <div className="space-y-2 animate-in fade-in-50">
               <Label htmlFor="package">Pacote Disponível *</Label>
@@ -222,7 +217,6 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           
           <hr/>
           
-          {/* CAMPOS COMUNS */}
           <div className="space-y-2">
             <Label htmlFor="professional">Profissional *</Label>
             <Select onValueChange={(value) => handleChange('professionalId', value)} value={formData.professionalId}>

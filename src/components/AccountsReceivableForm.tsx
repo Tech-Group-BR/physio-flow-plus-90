@@ -29,7 +29,7 @@ export function AccountsReceivableForm({ onSave, onCancel }: AccountsReceivableF
   const paymentMethods = [
     { value: 'dinheiro', label: 'Dinheiro' },
     { value: 'cartao', label: 'Cartão' },
-    { value: 'pix', label: 'PIX' },
+    { value: 'pix', label: 'pix' },
     { value: 'transferencia', label: 'Transferência' }
   ];
 

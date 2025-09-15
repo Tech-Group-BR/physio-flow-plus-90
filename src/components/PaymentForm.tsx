@@ -28,7 +28,7 @@ export function PaymentForm({ onSave, onCancel }: PaymentFormProps) {
 
   const paymentMethods = [
     { value: 'dinheiro', label: 'Dinheiro' },
-    { value: 'pix', label: 'PIX' },
+    { value: 'pix', label: 'pix' },
     { value: 'cartao', label: 'Cartão' },
     { value: 'transferencia', label: 'Transferência' }
   ];
