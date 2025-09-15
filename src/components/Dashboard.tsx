@@ -70,6 +70,7 @@ export function Dashboard() {
   const newLeadsThisWeek = leads
     .filter(l => isThisWeek(new Date(l.createdAt)))
     .slice(0, 3);
+  
 
   // Usar estatísticas calculadas ou valores padrão
   const stats = dashboardStats || {
