@@ -11,6 +11,8 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Plus, Package, DollarSign, Calendar, Users, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/lib/supabaseClient";
+import { format, addDays } from "date-fns";
+import { AppointmentForm } from "./AppointmentForm";
 
 
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
@@ -78,28 +80,28 @@ export function PackagesPage() {
     fetchData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const packageData = {
-      name: formData.name,
-      description: formData.description,
-      sessions: parseInt(formData.sessions),
-      price: parseFloat(formData.price),
-      validity_days: parseInt(formData.validity_days),
-      treatment_type: formData.treatment_type,
-    };
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   const packageData = {
+  //     name: formData.name,
+  //     description: formData.description,
+  //     sessions: parseInt(formData.sessions),
+  //     price: parseFloat(formData.price),
+  //     validity_days: parseInt(formData.validity_days),
+  //     treatment_type: formData.treatment_type,
+  //   };
 
-    const { error } = editingPackage
-      ? await supabase.from('session_packages').update(packageData).eq('id', editingPackage.id)
-      : await supabase.from('session_packages').insert(packageData);
+  //   const { error } = editingPackage
+  //     ? await supabase.from('session_packages').update(packageData).eq('id', editingPackage.id)
+  //     : await supabase.from('session_packages').insert(packageData);
 
-    if (error) {
-      console.error("Erro ao salvar pacote:", error);
-    } else {
-      handleCancel();
-      fetchData();
-    }
-  };
+  //   if (error) {
+  //     console.error("Erro ao salvar pacote:", error);
+  //   } else {
+  //     handleCancel();
+  //     fetchData();
+  //   }
+  // };
 
   const deletePackage = async (packageId: string) => {
     if (window.confirm("Tem certeza que deseja apagar este modelo de pacote?")) {
@@ -107,6 +109,10 @@ export function PackagesPage() {
       if (error) console.error("Erro ao deletar pacote:", error);
       else fetchData();
     }
+  };
+
+  const handleSave = () => {
+    setShowForm(false);
   };
 
   // ADIÇÃO: Função para ativar/desativar pacotes
@@ -241,31 +247,42 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
     return <div className="p-4">Carregando dados...</div>;
   }
 
-  if (showForm) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Pacote' : 'Novo Pacote'}</h1>
+  // if (showForm) {
+  //   return (
+  //     <div className="space-y-6">
+  //       <div className="flex items-center justify-between">
+  //         <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Pacote' : 'Novo Pacote'}</h1>
+  //       </div>
+  //       <form onSubmit={handleSubmit} className="space-y-6">
+  //         <Card>
+  //           <CardHeader><CardTitle>Dados do Pacote</CardTitle></CardHeader>
+  //           <CardContent className="space-y-4">
+  //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  //               <div><Label htmlFor="name">Nome do Pacote *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
+  //               <div><Label htmlFor="treatmentType">Tipo de Tratamento *</Label><Select value={formData.treatment_type} onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{treatmentTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select></div>
+  //               <div><Label htmlFor="sessions">Número de Sessões *</Label><Input id="sessions" type="number" value={formData.sessions} onChange={(e) => setFormData({ ...formData, sessions: e.target.value })} required /></div>
+  //               <div><Label htmlFor="price">Preço Total *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
+  //               <div><Label htmlFor="validityDays">Validade (dias) *</Label><Input id="validityDays" type="number" value={formData.validity_days} onChange={(e) => setFormData({ ...formData, validity_days: e.target.value })} required /></div>
+  //             </div>
+  //             <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
+  //           </CardContent>
+  //         </Card>
+  //         <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button><Button type="submit">{editingPackage ? 'Atualizar' : 'Criar'} Pacote</Button></div>
+  //       </form>
+  //     </div>
+  //   );
+  // }
+
+    if (showForm) {
+      return (
+        <div className="space-y-4 lg:space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Novo Agendamento</h1>
+          </div>
+          <AppointmentForm onSave={handleSave} onCancel={handleCancel} />
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle>Dados do Pacote</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="name">Nome do Pacote *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
-                <div><Label htmlFor="treatmentType">Tipo de Tratamento *</Label><Select value={formData.treatment_type} onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{treatmentTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select></div>
-                <div><Label htmlFor="sessions">Número de Sessões *</Label><Input id="sessions" type="number" value={formData.sessions} onChange={(e) => setFormData({ ...formData, sessions: e.target.value })} required /></div>
-                <div><Label htmlFor="price">Preço Total *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
-                <div><Label htmlFor="validityDays">Validade (dias) *</Label><Input id="validityDays" type="number" value={formData.validity_days} onChange={(e) => setFormData({ ...formData, validity_days: e.target.value })} required /></div>
-              </div>
-              <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
-            </CardContent>
-          </Card>
-          <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button><Button type="submit">{editingPackage ? 'Atualizar' : 'Criar'} Pacote</Button></div>
-        </form>
-      </div>
-    );
-  }
+      );
+    }
 
   return (
     <>
@@ -359,7 +376,7 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                               </div>
                             </div>
                             <div className="flex w-full sm:w-auto">
-                              <Button size="sm" variant="outline" className="w-full" onClick={() => handleSchedule(p_pkg.patient_id, p_pkg.id)} disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}>
+                              <Button size="sm" variant="outline" className="w-full"  onClick={() => setShowForm(true)} disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}>
                                 <Calendar className="h-4 w-4 mr-1" /> Agendar
                               </Button>
                             </div>
