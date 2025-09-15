@@ -12,6 +12,7 @@ import { Plus, Package, DollarSign, Calendar, Users, Edit, Trash2 } from "lucide
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/lib/supabaseClient";
 
+
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
 interface SessionPackage {
   id: string;
@@ -40,7 +41,7 @@ export function PackagesPage() {
   const { patients } = useClinic();
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState("packages");
-  
+
   const [packages, setPackages] = useState<SessionPackage[]>([]);
   const [patientPackages, setPatientPackages] = useState<PatientPackage[]>([]);
 
@@ -48,6 +49,7 @@ export function PackagesPage() {
   const [editingPackage, setEditingPackage] = useState<SessionPackage | undefined>();
   // CORREÇÃO: Estado do formulário padronizado para snake_case
   const [formData, setFormData] = useState({ name: '', description: '', sessions: '', price: '', validity_days: '', treatment_type: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showSellModal, setShowSellModal] = useState(false);
   const [selectedPackageToSell, setSelectedPackageToSell] = useState<SessionPackage | null>(null);
@@ -113,13 +115,15 @@ export function PackagesPage() {
     if (error) console.error(`Erro ao ${newStatus ? 'ativar' : 'desativar'} pacote:`, error);
     else fetchData();
   };
+const handleConfirmSale = async () => {
+  if (!selectedPackageToSell || !selectedPatientId || !paymentMethod) {
+    alert("Por favor, selecione o paciente e o método de pagamento.");
+    return;
+  }
 
-  const handleConfirmSale = async () => {
-    if (!selectedPackageToSell || !selectedPatientId || !paymentMethod) {
-      alert("Por favor, selecione o paciente e o método de pagamento.");
-      return;
-    }
-    
+  setIsSubmitting(true); // Desabilita o botão para evitar cliques duplos
+
+  try {
     const { error } = await supabase.rpc('sell_package', {
       p_package_id: selectedPackageToSell.id,
       p_patient_id: selectedPatientId,
@@ -127,16 +131,28 @@ export function PackagesPage() {
     });
 
     if (error) {
-      console.error("Erro ao vender pacote:", error);
-      alert("Ocorreu um erro ao registrar a venda.");
-    } else {
-      alert("Pacote vendido com sucesso!");
-      setShowSellModal(false);
-      setSelectedPatientId('');
-      setPaymentMethod('');
-      fetchData();
+      // O 'throw' vai pular para o bloco 'catch'
+      throw error;
     }
-  };
+
+    // MUDANÇA: Mensagem de sucesso mais precisa
+    alert("Venda registrada com sucesso! Uma pendência financeira foi criada para o paciente.");
+    
+    // Limpa e fecha o modal
+    setShowSellModal(false);
+    setSelectedPatientId('');
+    setPaymentMethod('');
+    
+    // Atualiza os dados na tela
+    fetchData();
+
+  } catch (error) {
+    console.error("Erro ao vender pacote:", error);
+    alert("Ocorreu um erro ao registrar a venda. Verifique o console para mais detalhes.");
+  } finally {
+    setIsSubmitting(false); // Reabilita o botão no final
+  }
+}
 
   // CORREÇÃO: handleEdit agora usa snake_case para preencher o formulário
   const handleEdit = (pkg: SessionPackage) => {
@@ -157,7 +173,7 @@ export function PackagesPage() {
     setEditingPackage(undefined);
     setFormData({ name: '', description: '', sessions: '', price: '', validity_days: '', treatment_type: '' });
   };
-  
+
   const handleSchedule = (patientId: string, patientPackageId: string) => {
     navigate(`/agendamentos/novo?pacienteId=${patientId}&pacoteId=${patientPackageId}`);
   };
@@ -172,7 +188,7 @@ export function PackagesPage() {
   if (isLoading) {
     return <div className="p-4">Carregando dados...</div>;
   }
-  
+
   if (showForm) {
     return (
       <div className="space-y-6">
@@ -206,7 +222,11 @@ export function PackagesPage() {
           <DialogHeader><DialogTitle>Vender Pacote: {selectedPackageToSell?.name}</DialogTitle><DialogDescription>Selecione o paciente e confirme os detalhes da venda.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label htmlFor="patient">Paciente *</Label><Select onValueChange={setSelectedPatientId} value={selectedPatientId}><SelectTrigger><SelectValue placeholder="Selecione um paciente" /></SelectTrigger><SelectContent>{patients.map(p => (<SelectItem key={p.id} value={p.id}>{p.fullName}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label htmlFor="payment-method">Método de Pagamento *</Label><Select onValueChange={setPaymentMethod} value={paymentMethod}><SelectTrigger><SelectValue placeholder="Selecione o método" /></SelectTrigger><SelectContent><SelectItem value="pix">PIX</SelectItem><SelectItem value="credit_card">Cartão de Crédito</SelectItem><SelectItem value="debit_card">Cartão de Débito</SelectItem><SelectItem value="cash">Dinheiro</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label htmlFor="payment-method">Método de Pagamento *</Label>
+            <Select onValueChange={setPaymentMethod} value={paymentMethod}><SelectTrigger>
+              <SelectValue placeholder="Selecione o método" /></SelectTrigger><SelectContent>
+                <SelectItem value="PIX">PIX</SelectItem>
+                <SelectItem value="credit_card">Cartão de Crédito</SelectItem><SelectItem value="debit_card">Cartão de Débito</SelectItem><SelectItem value="cash">Dinheiro</SelectItem></SelectContent></Select></div>
             <div className="text-lg font-bold">Valor: R$ {selectedPackageToSell?.price.toFixed(2)}</div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setShowSellModal(false)}>Cancelar</Button><Button onClick={handleConfirmSale} disabled={!selectedPatientId || !paymentMethod}>Confirmar Venda</Button></DialogFooter>
@@ -272,8 +292,8 @@ export function PackagesPage() {
                       const remainingSessions = pkg ? pkg.sessions - p_pkg.sessions_used : 0;
                       return (
                         <div key={p_pkg.id} className="border rounded p-4">
-                           {/* PREENCHIMENTO: Conteúdo do Card de Pacote do Paciente */}
-                           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          {/* PREENCHIMENTO: Conteúdo do Card de Pacote do Paciente */}
+                          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex-1">
                               <div className="flex flex-col items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
                                 <div className="flex items-center space-x-3"><Users className="h-5 w-5" /><h3 className="font-semibold">{patient?.fullName || 'Paciente não encontrado'}</h3></div>
