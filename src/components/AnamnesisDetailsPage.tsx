@@ -6,33 +6,47 @@ import { Evolution } from '@/types';
 import { ArrowLeft, FilePlus, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClinic } from '@/contexts/ClinicContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { EvolutionForm } from './EvolutionForm';
 
 export function AnamnesisDetailsPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
-  const { medicalRecords, evolutions, fetchMedicalRecords, patients } = useClinic();
+  const { medicalRecords, evolutions, fetchMedicalRecords, patients, addEvolution } = useClinic();
+
+  // >>> NOVOS ESTADOS PARA O MODAL DE EVOLUÇÃO
+  const [isEvolutionFormOpen, setIsEvolutionFormOpen] = useState(false);
+  const [selectedRecordForEvolution, setSelectedRecordForEvolution] = useState<any | undefined>();
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Encontra o paciente e seu prontuário com base no ID da URL
   const patient = patients.find(p => p.id === patientId);
   const medicalRecord = medicalRecords.find(r => r.patientId === patientId);
   
-  // Filtra as evoluções para o prontuário encontrado
   const patientEvolutions = evolutions
     .filter(e => e.recordId === medicalRecord?.id)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   useEffect(() => {
-   
     if (!medicalRecord) {
-   
       fetchMedicalRecords().then(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
   }, [patientId, medicalRecord, fetchMedicalRecords]);
 
+  // >>> NOVO HANDLER PARA ABRIR O MODAL
+  const handleAddEvolution = (record: any) => {
+    setSelectedRecordForEvolution(record);
+    setIsEvolutionFormOpen(true);
+  };
+  
+  // >>> HANDLER PARA FECHAR O MODAL
+  const handleCloseEvolutionForm = () => {
+    setIsEvolutionFormOpen(false);
+    setSelectedRecordForEvolution(undefined);
+  };
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -41,7 +55,6 @@ export function AnamnesisDetailsPage() {
     );
   }
 
-  // Se o paciente ou o prontuário não for encontrado, exibe uma mensagem de erro
   if (!patient || !medicalRecord) {
     return (
       <div className="text-center p-8">
@@ -71,8 +84,7 @@ export function AnamnesisDetailsPage() {
           <p><strong>Queixa Principal:</strong> {medicalRecord.anamnesis.chiefComplaint}</p>
           <p><strong>Histórico Médico:</strong> {medicalRecord.anamnesis.pastMedicalHistory}</p>
           <p><strong>Histórico de doenças:</strong> {medicalRecord.anamnesis.historyOfPresentIllness}</p>
-            <p><strong>Alergias:</strong> {medicalRecord.anamnesis.allergies}</p>
-    
+          <p><strong>Alergias:</strong> {medicalRecord.anamnesis.allergies}</p>
         </CardContent>
       </Card>
       
@@ -80,7 +92,7 @@ export function AnamnesisDetailsPage() {
       <Card>
         <CardHeader className="flex flex-row justify-between items-center">
           <CardTitle>Evoluções ({patientEvolutions.length})</CardTitle>
-          <Button size="sm" onClick={() => navigate(`/prontuario/nova-evolucao/${medicalRecord.id}`)}>
+          <Button size="sm" onClick={() => handleAddEvolution(medicalRecord)}>
              <FilePlus className="h-4 w-4 mr-1"/> Nova Evolução
           </Button>
         </CardHeader>
@@ -104,6 +116,26 @@ export function AnamnesisDetailsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* >>> NOVO MODAL PARA ADICIONAR EVOLUÇÃO <<< */}
+      <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova Evolução para: {patient.fullName}</DialogTitle>
+            <DialogDescription>
+              Registre a evolução do tratamento para o paciente.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRecordForEvolution && (
+            <EvolutionForm 
+              record={selectedRecordForEvolution} 
+              onSave={handleCloseEvolutionForm} 
+              onCancel={handleCloseEvolutionForm} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
