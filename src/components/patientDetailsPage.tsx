@@ -7,6 +7,7 @@ import { ArrowLeft, Phone, Mail, FileText } from "lucide-react";
 import { Patient, MedicalRecord, Evolution } from "@/types";
 import { useClinic } from '@/contexts/ClinicContext';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -113,10 +114,14 @@ export function PatientDetailsPage() {
                 <h4 className="font-semibold text-lg">Evoluções ({patientEvolutions.length})</h4>
                 <div className="mt-2 space-y-4 max-h-96 overflow-y-auto">
                   {patientEvolutions.map((evo) => (
-                    <div key={evo.id} className="border-l-4 border-primary pl-4">
-                      <p className="text-sm text-muted-foreground mb-1">{format(new Date(evo.date), 'dd/MM/yyyy')}</p>
-                      <p className="text-sm">{evo.observations}</p>
-                    </div>
+                         <Link to={`/prontuarios/evolucao/${evo.id}`} key={evo.id}>
+          <div 
+            className="border-l-4 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200"
+          >
+            <p className="text-sm text-muted-foreground mb-1">{format(new Date(evo.date), 'dd/MM/yyyy')}</p>
+            <p className="text-sm">{evo.observations}</p>
+          </div>
+        </Link>
                   ))}
                 </div>
               </div>

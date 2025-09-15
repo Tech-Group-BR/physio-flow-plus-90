@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +8,21 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Plus, Search, FileText, User, Calendar } from "lucide-react";
 import { MedicalRecordForm } from "./MedicalRecordForm";
 import { EvolutionForm } from "./EvolutionForm";
-import { Patient, MedicalRecord } from "@/types";
+import { Patient, MedicalRecord, Evolution } from "@/types";
+import { EvolutionDetailsPage } from "./EvolutionDetailsPage";
 
 export function MedicalRecordsPage() {
-  const { patients, medicalRecords, addMedicalRecord, addEvolution } = useClinic();
+  const { patients, medicalRecords } = useClinic();
+
   const [showForm, setShowForm] = useState(false);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | undefined>();
   const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // >>> NOVOS ESTADOS PARA DETALHES DA EVOLUÇÃO
+  const [viewingEvolutionDetails, setViewingEvolutionDetails] = useState(false);
+  const [selectedEvolution, setSelectedEvolution] = useState<Evolution | undefined>();
 
   const filteredPatients = patients.filter(patient =>
     patient.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -33,21 +38,42 @@ export function MedicalRecordsPage() {
     setSelectedRecord(record);
     setShowEvolutionForm(true);
   };
+  
+  // >>> NOVO HANDLER PARA DETALHES DA EVOLUÇÃO
+  const handleViewEvolutionDetails = (evolution: Evolution) => {
+      setSelectedEvolution(evolution);
+      setViewingEvolutionDetails(true);
+  };
 
   const handleSave = () => {
     setShowForm(false);
     setShowEvolutionForm(false);
+    setViewingEvolutionDetails(false); // Reseta o estado de visualização de detalhes
     setSelectedPatient(undefined);
     setSelectedRecord(undefined);
+    setSelectedEvolution(undefined);
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setShowEvolutionForm(false);
+    setViewingEvolutionDetails(false); // Reseta o estado de visualização de detalhes
     setSelectedPatient(undefined);
     setSelectedRecord(undefined);
+    setSelectedEvolution(undefined);
   };
 
+  // --- Renderização Condicional ---
+  // A ordem é importante: renderiza o detalhe da evolução, depois o formulário de evolução, e por fim a anamnese.
+  if (viewingEvolutionDetails && selectedEvolution) {
+    return (
+      <EvolutionDetailsPage
+        evolution={selectedEvolution}
+        onClose={handleCancel}
+      />
+    );
+  }
+  
   if (showForm && selectedPatient) {
     return (
       <div className="space-y-6">
@@ -196,7 +222,12 @@ export function MedicalRecordsPage() {
                           <h4 className="font-medium mb-2">Últimas Evoluções</h4>
                           <div className="space-y-2">
                             {record.evolutions.slice(-3).map((evolution) => (
-                              <div key={evolution.id} className="border-l-2 border-primary pl-4">
+                              // >>> AQUI ESTÁ A MUDANÇA: Torne a div clicável
+                              <div 
+                                key={evolution.id} 
+                                className="border-l-2 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200"
+                                onClick={() => handleViewEvolutionDetails(evolution)}
+                              >
                                 <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-1">
                                   <Calendar className="h-3 w-3" />
                                   <span>{new Date(evolution.date).toLocaleDateString('pt-BR')}</span>

@@ -18,14 +18,14 @@ import { useNavigate } from "react-router-dom";
 
 export function PatientsPage() {
   // Hooks do Contexto da Clínica
-  const { 
-    patients, 
-    medicalRecords, 
+  const {
+    patients,
+    medicalRecords,
     evolutions,
     updatePatient,
-    deletePatient, 
-    addMedicalRecord, 
-    addEvolution 
+    deletePatient,
+    addMedicalRecord,
+    addEvolution
   } = useClinic();
 
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ export function PatientsPage() {
   const [isAnamnesisFormOpen, setIsAnamnesisFormOpen] = useState(false);
   const [isEvolutionFormOpen, setIsEvolutionFormOpen] = useState(false);
   const [isConfirmInactivateOpen, setIsConfirmInactivateOpen] = useState(false);
-  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false); 
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   // Estados para Gerenciar Dados Selecionados
   const [selectedPatient, setSelectedPatient] = useState<Patient | undefined>();
@@ -59,18 +59,18 @@ export function PatientsPage() {
     setSelectedPatient(patient);
     setIsPatientFormOpen(true);
   };
-  
+
   const handleCreateAnamnesis = (patient: Patient) => {
     setSelectedPatient(patient);
     setIsAnamnesisFormOpen(true);
   };
-  
+
   const handleAddEvolution = (record: MedicalRecord) => {
     setSelectedRecord(record);
     setIsEvolutionFormOpen(true);
   };
-  
-  const handleOpenDeleteConfirm = (patient: Patient) => { 
+
+  const handleOpenDeleteConfirm = (patient: Patient) => {
     setSelectedPatient(patient);
     setIsConfirmDeleteOpen(true);
   };
@@ -129,7 +129,7 @@ export function PatientsPage() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input placeholder="Buscar por nome, telefone ou CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10"/>
+          <Input placeholder="Buscar por nome, telefone ou CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
       </div>
 
@@ -151,9 +151,9 @@ export function PatientsPage() {
                           {patient.fullName}
                         </Link>
                       </h3>
-                      
-                      <Badge 
-                        variant={patient.isActive ? "default" : "secondary"} 
+
+                      <Badge
+                        variant={patient.isActive ? "default" : "secondary"}
                         onClick={() => handleToggleStatus(patient)}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                       >
@@ -186,8 +186,8 @@ export function PatientsPage() {
                         <DollarSign className="mr-2 h-4 w-4" /><span>Financeiro</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => handleOpenDeleteConfirm(patient)} 
+                      <DropdownMenuItem
+                        onClick={() => handleOpenDeleteConfirm(patient)}
                         className="text-red-600 focus:text-red-600 focus:bg-red-50"
                       >
                         <Trash2 className="mr-2 h-4 w-4" /><span>Excluir Permanentemente</span>
@@ -195,12 +195,12 @@ export function PatientsPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                
+
                 <Accordion type="single" collapsible className="w-full mt-4">
                   <AccordionItem value="item-1">
                     <AccordionTrigger className="font-semibold text-base">
                       <div className="flex items-center space-x-2">
-                        <FileText className="h-5 w-5"/>
+                        <FileText className="h-5 w-5" />
                         <span>Prontuário Médico</span>
                         {patientRecord ? (
                           <Badge variant="outline">{patientEvolutions.length} Evoluções</Badge>
@@ -215,7 +215,7 @@ export function PatientsPage() {
                           <div className="flex justify-between items-center mb-4">
                             <h4 className="font-bold">Resumo da Anamnese</h4>
                             <Button size="sm" onClick={() => handleAddEvolution(patientRecord)}>
-                              <Plus className="h-4 w-4 mr-1"/> Nova Evolução
+                              <Plus className="h-4 w-4 mr-1" /> Nova Evolução
                             </Button>
                           </div>
                           <div className="p-4 border rounded-md bg-muted/50 space-y-2">
@@ -228,12 +228,16 @@ export function PatientsPage() {
                           {patientEvolutions.length > 0 ? (
                             <div className="max-h-72 overflow-y-auto space-y-3 pr-4">
                               {patientEvolutions.reverse().map((evo: Evolution) => (
-                                <div key={evo.id} className="border-l-2 border-primary pl-4">
-                                  <p className="text-xs text-muted-foreground mb-1">
-                                    {new Date(evo.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                  </p>
-                                  <p className="text-sm">{evo.observations}</p>
-                                </div>
+
+                                <Link to={`/prontuarios/evolucao/${evo.id}`} key={evo.id}>
+                                  <div
+                                    className="border-l-4 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200"
+                                  >
+                                    <p className="text-sm text-muted-foreground mb-1">      {new Date(evo.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                                    <p className="text-sm">{evo.observations}</p>
+                                  </div>
+                                </Link>
+
                               ))}
                             </div>
                           ) : (
@@ -259,35 +263,35 @@ export function PatientsPage() {
           <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">{searchTerm ? "Nenhum paciente encontrado." : "Nenhum paciente cadastrado."}</p></CardContent></Card>
         )}
       </div>
-      
+
       {/* Modais (Diálogos) */}
       <Dialog open={isConfirmInactivateOpen} onOpenChange={setIsConfirmInactivateOpen}>
         <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Confirmar Inativação</DialogTitle><DialogDescription>Tem certeza que deseja inativar o paciente <strong>{selectedPatient?.fullName}</strong>? Ele não aparecerá em novos agendamentos, mas seu histórico será mantido.</DialogDescription></DialogHeader>
-            <DialogFooter className="sm:justify-end gap-2"><Button type="button" variant="secondary" onClick={handleCloseForms}>Cancelar</Button><Button type="button" variant="destructive" onClick={() => selectedPatient && togglePatientStatus(selectedPatient)}>Sim, Inativar</Button></DialogFooter>
+          <DialogHeader><DialogTitle>Confirmar Inativação</DialogTitle><DialogDescription>Tem certeza que deseja inativar o paciente <strong>{selectedPatient?.fullName}</strong>? Ele não aparecerá em novos agendamentos, mas seu histórico será mantido.</DialogDescription></DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2"><Button type="button" variant="secondary" onClick={handleCloseForms}>Cancelar</Button><Button type="button" variant="destructive" onClick={() => selectedPatient && togglePatientStatus(selectedPatient)}>Sim, Inativar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
         <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="text-red-600" /> Ação Irreversível
-              </DialogTitle>
-              <DialogDescription>
-                Você está prestes a **excluir permanentemente** o paciente <strong>{selectedPatient?.fullName}</strong>. Todos os seus dados, incluindo prontuários e agendamentos, serão perdidos para sempre.
-                <br/><br/>
-                Se deseja apenas impedir novos agendamentos, considere <strong className="text-yellow-600">Inativar</strong> o paciente.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="sm:justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={handleCloseForms}>
-                Cancelar
-              </Button>
-              <Button type="button" variant="destructive" onClick={handleConfirmDelete}>
-                Eu entendo, Excluir Tudo
-              </Button>
-            </DialogFooter>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-red-600" /> Ação Irreversível
+            </DialogTitle>
+            <DialogDescription>
+              Você está prestes a **excluir permanentemente** o paciente <strong>{selectedPatient?.fullName}</strong>. Todos os seus dados, incluindo prontuários e agendamentos, serão perdidos para sempre.
+              <br /><br />
+              Se deseja apenas impedir novos agendamentos, considere <strong className="text-yellow-600">Inativar</strong> o paciente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={handleCloseForms}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleConfirmDelete}>
+              Eu entendo, Excluir Tudo
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -297,7 +301,7 @@ export function PatientsPage() {
             <DialogTitle>{selectedPatient ? 'Editar Paciente' : 'Novo Paciente'}</DialogTitle>
             <DialogDescription>{selectedPatient ? 'Altere os dados do paciente.' : 'Preencha os dados para cadastrar um novo paciente.'}</DialogDescription>
           </DialogHeader>
-          <PatientForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>
+          <PatientForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms} />
         </DialogContent>
       </Dialog>
       <Dialog open={isAnamnesisFormOpen} onOpenChange={setIsAnamnesisFormOpen}>
@@ -306,7 +310,7 @@ export function PatientsPage() {
             <DialogTitle>Nova Anamnese para: {selectedPatient?.fullName}</DialogTitle>
             <DialogDescription>Preencha as informações do prontuário inicial do paciente.</DialogDescription>
           </DialogHeader>
-          {selectedPatient && (<MedicalRecordForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}
+          {selectedPatient && (<MedicalRecordForm patient={selectedPatient} onSave={handleCloseForms} onCancel={handleCloseForms} />)}
         </DialogContent>
       </Dialog>
       <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}>
@@ -315,7 +319,7 @@ export function PatientsPage() {
             <DialogTitle>Nova Evolução</DialogTitle>
             <DialogDescription>Registre a evolução do tratamento para o paciente.</DialogDescription>
           </DialogHeader>
-          {selectedRecord && (<EvolutionForm record={selectedRecord} onSave={handleCloseForms} onCancel={handleCloseForms}/>)}
+          {selectedRecord && (<EvolutionForm record={selectedRecord} onSave={handleCloseForms} onCancel={handleCloseForms} />)}
         </DialogContent>
       </Dialog>
     </div>
