@@ -233,20 +233,20 @@ export function SalesPage() {
       <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-white">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-primary-foreground font-bold">F</span>
-              </div>
-              <span className="text-xl font-bold">{salesConfig.companyName}</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={() => setPreviewMode(false)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Voltar à Edição
-              </Button>
-            </div>
-          </div>
+          <div className="container mx-auto px-4 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center space-x-2">
+      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+        <span className="text-primary-foreground font-bold">F</span>
+      </div>
+      <span className="text-xl font-bold">{salesConfig.companyName}</span>
+    </div>
+    <div className="flex items-center space-x-4">
+      <Button variant="outline" onClick={() => setPreviewMode(false)}>
+        <Edit className="h-4 w-4 mr-2" />
+        Voltar à Edição
+      </Button>
+    </div>
+  </div>
         </header>
 
         {/* Hero Section */}
@@ -403,12 +403,12 @@ export function SalesPage() {
       </div>
 
       <Tabs defaultValue="plans" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="plans">Planos</TabsTrigger>
-          <TabsTrigger value="content">Conteúdo</TabsTrigger>
-          <TabsTrigger value="testimonials">Depoimentos</TabsTrigger>
-          <TabsTrigger value="settings">Configurações</TabsTrigger>
-        </TabsList>
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4">
+  <TabsTrigger value="plans">Planos</TabsTrigger>
+  <TabsTrigger value="content">Conteúdo</TabsTrigger>
+  <TabsTrigger value="testimonials">Depoimentos</TabsTrigger>
+  <TabsTrigger value="settings">Configurações</TabsTrigger>
+</TabsList>
 
         <TabsContent value="plans" className="space-y-4">
           <div className="grid gap-6">

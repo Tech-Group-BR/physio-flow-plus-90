@@ -120,9 +120,9 @@ export function ProfessionalsPage() {
 
   return (
   <div className="space-y-6">
-  <div className="flex justify-between items-center">
-    <h1 className="text-3xl font-bold">Fisioterapeutas</h1>
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+<div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <h1 className="text-3xl font-bold">Fisioterapeutas</h1>
+  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button onClick={resetForm}>
           <Plus className="h-4 w-4 mr-2" />

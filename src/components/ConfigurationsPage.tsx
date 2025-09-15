@@ -199,7 +199,7 @@ export function ConfigurationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+    <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="general">Geral</TabsTrigger>
           <TabsTrigger value="billing">Cobrança</TabsTrigger>
           <TabsTrigger value="features">Recursos</TabsTrigger>

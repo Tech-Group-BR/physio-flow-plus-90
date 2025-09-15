@@ -285,11 +285,12 @@ export function PackagesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* 👇 CORREÇÃO 1: Cabeçalho da página agora é responsivo 👇 */}
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-3xl font-bold">Pacotes de Sessões</h1>
-        <div className="flex items-center space-x-2">
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:space-x-2">
           <Select value={viewMode} onValueChange={setViewMode}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -309,6 +310,7 @@ export function PackagesPage() {
 
       {viewMode === "packages" ? (
         <>
+          {/* Os cards do topo já estavam responsivos */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6">
@@ -321,7 +323,6 @@ export function PackagesPage() {
                 </div>
               </CardContent>
             </Card>
-
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center space-x-2">
@@ -333,7 +334,6 @@ export function PackagesPage() {
                 </div>
               </CardContent>
             </Card>
-
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center space-x-2">
@@ -353,62 +353,42 @@ export function PackagesPage() {
             {packages.map((pkg) => (
               <Card key={pkg.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+                  {/* 👇 CORREÇÃO 2: Layout interno dos cards de pacote agora é responsivo 👇 */}
+                  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <Package className="h-5 w-5" />
-                        <h3 className="text-lg font-semibold">{pkg.name}</h3>
+                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
+                        <div className="flex items-center space-x-3">
+                           <Package className="h-5 w-5" />
+                           <h3 className="text-lg font-semibold">{pkg.name}</h3>
+                        </div>
                         <Badge variant={pkg.isActive ? "default" : "secondary"}>
                           {pkg.isActive ? "Ativo" : "Inativo"}
                         </Badge>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <strong>Sessões:</strong> {pkg.sessions}
-                        </div>
-                        <div>
-                          <strong>Preço:</strong> R$ {pkg.price.toFixed(2)}
-                        </div>
-                        <div>
-                          <strong>Validade:</strong> {pkg.validityDays} dias
-                        </div>
-                        <div>
-                          <strong>Tratamento:</strong> {pkg.treatmentType}
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div><strong>Sessões:</strong> {pkg.sessions}</div>
+                        <div><strong>Preço:</strong> R$ {pkg.price.toFixed(2)}</div>
+                        <div><strong>Validade:</strong> {pkg.validityDays} dias</div>
+                        <div><strong>Tratamento:</strong> {pkg.treatmentType}</div>
                       </div>
 
                       {pkg.description && (
-                        <div className="mt-2 text-sm text-muted-foreground">
-                          {pkg.description}
-                        </div>
+                        <div className="mt-2 text-sm text-muted-foreground">{pkg.description}</div>
                       )}
-
                       <div className="mt-2 text-sm">
                         <strong>Preço por sessão:</strong> R$ {(pkg.price / pkg.sessions).toFixed(2)}
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(pkg)}
-                      >
+                    <div className="flex w-full items-center space-x-2 sm:w-auto">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)} className="flex-1 sm:flex-initial">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant={pkg.isActive ? "destructive" : "default"}
-                        size="sm"
-                        onClick={() => togglePackageStatus(pkg.id)}
-                      >
+                      <Button variant={pkg.isActive ? "destructive" : "default"} size="sm" onClick={() => togglePackageStatus(pkg.id)} className="flex-1 sm:flex-initial">
                         {pkg.isActive ? "Desativar" : "Ativar"}
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deletePackage(pkg.id)}
-                      >
+                      <Button variant="destructive" size="icon" onClick={() => deletePackage(pkg.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -421,14 +401,10 @@ export function PackagesPage() {
       ) : (
         <div className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Pacotes dos Pacientes</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Pacotes dos Pacientes</CardTitle></CardHeader>
             <CardContent>
               {patientPackages.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum paciente possui pacotes ativos
-                </p>
+                <p className="text-center text-muted-foreground py-8">Nenhum paciente possui pacotes ativos</p>
               ) : (
                 <div className="space-y-4">
                   {patientPackages.map((patientPkg) => {
@@ -438,11 +414,14 @@ export function PackagesPage() {
                     
                     return (
                       <div key={patientPkg.id} className="border rounded p-4">
-                        <div className="flex items-center justify-between">
+                        {/* 👇 CORREÇÃO 3: Layout interno dos cards de paciente agora é responsivo 👇 */}
+                        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <Users className="h-5 w-5" />
-                              <h3 className="font-semibold">{patient?.fullName}</h3>
+                            <div className="flex flex-col items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
+                              <div className="flex items-center space-x-3">
+                                <Users className="h-5 w-5" />
+                                <h3 className="font-semibold">{patient?.fullName}</h3>
+                              </div>
                               <Badge variant={
                                 patientPkg.status === 'active' ? 'default' :
                                 patientPkg.status === 'completed' ? 'secondary' : 'destructive'
@@ -452,24 +431,16 @@ export function PackagesPage() {
                               </Badge>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                              <div>
-                                <strong>Pacote:</strong> {pkg?.name}
-                              </div>
-                              <div>
-                                <strong>Sessões utilizadas:</strong> {patientPkg.sessionsUsed}/{pkg?.sessions}
-                              </div>
-                              <div>
-                                <strong>Sessões restantes:</strong> {remainingSessions}
-                              </div>
-                              <div>
-                                <strong>Expira em:</strong> {new Date(patientPkg.expiryDate).toLocaleDateString('pt-BR')}
-                              </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                              <div><strong>Pacote:</strong> {pkg?.name}</div>
+                              <div><strong>Sessões utilizadas:</strong> {patientPkg.sessionsUsed}/{pkg?.sessions}</div>
+                              <div><strong>Sessões restantes:</strong> {remainingSessions}</div>
+                              <div><strong>Expira em:</strong> {new Date(patientPkg.expiryDate).toLocaleDateString('pt-BR')}</div>
                             </div>
                           </div>
                           
-                          <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="outline">
+                          <div className="flex w-full sm:w-auto">
+                            <Button size="sm" variant="outline" className="w-full">
                               <Calendar className="h-4 w-4 mr-1" />
                               Agendar
                             </Button>
