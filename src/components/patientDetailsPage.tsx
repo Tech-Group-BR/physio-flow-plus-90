@@ -71,7 +71,7 @@ export function PatientDetailsPage() {
           <p><strong>E-mail:</strong> {patient.email || "Não informado"}</p>
           <p><strong>Telefone:</strong> {patient.phone}</p>
           <p><strong>CPF:</strong> {patient.cpf}</p>
-          <p><strong>Data de Nascimento:</strong> {format(new Date(patient.birthDate), 'dd/MM/yyyy')}</p>
+          <p><strong>Data de Nascimento:</strong> {format(new Date(patient.birth_date), 'dd/MM/yyyy')}</p>
           <p><strong>Gênero:</strong> {patient.gender === 'male' ? 'Masculino' : 'Feminino'}</p>
           <Badge variant={patient.isActive ? 'default' : 'secondary'}>{patient.isActive ? 'Ativo' : 'Inativo'}</Badge>
         </CardContent>
