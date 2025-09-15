@@ -50,6 +50,7 @@ export function PackagesPage() {
   // CORREÇÃO: Estado do formulário padronizado para snake_case
   const [formData, setFormData] = useState({ name: '', description: '', sessions: '', price: '', validity_days: '', treatment_type: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
 
   const [showSellModal, setShowSellModal] = useState(false);
   const [selectedPackageToSell, setSelectedPackageToSell] = useState<SessionPackage | null>(null);
@@ -177,6 +178,57 @@ const handleConfirmSale = async () => {
   const handleSchedule = (patientId: string, patientPackageId: string) => {
     navigate(`/agendamentos/novo?pacienteId=${patientId}&pacoteId=${patientPackageId}`);
   };
+
+const handleScheduleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError(null);
+
+  // 1. Pegar IDs da URL (AQUI ESTÁ A CORREÇÃO)
+  const pacienteId = searchParams.get('pacienteId');
+  const pacoteId = searchParams.get('pacoteId');
+
+  // 2. Validar os dados
+  if (!pacienteId || !pacoteId) {
+    setError("ID do paciente ou do pacote não encontrado na URL. Volte e tente novamente.");
+    return;
+  }
+  if (!formData.professionalId || !formData.date || !formData.time) {
+    setError("Por favor, preencha o profissional, a data e a hora.");
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    // 3. Montar o objeto de parâmetros para a chamada RPC
+    const rpcParams = {
+      p_patient_id: pacienteId,
+      p_patient_package_id: pacoteId,
+      p_professional_id: formData.professionalId,
+      p_appointment_date: formData.date,
+      p_appointment_time: formData.time,
+      p_room_id: formData.roomId || null,
+      p_notes: formData.notes || null
+    };
+    
+    // 4. Chamar a função do Supabase
+    const { error: rpcError } = await supabase.rpc('schedule_package_session', rpcParams);
+
+    if (rpcError) {
+      throw rpcError;
+    }
+
+    // 5. Lidar com o sucesso
+    alert("Agendamento realizado com sucesso!");
+    navigate('/agendamentos');
+
+  } catch (err: any) {
+    console.error("Erro ao agendar sessão:", err);
+    setError(`Erro: ${err.message}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const totalRevenueFromSoldPackages = patientPackages.reduce((sum, p_pkg) => {
     const originalPackage = packages.find(pkg => pkg.id === p_pkg.package_id);
