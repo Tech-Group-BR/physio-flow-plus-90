@@ -114,7 +114,7 @@ export function FinancialPage() {
   const filteredReceivables = useMemo(() => {
     return (accountsReceivable || []).filter((account) => {
       const status = getAccountStatus(account);
-      const patient = patients?.find((p) => p.id === account.patient_id);
+      const patient = patients?.find((p) => p.id === account.patientId);
       const matchesStatus =
         statusFilterReceivable === "all" || status === statusFilterReceivable;
       const matchesSearch =
@@ -122,7 +122,7 @@ export function FinancialPage() {
         account.description
           .toLowerCase()
           .includes(searchReceivable.toLowerCase()) ||
-        patient?.full_name.toLowerCase().includes(searchReceivable.toLowerCase());
+        patient?.fullName.toLowerCase().includes(searchReceivable.toLowerCase());
       return matchesStatus && matchesSearch;
     });
   }, [accountsReceivable, patients, searchReceivable, statusFilterReceivable]);
