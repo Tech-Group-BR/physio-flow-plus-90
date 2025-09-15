@@ -995,7 +995,7 @@ const fetchProfessionals = async () => {
         .insert({
           record_id: evolution.recordId,
           date: evolution.date,
-          professional_id: evolution.professionalId,
+          professional_id: evolution.professional_id,
           observations: evolution.observations,
           pain_scale: evolution.painScale,
           mobility_scale: evolution.mobilityScale,
