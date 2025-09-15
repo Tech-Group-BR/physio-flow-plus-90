@@ -122,6 +122,8 @@ export interface AccountsReceivable {
   notes?: string;
   createdAt: string;
   updatedAt?: string;
+  appointment_id?: string;
+
 }
 
 export interface Lead {
