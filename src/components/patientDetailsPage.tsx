@@ -114,7 +114,7 @@ export function PatientDetailsPage() {
                 <h4 className="font-semibold text-lg">Evoluções ({patientEvolutions.length})</h4>
                 <div className="mt-2 space-y-4 max-h-96 overflow-y-auto">
                   {patientEvolutions.map((evo) => (
-                         <Link to={`/prontuarios/evolucao/${evo.id}`} key={evo.id}>
+                         <Link to={`/prontuario/evolucao/${evo.id}`} key={evo.id}>
           <div 
             className="border-l-4 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200"
           >
