@@ -21,7 +21,8 @@ import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
 import { PatientDetailsPage } from "@/components/patientDetailsPage";
-import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage"; 
+import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
+import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
 
 const Index = () => {
   const location = useLocation();
@@ -51,8 +52,8 @@ const Index = () => {
                 <Route path="/pacientes" element={<PatientsPage />} />
                 <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
                 <Route path="/prontuarios" element={<MedicalRecordsPage />} />
-
-                <Route path="/prontuarios/evolucao/:evoId" element={<EvolutionDetailsPage />} />
+                <Route path="/prontuario/:patientId" element={<AnamnesisDetailsPage />} />
+                <Route path="/prontuario/evolucao/:evoId" element={<EvolutionDetailsPage />} />
                 <Route path="/financeiro" element={<FinancialPage />} />
                 <Route path="/pacotes" element={<PackagesPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />

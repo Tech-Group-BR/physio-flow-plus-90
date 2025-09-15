@@ -208,7 +208,7 @@ export interface Evolution {
   id: string;
   recordId: string;
   date: string;
-  professionalId: string;
+  professional_id: string;
   observations: string;
   painScale: number;
   mobilityScale: number;

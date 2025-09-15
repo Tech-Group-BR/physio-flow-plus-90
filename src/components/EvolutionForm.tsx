@@ -1,7 +1,5 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +11,7 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, X, Upload } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface EvolutionFormProps {
   record: MedicalRecord;
@@ -24,6 +23,8 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
   const { addEvolution, professionals, currentUser } = useClinic();
   const { toast } = useToast();
   
+  // CORREÇÃO: O valor inicial do professionalId agora usa uma lógica mais segura.
+  // Ele usa o ID do usuário logado se ele existir, caso contrário, começa vazio.
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     professionalId: currentUser?.id || '',
@@ -153,6 +154,16 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
       });
       return;
     }
+    
+    // CORREÇÃO: Validação explícita do professionalId antes de prosseguir
+    if (!formData.professionalId) {
+      toast({
+        title: "Profissional não selecionado",
+        description: "Por favor, selecione um profissional.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setUploading(true);
     
@@ -163,7 +174,8 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
       const evolutionData = {
         recordId: record.id,
         date: formData.date,
-        professionalId: formData.professionalId,
+        // CORRIGIDO: O nome da chave agora corresponde ao do banco de dados (professional_id)
+        professional_id: formData.professionalId, 
         observations: formData.observations,
         painScale: formData.painScale ? parseInt(formData.painScale) : 0,
         mobilityScale: formData.mobilityScale ? parseInt(formData.mobilityScale) : 0,

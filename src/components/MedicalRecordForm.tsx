@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Patient } from "@/types";
+import { useAuth } from "@/hooks/useAuth"; // Certifique-se de que este hook existe para obter o usuário
 
 interface MedicalRecordFormProps {
   patient: Patient;
@@ -15,7 +15,8 @@ interface MedicalRecordFormProps {
 
 export function MedicalRecordForm({ patient, onSave, onCancel }: MedicalRecordFormProps) {
   const { addMedicalRecord } = useClinic();
-  
+  const { user } = useAuth(); // Usando useAuth para obter o usuário logado
+
   const [formData, setFormData] = useState({
     chiefComplaint: '',
     historyOfPresentIllness: '',
@@ -25,23 +26,36 @@ export function MedicalRecordForm({ patient, onSave, onCancel }: MedicalRecordFo
     socialHistory: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.chiefComplaint) {
       alert('Por favor, preencha pelo menos a queixa principal.');
       return;
     }
-    
+
+    // Verifica se o usuário está logado para obter o professional_id
+    if (!user) {
+      alert('Erro: Profissional não autenticado.');
+      return;
+    }
+
     const recordData = {
       patientId: patient.id,
+      // Adicione o ID do profissional aqui!
+      professional_id: user.id,
       anamnesis: formData,
       evolutions: [],
       files: []
     };
 
-    addMedicalRecord(recordData);
-    onSave();
+    try {
+      await addMedicalRecord(recordData);
+      onSave();
+    } catch (error) {
+      console.error("Erro ao salvar anamnese:", error);
+      alert("Ocorreu um erro ao salvar a anamnese. Por favor, tente novamente.");
+    }
   };
 
   return (
