@@ -10,6 +10,10 @@ import { Trash2, Edit, Plus, Search, UserCheck, UserX } from 'lucide-react';
 import { useClinic } from '@/contexts/ClinicContext';
 import { toast } from 'sonner';
 import { Professional } from '@/types';
+import { BadgeCheck } from 'lucide-react';
+import { Mail } from 'lucide-react';
+import { Phone } from 'lucide-react';
+
 
 export function ProfessionalsPage() {
   const { 
@@ -30,7 +34,8 @@ export function ProfessionalsPage() {
     crefito: '',
     specialties: [] as string[],
     bio: '',
-    isActive: true
+    isActive: true,
+    profile_picture_url: ''
   });
 
   const filteredProfessionals = professionals.filter(physio =>
@@ -47,7 +52,8 @@ export function ProfessionalsPage() {
       crefito: '',
       specialties: [],
       bio: '',
-      isActive: true
+      isActive: true,
+      profile_picture_url: ''
     });
     setEditingProfessional(null);
   };
@@ -81,7 +87,8 @@ export function ProfessionalsPage() {
       crefito: Professional.crefito,
       specialties: Professional.specialties,
       bio: Professional.bio,
-      isActive: Professional.isActive
+      isActive: Professional.isActive,
+      profile_picture_url: Professional.profile_picture_url || ''
     });
     setIsDialogOpen(true);
   };
@@ -226,67 +233,88 @@ export function ProfessionalsPage() {
   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
     
     {filteredProfessionals.map((Professional) => (
-      <Card key={Professional.id} className={!Professional.isActive ? 'opacity-60' : ''}>
-        
-        <CardHeader className="pb-1">
-          <div className="flex justify-between items-start">
-            
-            <CardTitle className="text-lg">{Professional.name}</CardTitle>
-            <div className="flex space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleStatusToggle(Professional)}
-                title={Professional.isActive ? 'Desativar' : 'Ativar'}
-              >
-                {Professional.isActive ? (
-                  <UserCheck className="h-4 w-4 text-green-600" />
-                ) : (
-                  <UserX className="h-4 w-4 text-red-600" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEdit(Professional)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(Professional.id)}
-              >
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-               <Badge className='mb-2' variant={Professional.isActive ? 'default' : 'secondary'}>
-            {Professional.isActive ? 'Ativo' : 'Inativo'}
+  <Card key={Professional.id} className={!Professional.isActive ? 'opacity-60 transition-opacity' : ''}>
+  <CardHeader className="p-4 pb-0">
+    <div className="flex justify-between items-center">
+      {/* Badge de Status no Canto Superior Esquerdo */}
+      <Badge
+        className={`w-fit font-medium text-xs ${
+          Professional.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        }`}
+      >
+        {Professional.isActive ? 'Ativo' : 'Inativo'}
+      </Badge>
+      
+      {/* Botões de Ação no Canto Superior Direito */}
+      <div className="flex space-x-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleStatusToggle(Professional)}
+          title={Professional.isActive ? 'Desativar' : 'Ativar'}
+          className="text-gray-500 hover:bg-gray-100"
+        >
+          {Professional.isActive ? (
+            <UserCheck className="h-4 w-4 text-green-600" />
+          ) : (
+            <UserX className="h-4 w-4 text-red-600" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleEdit(Professional)}
+          title="Editar"
+          className="text-gray-500 hover:bg-gray-100"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleDelete(Professional.id)}
+          title="Excluir"
+          className="text-red-500 hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+    
+    {/* Título e Conteúdo Abaixo da Barra Superior */}
+    <CardTitle className="text-xl font-bold mt-2">{Professional.name}</CardTitle>
+  </CardHeader>
+  
+  <CardContent className="p-4 pt-2 space-y-2 text-sm text-gray-700">
+    {Professional.email && (
+      <div className="flex items-center gap-2">
+        <Mail className="h-4 w-4 text-gray-400" />
+        <span>{Professional.email}</span>
+      </div>
+    )}
+    {Professional.phone && (
+      <div className="flex items-center gap-2">
+        <Phone className="h-4 w-4 text-gray-400" />
+        <span>{Professional.phone}</span>
+      </div>
+    )}
+    {Professional.crefito && (
+      <div className="flex items-center gap-2 font-medium text-gray-800">
+        <BadgeCheck className="h-4 w-4 text-blue-500" />
+        <span>CREFITO: {Professional.crefito}</span>
+      </div>
+    )}
+    {Professional.specialties && Professional.specialties.length > 0 && (
+      <div className="flex flex-wrap gap-2 pt-2">
+        {Professional.specialties.map((specialty, index) => (
+          <Badge key={index} variant="secondary" className="text-xs">
+            {specialty}
           </Badge>
-        <CardContent className="space-y-2">
-          {Professional.email && (
-            <p className="text-sm text-gray-600">{Professional.email}</p>
-          )}
-          {Professional.phone && (
-            <p className="text-sm text-gray-600">{Professional.phone}</p>
-          )}
-          {Professional.crefito && (
-            <p className="text-sm font-medium">CREFITO: {Professional.crefito}</p>
-          )}
-          {Professional.specialties && Professional.specialties.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {Professional.specialties.map((specialty, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {specialty}
-                </Badge>
-              ))}
-            </div>
-          )}
-   
-        </CardContent>
-      </Card>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
     ))}
   </div>
 
