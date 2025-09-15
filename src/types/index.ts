@@ -32,7 +32,7 @@ export interface Patient {
   email: string;
   phone: string;
   cpf: string;
-  birthDate: string;
+  birth_date: string;
   gender: 'male' | 'female';
   address: Address;
   emergencyContact: EmergencyContact;
@@ -99,7 +99,6 @@ export interface Payment {
 export interface AccountsPayable {
   id: string;
   description: string;
-  supplier: string;
   amount: number;
   dueDate: string;
   paidDate?: string;
@@ -108,6 +107,7 @@ export interface AccountsPayable {
   notes?: string;
   createdAt: string;
   updatedAt?: string;
+
 }
 
 export interface AccountsReceivable {
