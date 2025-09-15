@@ -231,7 +231,6 @@ return (
 
       {/* --- Dashboard Cards --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* ... Seus cards do topo permanecem os mesmos ... */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-2">
@@ -300,17 +299,49 @@ return (
 
         {/* --- Aba Contas a Receber --- */}
         <TabsContent value="receivables" className="space-y-4">
-          {/* ...cabeçalho e filtros responsivos... */}
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-semibold">Contas a Receber</h2>
+            <Button onClick={() => setShowReceivableForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Conta a Receber
+            </Button>
+          </div>
+          
+          {/* 👇 CORREÇÃO FINAL 1: Filtros de 'Contas a Receber' agora são responsivos 👇 */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:space-x-4">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Buscar por descrição ou paciente..."
+                value={searchReceivable}
+                onChange={(e) => setSearchReceivable(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={statusFilterReceivable}
+              onValueChange={setStatusFilterReceivable}
+            >
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Todos os status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="recebido">Recebido</SelectItem>
+                <SelectItem value="vencido">Vencido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-4">
             {filteredReceivables.map((account) => {
               const patient = patients?.find((p) => p.id === account.patientId);
               const status = getAccountStatus(account);
               return (
-                // 👇 CORREÇÃO ESTRUTURAL DO CARD 👇
                 <Card
                   key={account.id}
-                  className={`flex flex-col transition-shadow hover:shadow-md ${status === "vencido" ? "border-red-200 bg-red-50" : ""
-                    }`}
+                  className={`flex flex-col transition-shadow hover:shadow-md ${status === "vencido" ? "border-red-200 bg-red-50" : ""}`}
                 >
                   <CardContent className="p-6 pb-4 flex-1">
                     <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
@@ -320,13 +351,19 @@ return (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div><strong>Valor:</strong> R$ {Number(account.amount).toFixed(2)}</div>
                       <div><strong>Vencimento:</strong> {format(parseISO(account.dueDate), "dd/MM/yyyy", { locale: ptBR })}</div>
-                      <div><strong>Paciente:</strong> {patient ? patient.fullName : "Não especificado"}</div>
+                      <div className="md:col-span-2"><strong>Paciente:</strong> {patient ? patient.fullName : "Não especificado"}</div>
                     </div>
-                    {/* ... notas e data de recebimento ... */}
+                    {account.notes && (
+                      <div className="mt-2 text-sm text-muted-foreground"><strong>Observações:</strong> {account.notes}</div>
+                    )}
+                    {account.receivedDate && (
+                      <div className="mt-2 text-sm text-green-600">
+                        <strong>Recebido em:</strong> {format(parseISO(account.receivedDate), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </div>
+                    )}
                   </CardContent>
                   {status !== "recebido" && (
                     <CardFooter className="p-6 pt-0 flex justify-start">
-                     
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="default"
@@ -345,24 +382,53 @@ return (
                 </Card>
               );
             })}
-            {/* ... card de 'nenhuma conta encontrada' ... */}
+            {filteredReceivables.length === 0 && (
+              <Card>
+                <CardContent className="p-8 text-center"><p className="text-muted-foreground">Nenhuma conta a receber encontrada.</p></CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
         {/* --- Aba Contas a Pagar --- */}
         <TabsContent value="payables" className="space-y-4">
-          {/* ...cabeçalho e filtros responsivos... */}
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-semibold">Contas a Pagar</h2>
+            <Button onClick={() => setShowPayableForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Conta a Pagar
+            </Button>
+          </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:space-x-4">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Buscar por descrição..."
+                value={searchPayable}
+                onChange={(e) => setSearchPayable(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilterPayable} onValueChange={setStatusFilterPayable}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Todos os status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="vencido">Vencido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid gap-4">
             {filteredPayables.map((account) => {
               const status = getAccountStatus(account);
               return (
-                // 👇 CORREÇÃO ESTRUTURAL DO CARD 👇
                 <Card
                   key={account.id}
-                  className={`flex flex-col transition-shadow hover:shadow-md ${status === "vencido" ? "border-red-200 bg-red-50" : ""
-                    }`}
+                  className={`flex flex-col transition-shadow hover:shadow-md ${status === "vencido" ? "border-red-200 bg-red-50" : ""}`}
                 >
                   <CardContent className="p-6 pb-4 flex-1">
+                    {/* 👇 CORREÇÃO FINAL 2: Cabeçalho do card de 'Contas a Pagar' agora é responsivo 👇 */}
                     <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
                       <h3 className="text-lg font-semibold">{account.description}</h3>
                       <Badge variant={getStatusBadgeVariant(status)}>{getStatusLabel(status)}</Badge>
@@ -371,10 +437,17 @@ return (
                       <div><strong>Valor:</strong> R$ {Number(account.amount).toFixed(2)}</div>
                       <div><strong>Vencimento:</strong> {format(parseISO(account.dueDate), "dd/MM/yyyy", { locale: ptBR })}</div>
                     </div>
-                    {/* ... notas e data de pagamento ... */}
+                    {account.notes && (
+                      <div className="mt-2 text-sm text-muted-foreground"><strong>Observações:</strong> {account.notes}</div>
+                    )}
+                    {account.paidDate && (
+                      <div className="mt-2 text-sm text-green-600">
+                        <strong>Pago em:</strong> {format(parseISO(account.paidDate), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </div>
+                    )}
                   </CardContent>
                   {status !== "pago" && (
-                           <CardFooter className="p-6 pt-0 flex justify-start">
+                    <CardFooter className="p-6 pt-0 flex justify-start">
                       <div className="flex items-center space-x-2">
                         <Button variant="default" size="sm" onClick={() => handleMarkPayableAsPaid(account.id)}>
                           <CheckCircle className="h-4 w-4 mr-1" />
@@ -389,7 +462,11 @@ return (
                 </Card>
               );
             })}
-            {/* ... card de 'nenhuma conta encontrada' ... */}
+            {filteredPayables.length === 0 && (
+              <Card>
+                <CardContent className="p-8 text-center"><p className="text-muted-foreground">Nenhuma conta a pagar encontrada.</p></CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
