@@ -167,7 +167,7 @@ console.log('✅ Professional found:', {
       message = templateToUse
         .replace(/{nome}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
-        .replace(/{horario}/g, appointment.time)
+        .replace(/{horario}/g, appointment.time.slice(0, 5))
         .replace(/{fisioterapeuta}/g, professional.full_name);
     } else {
       // Para fisioterapeuta - detectar título Dr/Dra
@@ -180,7 +180,7 @@ console.log('✅ Professional found:', {
         .replace(/{fisioterapeuta}/g, professional.full_name)
         .replace(/{paciente}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
-        .replace(/{horario}/g, appointment.time)
+        .replace(/{horario}/g, appointment.time.slice(0, 5))
         .replace(/{tipo}/g, appointment.treatment_type || 'Fisioterapia');
     }
 
