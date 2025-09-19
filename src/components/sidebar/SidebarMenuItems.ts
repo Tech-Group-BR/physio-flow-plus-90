@@ -83,24 +83,24 @@ export const professionalItems: MenuItem[] = [
     icon: Settings,
     description: "Configurações do sistema"
   },
-  {
-    title: "Vendas",
-    url: "/vendas",
-    icon: ShoppingCart,
-    description: "Sistema de vendas"
-  },
-  {
-    title: "CRM",
-    url: "/crm",
-    icon: Phone,
-    description: "Gestão de leads"
-  },
-  {
-    title: "Relatório Financeiro",
-    url: "/relatorios/pacientes",
-    icon: DollarSign,
-    description: "Faturamento detalhado"
-  }
+  // {
+  //   title: "Vendas",
+  //   url: "/vendas",
+  //   icon: ShoppingCart,
+  //   description: "Sistema de vendas"
+  // },
+  // {
+  //   title: "CRM",
+  //   url: "/crm",
+  //   icon: Phone,
+  //   description: "Gestão de leads"
+  // },
+  // {
+  //   title: "Relatório Financeiro",
+  //   url: "/relatorios/pacientes",
+  //   icon: DollarSign,
+  //   description: "Faturamento detalhado"
+  // }
 ];
 
 // Itens para administradores - acesso completo

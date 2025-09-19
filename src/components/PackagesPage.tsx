@@ -247,42 +247,42 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
     return <div className="p-4">Carregando dados...</div>;
   }
 
-  // if (showForm) {
-  //   return (
-  //     <div className="space-y-6">
-  //       <div className="flex items-center justify-between">
-  //         <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Pacote' : 'Novo Pacote'}</h1>
-  //       </div>
-  //       <form onSubmit={handleSubmit} className="space-y-6">
-  //         <Card>
-  //           <CardHeader><CardTitle>Dados do Pacote</CardTitle></CardHeader>
-  //           <CardContent className="space-y-4">
-  //             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  //               <div><Label htmlFor="name">Nome do Pacote *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
-  //               <div><Label htmlFor="treatmentType">Tipo de Tratamento *</Label><Select value={formData.treatment_type} onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{treatmentTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select></div>
-  //               <div><Label htmlFor="sessions">Número de Sessões *</Label><Input id="sessions" type="number" value={formData.sessions} onChange={(e) => setFormData({ ...formData, sessions: e.target.value })} required /></div>
-  //               <div><Label htmlFor="price">Preço Total *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
-  //               <div><Label htmlFor="validityDays">Validade (dias) *</Label><Input id="validityDays" type="number" value={formData.validity_days} onChange={(e) => setFormData({ ...formData, validity_days: e.target.value })} required /></div>
-  //             </div>
-  //             <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
-  //           </CardContent>
-  //         </Card>
-  //         <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button><Button type="submit">{editingPackage ? 'Atualizar' : 'Criar'} Pacote</Button></div>
-  //       </form>
-  //     </div>
-  //   );
-  // }
-
-    if (showForm) {
-      return (
-        <div className="space-y-4 lg:space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Novo Agendamento</h1>
-          </div>
-          <AppointmentForm onSave={handleSave} onCancel={handleCancel} />
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Pacote' : 'Novo Pacote'}</h1>
         </div>
-      );
-    }
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Dados do Pacote</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label htmlFor="name">Nome do Pacote *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
+                <div><Label htmlFor="treatmentType">Tipo de Tratamento *</Label><Select value={formData.treatment_type} onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{treatmentTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select></div>
+                <div><Label htmlFor="sessions">Número de Sessões *</Label><Input id="sessions" type="number" value={formData.sessions} onChange={(e) => setFormData({ ...formData, sessions: e.target.value })} required /></div>
+                <div><Label htmlFor="price">Preço Total *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
+                <div><Label htmlFor="validityDays">Validade (dias) *</Label><Input id="validityDays" type="number" value={formData.validity_days} onChange={(e) => setFormData({ ...formData, validity_days: e.target.value })} required /></div>
+              </div>
+              <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
+            </CardContent>
+          </Card>
+          <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button><Button type="submit">{editingPackage ? 'Atualizar' : 'Criar'} Pacote</Button></div>
+        </form>
+      </div>
+    );
+  }
+
+    // if (showForm) {
+    //   return (
+    //     <div className="space-y-4 lg:space-y-6">
+    //       <div className="flex items-center justify-between">
+    //         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Novo Agendamento</h1>
+    //       </div>
+    //       <AppointmentForm onSave={handleSave} onCancel={handleCancel} />
+    //     </div>
+    //   );
+    // }
 
   return (
     <>
