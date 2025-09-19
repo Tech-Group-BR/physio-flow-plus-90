@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,13 +12,11 @@ import { EvolutionForm } from './EvolutionForm';
 export function AnamnesisDetailsPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
-  const { medicalRecords, evolutions, fetchMedicalRecords, patients, addEvolution } = useClinic();
+  const { medicalRecords, evolutions, fetchMedicalRecords, patients } = useClinic();
 
-  // >>> NOVOS ESTADOS PARA O MODAL DE EVOLUÇÃO
-  const [isEvolutionFormOpen, setIsEvolutionFormOpen] = useState(false);
-  const [selectedRecordForEvolution, setSelectedRecordForEvolution] = useState<any | undefined>();
-
-  const [isLoading, setIsLoading] = useState(true);
+  const [isEvolutionFormOpen, setIsEvolutionFormOpen] = React.useState(false);
+  const [selectedRecordForEvolution, setSelectedRecordForEvolution] = React.useState<any | undefined>();
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const patient = patients.find(p => p.id === patientId);
   const medicalRecord = medicalRecords.find(r => r.patientId === patientId);
@@ -27,7 +25,7 @@ export function AnamnesisDetailsPage() {
     .filter(e => e.recordId === medicalRecord?.id)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!medicalRecord) {
       fetchMedicalRecords().then(() => setIsLoading(false));
     } else {
@@ -35,16 +33,29 @@ export function AnamnesisDetailsPage() {
     }
   }, [patientId, medicalRecord, fetchMedicalRecords]);
 
-  // >>> NOVO HANDLER PARA ABRIR O MODAL
   const handleAddEvolution = (record: any) => {
     setSelectedRecordForEvolution(record);
     setIsEvolutionFormOpen(true);
   };
   
-  // >>> HANDLER PARA FECHAR O MODAL
   const handleCloseEvolutionForm = () => {
     setIsEvolutionFormOpen(false);
     setSelectedRecordForEvolution(undefined);
+  };
+
+  // CORREÇÃO: A função foi movida para o escopo do componente
+  // Helper para renderizar um campo apenas se ele tiver valor
+  const renderDetail = (label: string, value: string | undefined | null) => {
+    // Não renderiza nada se o valor for nulo, indefinido ou apenas espaços em branco
+    if (!value || value.trim() === '') return null;
+    
+    return (
+      <div className="border-b pb-2">
+        <p className="font-semibold text-gray-700">{label}</p>
+        {/* Usamos <pre> para preservar quebras de linha e espaços */}
+        <pre className="whitespace-pre-wrap font-sans text-gray-800">{value}</pre>
+      </div>
+    );
   };
   
   if (isLoading) {
@@ -80,11 +91,14 @@ export function AnamnesisDetailsPage() {
       {/* Detalhes da Anamnese */}
       <Card>
         <CardHeader><CardTitle>Anamnese</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <p><strong>Queixa Principal:</strong> {medicalRecord.anamnesis.chiefComplaint}</p>
-          <p><strong>Histórico Médico:</strong> {medicalRecord.anamnesis.pastMedicalHistory}</p>
-          <p><strong>Histórico de doenças:</strong> {medicalRecord.anamnesis.historyOfPresentIllness}</p>
-          <p><strong>Alergias:</strong> {medicalRecord.anamnesis.allergies}</p>
+        <CardContent className="space-y-4 text-sm">
+          {/* A chamada da função agora funciona corretamente */}
+          {renderDetail("Queixa Principal", medicalRecord.anamnesis.chiefComplaint)}
+          {renderDetail("História da Doença Atual", medicalRecord.anamnesis.historyOfPresentIllness)}
+          {renderDetail("História Médica Pregressa", medicalRecord.anamnesis.pastMedicalHistory)}
+          {renderDetail("Medicamentos em Uso", medicalRecord.anamnesis.medications)}
+          {renderDetail("Alergias", medicalRecord.anamnesis.allergies)}
+          {renderDetail("História Social", medicalRecord.anamnesis.socialHistory)}
         </CardContent>
       </Card>
       
@@ -100,15 +114,15 @@ export function AnamnesisDetailsPage() {
           {patientEvolutions.length > 0 ? (
             <div className="max-h-96 overflow-y-auto space-y-3 pr-4">
               {patientEvolutions.map((evo) => (
-                 <Link to={`/prontuario/evolucao/${evo.id}`} key={evo.id}>
-                    <div className="border-l-2 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200">
-                      <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{format(new Date(evo.date), 'dd/MM/yyyy')}</span>
-                      </div>
-                      <p className="text-sm">{evo.observations}</p>
-                    </div>
-                  </Link>
+                   <Link to={`/prontuario/evolucao/${evo.id}`} key={evo.id}>
+                     <div className="border-l-2 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200">
+                       <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-1">
+                         <Calendar className="h-3 w-3" />
+                         <span>{format(new Date(evo.date), 'dd/MM/yyyy')}</span>
+                       </div>
+                       <p className="text-sm line-clamp-2">{evo.observations}</p>
+                     </div>
+                   </Link>
               ))}
             </div>
           ) : (
@@ -117,7 +131,7 @@ export function AnamnesisDetailsPage() {
         </CardContent>
       </Card>
 
-      {/* >>> NOVO MODAL PARA ADICIONAR EVOLUÇÃO <<< */}
+      {/* Modal para Adicionar Evolução */}
       <Dialog open={isEvolutionFormOpen} onOpenChange={setIsEvolutionFormOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>

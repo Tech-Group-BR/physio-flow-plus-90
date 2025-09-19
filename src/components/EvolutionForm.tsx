@@ -23,16 +23,14 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
   const { addEvolution, professionals, currentUser } = useClinic();
   const { toast } = useToast();
   
-  // CORREÇÃO: O valor inicial do professionalId agora usa uma lógica mais segura.
-  // Ele usa o ID do usuário logado se ele existir, caso contrário, começa vazio.
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     professionalId: currentUser?.id || '',
     observations: '',
-    painScale: '',
-    mobilityScale: '',
+    // Omitido: painScale: '',
+    // Omitido: mobilityScale: '',
     treatmentPerformed: '',
-    nextSession: '',
+    // Omitido: nextSession: '',
     visibleToGuardian: true
   });
 
@@ -40,39 +38,24 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
   const [uploading, setUploading] = useState(false);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
+  /* // Omitido: A lista de níveis de dor não é mais necessária
   const painLevels = [
     { value: '0', label: '0 - Sem dor' },
-    { value: '1', label: '1 - Leve' },
-    { value: '2', label: '2 - Leve' },
-    { value: '3', label: '3 - Leve' },
-    { value: '4', label: '4 - Moderada' },
-    { value: '5', label: '5 - Moderada' },
-    { value: '6', label: '6 - Moderada' },
-    { value: '7', label: '7 - Intensa' },
-    { value: '8', label: '8 - Intensa' },
-    { value: '9', label: '9 - Intensa' },
-    { value: '10', label: '10 - Muito Intensa' }
+    // ...
   ];
+  */
 
+  /* // Omitido: A lista de níveis de mobilidade não é mais necessária
   const mobilityLevels = [
     { value: '0', label: '0 - Imóvel' },
-    { value: '1', label: '1 - Limitada' },
-    { value: '2', label: '2 - Limitada' },
-    { value: '3', label: '3 - Limitada' },
-    { value: '4', label: '4 - Moderada' },
-    { value: '5', label: '5 - Moderada' },
-    { value: '6', label: '6 - Moderada' },
-    { value: '7', label: '7 - Normal' },
-    { value: '8', label: '8 - Normal' },
-    { value: '9', label: '9 - Normal' },
-    { value: '10', label: '10 - Excelente' }
+    // ...
   ];
+  */
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Validar tipos de arquivo
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const invalidFiles = files.filter(file => !validTypes.includes(file.type));
     
@@ -85,7 +68,6 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
       return;
     }
 
-    // Limitar tamanho (5MB por foto)
     const oversizedFiles = files.filter(file => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       toast({
@@ -98,7 +80,6 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
 
     setPhotos(prev => [...prev, ...files]);
     
-    // Criar previsões das imagens
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -155,7 +136,6 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
       return;
     }
     
-    // CORREÇÃO: Validação explícita do professionalId antes de prosseguir
     if (!formData.professionalId) {
       toast({
         title: "Profissional não selecionado",
@@ -168,19 +148,17 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
     setUploading(true);
     
     try {
-      // Upload das fotos primeiro
       const photoUrls = await uploadPhotos();
       
       const evolutionData = {
         recordId: record.id,
         date: formData.date,
-        // CORRIGIDO: O nome da chave agora corresponde ao do banco de dados (professional_id)
         professional_id: formData.professionalId, 
         observations: formData.observations,
-        painScale: formData.painScale ? parseInt(formData.painScale) : 0,
-        mobilityScale: formData.mobilityScale ? parseInt(formData.mobilityScale) : 0,
+        // Omitido: painScale: formData.painScale ? parseInt(formData.painScale) : 0,
+        // Omitido: mobilityScale: formData.mobilityScale ? parseInt(formData.mobilityScale) : 0,
         treatmentPerformed: formData.treatmentPerformed,
-        nextSession: formData.nextSession,
+        // Omitido: nextSession: formData.nextSession,
         files: [],
         media: photoUrls.map(url => ({
           id: `${Date.now()}_${Math.random()}`,
@@ -192,7 +170,7 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
         visibleToGuardian: formData.visibleToGuardian
       };
 
-      await addEvolution(evolutionData);
+      await addEvolution(evolutionData as any); // Usando 'as any' para ignorar os campos comentados
       onSave();
     } catch (error: any) {
       console.error('Erro ao salvar evolução:', error);
@@ -241,6 +219,8 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
               </Select>
             </div>
 
+            {/* Omitido: O campo Escala de Dor foi comentado */}
+            {/*
             <div>
               <Label htmlFor="painScale">Escala de Dor (0-10)</Label>
               <Select value={formData.painScale} onValueChange={(value) => setFormData({ ...formData, painScale: value })}>
@@ -256,7 +236,10 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
                 </SelectContent>
               </Select>
             </div>
+            */}
 
+            {/* Omitido: O campo Escala de Mobilidade foi comentado */}
+            {/*
             <div>
               <Label htmlFor="mobilityScale">Escala de Mobilidade (0-10)</Label>
               <Select value={formData.mobilityScale} onValueChange={(value) => setFormData({ ...formData, mobilityScale: value })}>
@@ -272,6 +255,7 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
                 </SelectContent>
               </Select>
             </div>
+            */}
           </div>
 
           <div className="flex items-center space-x-2">
@@ -309,6 +293,8 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
             />
           </div>
 
+          {/* Omitido: O campo Próxima Sessão foi comentado */}
+          {/*
           <div>
             <Label htmlFor="nextSession">Próxima Sessão</Label>
             <Textarea
@@ -319,6 +305,7 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
               rows={3}
             />
           </div>
+          */}
 
           <div>
             <Label htmlFor="photos">Fotos da Evolução</Label>
