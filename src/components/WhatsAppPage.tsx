@@ -37,14 +37,14 @@ interface WhatsAppSettings {
 }
 
 export function WhatsAppPage() {
-  const { appointments, patients, updateAppointment } = useClinic();
+  const { appointments, patients, professionals, updateAppointment } = useClinic();
   
   console.log('WhatsAppPage - patients:', patients.length, 'appointments:', appointments.length);
   console.log('WhatsAppPage - first patient:', patients[0]);
   const [settings, setSettings] = useState<WhatsAppSettings>({
     instance_name: 'livia',
-    api_key: '7b5aaa32577d86a7778957722b932265',
-    base_url: 'https://zap.zapflow.click',
+    api_key: 'B3E45D21CD1E-4570-95EB-7F14E5F7FDA4',
+    base_url: 'https://api.grupotech.cloud/',
     webhook_url: '',
     auto_confirm_enabled: true,
     confirmation_template: 'Olá {nome}! Você tem consulta marcada para {data} às {horario} com {fisioterapeuta}. Confirme sua presença respondendo SIM.',
@@ -108,6 +108,7 @@ export function WhatsAppPage() {
     console.log('🔄 Sending WhatsApp message:', { appointmentId, type });
     const appointment = appointments.find(a => a.id === appointmentId);
     const patient = patients.find(p => p.id === appointment?.patientId);
+    const professional = professionals.find(p => p.id === appointment?.professionalId);
     
     console.log('📋 Found data:', { 
       appointment: appointment ? { id: appointment.id, patientId: appointment.patientId } : null,

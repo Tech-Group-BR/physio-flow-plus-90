@@ -48,7 +48,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
     setTestResult(null);
     
     try {
-      const response = await fetch(`${settings.base_url}/instance/connectionState/${settings.instance_name}`, {
+      const response = await fetch(`${settings.base_ur}`, {
         method: 'GET',
         headers: {
           'apikey': settings.api_key
@@ -97,9 +97,9 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
               <Label htmlFor="base_url">URL Base da API</Label>
               <Input
                 id="base_url"
-                value={"https://zap.zapflow.click"}
+                value={settings.base_url}
                 onChange={(e) => onSettingsChange({ ...settings, base_url: e.target.value })}
-                placeholder="https://zap.zapflow.click"
+                placeholder="https://api.evolution.com.br/v1"
               />
             </div>
             
@@ -109,7 +109,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
                 id="instance_name"
                 value={settings.instance_name}
                 onChange={(e) => onSettingsChange({ ...settings, instance_name: e.target.value })}
-                placeholder="livia"
+                placeholder="Nome da instância"
               />
             </div>
           </div>

@@ -13,7 +13,7 @@ interface SendMessageRequest {
   recipientType: 'patient' | 'Professional';
 }
 
-serve(async (req) => {
+serve(async (req: any) => {
   console.log('🚀 Function started, method:', req.method);
 
   if (req.method === 'OPTIONS') {
@@ -84,13 +84,6 @@ serve(async (req) => {
       );
     }
 
-    console.log('✅ Appointment found:', {
-      id: appointment.id,
-      patientId: appointment.patient_id,
-      date: appointment.date,
-      time: appointment.time
-    });
-
     // Buscar dados do paciente
     console.log('🔍 Fetching patient...');
     const { data: patient, error: patientError } = await supabase
@@ -113,22 +106,26 @@ serve(async (req) => {
     });
 
     // Buscar dados do fisioterapeuta
-    console.log('🔍 Fetching Professional...');
-    const { data: Professional, error: physioError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', appointment.professional_id)
-      .single();
+   console.log('🔍 Fetching Professional...');
+const { data: professional, error: physioError } = await supabase
+  .from('professionals')
+  .select('*')
+  .eq('id', appointment.professional_id)
+  .single();
 
-    if (physioError || !Professional) {
-      console.log('⚠️ Professional not found:', physioError);
-    } else {
-      console.log('✅ Professional found:', {
-        name: Professional.full_name,
-        phone: Professional.phone ? `${Professional.phone.substring(0, 4)}...` : 'missing'
-      });
-    }
+// CORREÇÃO APLICADA AQUI
+if (physioError || !professional) {
+  console.error('❌ Professional not found:', physioError);
+  return new Response(
+    JSON.stringify({ error: 'Fisioterapeuta do agendamento não encontrado' }),
+    { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
+console.log('✅ Professional found:', {
+  name: professional.full_name,
+  phone: professional.phone ? `${professional.phone.substring(0, 4)}...` : 'missing'
+});
     let phoneNumber: string;
     let message: string;
     let templateToUse: string;
@@ -144,10 +141,10 @@ serve(async (req) => {
       }
     } else {
       // Fisioterapeuta - detectar gênero para usar Dr/Dra
-      phoneNumber = Professional?.phone || '';
+      phoneNumber = professional?.phone || '';
 
       // Detectar se é homem ou mulher pelo nome ou campo gender se existir
-      const firstName = Professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
       const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
       const title = isDra ? 'Dra' : 'Dr';
 
@@ -171,16 +168,16 @@ serve(async (req) => {
         .replace(/{nome}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time)
-        .replace(/{fisioterapeuta}/g, Professional?.full_name || 'Fisioterapeuta');
+        .replace(/{fisioterapeuta}/g, professional.full_name);
     } else {
       // Para fisioterapeuta - detectar título Dr/Dra
-      const firstName = Professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
       const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
       const title = isDra ? 'Dra' : 'Dr';
 
       message = templateToUse
         .replace(/{title}/g, title)
-        .replace(/{fisioterapeuta}/g, Professional?.full_name || 'Fisioterapeuta')
+        .replace(/{fisioterapeuta}/g, professional.full_name)
         .replace(/{paciente}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time)
@@ -208,10 +205,7 @@ serve(async (req) => {
       formattedPhone = '5566' + cleanPhone;
     }
 
-    console.log('📱 Phone formatted:', `${formattedPhone.substring(0, 6)}...`, 'Length:', formattedPhone.length);
 
-    // 🚀 Enviar mensagem real via API WhatsApp
-    console.log('🚀 Enviando mensagem real via Evolution API...');
 
     let messageId = '';
     let deliveryStatus = 'sent';
@@ -253,7 +247,7 @@ serve(async (req) => {
       messageId = apiResult.key?.id || `msg-${Date.now()}`;
       deliveryStatus = 'delivered';
 
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error('❌ Erro detalhado na API WhatsApp:', {
         error: apiError.message,
         stack: apiError.stack,
@@ -339,7 +333,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Critical error:', {
       message: error.message,
       stack: error.stack,

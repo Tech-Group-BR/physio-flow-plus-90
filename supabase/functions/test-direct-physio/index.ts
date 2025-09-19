@@ -50,7 +50,7 @@ serve(async (req) => {
     });
 
     // Dados da fisioterapeuta
-    const physioPhone = '66999328764';
+    const physioPhone = '66992646592';
     const formattedPhysioPhone = `55${physioPhone}`;
 
     // Mensagem de teste
@@ -68,14 +68,14 @@ Se você recebeu esta mensagem, o sistema está funcionando corretamente! 🎉`;
     console.log('📝 Mensagem:', physioMessage);
 
     // Enviar mensagem via API
-    const whatsappResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+    const whatsappResponse = await fetch(`https://api.grupotech.cloud/manager/instance/7b03de0b-0264-40f6-a899-04aed4831530/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': settings.api_key
+        'apikey': 'B3E45D21CD1E-4570-95EB-7F14E5F7FDA4'
       },
       body: JSON.stringify({
-        number: formattedPhysioPhone,
+        number: 5566992646592,
         text: physioMessage
       })
     });
