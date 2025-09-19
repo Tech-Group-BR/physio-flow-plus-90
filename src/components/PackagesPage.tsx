@@ -169,7 +169,7 @@ export function PackagesPage() {
 
   // Função para NAVEGAR para a página de agendamento de uma sessão de pacote
   const handleSchedule = (patientId: string, patientPackageId: string) => {
-    navigate(`/agendamentos/novo?pacienteId=${patientId}&pacoteId=${patientPackageId}`);
+    navigate(`/agenda`);
   };
 
   // Cálculos para os cards de resumo
