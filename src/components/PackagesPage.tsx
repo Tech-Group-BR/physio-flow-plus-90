@@ -11,9 +11,6 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Plus, Package, DollarSign, Calendar, Users, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/lib/supabaseClient";
-import { format, addDays } from "date-fns";
-import { AppointmentForm } from "./AppointmentForm";
-
 
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
 interface SessionPackage {
@@ -25,7 +22,6 @@ interface SessionPackage {
   validity_days: number;
   treatment_type: string;
   is_active: boolean;
-  created_at: string;
 }
 
 interface PatientPackage {
@@ -47,26 +43,26 @@ export function PackagesPage() {
   const [packages, setPackages] = useState<SessionPackage[]>([]);
   const [patientPackages, setPatientPackages] = useState<PatientPackage[]>([]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<SessionPackage | undefined>();
-  // CORREÇÃO: Estado do formulário padronizado para snake_case
+  // CORREÇÃO: Estado dedicado para o formulário de criação/edição de pacotes
+  const [showPackageForm, setShowPackageForm] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<SessionPackage | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', sessions: '', price: '', validity_days: '', treatment_type: '' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-
   const [showSellModal, setShowSellModal] = useState(false);
   const [selectedPackageToSell, setSelectedPackageToSell] = useState<SessionPackage | null>(null);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Função para buscar todos os dados necessários
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const { data: packagesData, error: packagesError } = await supabase.from('session_packages').select('*');
+      const { data: packagesData, error: packagesError } = await supabase.from('session_packages').select('*').order('created_at', { ascending: false });
       if (packagesError) throw packagesError;
       setPackages(packagesData || []);
 
-      const { data: patientPackagesData, error: patientPackagesError } = await supabase.from('patient_packages').select('*');
+      const { data: patientPackagesData, error: patientPackagesError } = await supabase.from('patient_packages').select('*').order('purchase_date', { ascending: false });
       if (patientPackagesError) throw patientPackagesError;
       setPatientPackages(patientPackagesData || []);
     } catch (error) {
@@ -80,29 +76,34 @@ export function PackagesPage() {
     fetchData();
   }, []);
 
-  // const handleSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   const packageData = {
-  //     name: formData.name,
-  //     description: formData.description,
-  //     sessions: parseInt(formData.sessions),
-  //     price: parseFloat(formData.price),
-  //     validity_days: parseInt(formData.validity_days),
-  //     treatment_type: formData.treatment_type,
-  //   };
+  // IMPLEMENTADO: Função para criar ou editar um MODELO de pacote
+  const handleSubmitPackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const packageData = {
+      name: formData.name,
+      description: formData.description,
+      sessions: parseInt(formData.sessions),
+      price: parseFloat(formData.price),
+      validity_days: parseInt(formData.validity_days),
+      treatment_type: formData.treatment_type,
+    };
 
-  //   const { error } = editingPackage
-  //     ? await supabase.from('session_packages').update(packageData).eq('id', editingPackage.id)
-  //     : await supabase.from('session_packages').insert(packageData);
+    const { error } = editingPackage
+      ? await supabase.from('session_packages').update(packageData).eq('id', editingPackage.id)
+      : await supabase.from('session_packages').insert([packageData]);
 
-  //   if (error) {
-  //     console.error("Erro ao salvar pacote:", error);
-  //   } else {
-  //     handleCancel();
-  //     fetchData();
-  //   }
-  // };
+    setIsSubmitting(false);
+    if (error) {
+      alert("Erro ao salvar pacote: " + error.message);
+      console.error("Erro ao salvar pacote:", error);
+    } else {
+      handleCancelPackage();
+      fetchData();
+    }
+  };
 
+  // Função para apagar um MODELO de pacote
   const deletePackage = async (packageId: string) => {
     if (window.confirm("Tem certeza que deseja apagar este modelo de pacote?")) {
       const { error } = await supabase.from('session_packages').delete().eq('id', packageId);
@@ -111,58 +112,43 @@ export function PackagesPage() {
     }
   };
 
-  const handleSave = () => {
-    setShowForm(false);
-  };
-
-  // ADIÇÃO: Função para ativar/desativar pacotes
+  // Função para ativar/desativar um MODELO de pacote
   const togglePackageStatus = async (pkg: SessionPackage) => {
     const newStatus = !pkg.is_active;
     const { error } = await supabase.from('session_packages').update({ is_active: newStatus }).eq('id', pkg.id);
     if (error) console.error(`Erro ao ${newStatus ? 'ativar' : 'desativar'} pacote:`, error);
     else fetchData();
   };
-const handleConfirmSale = async () => {
-  if (!selectedPackageToSell || !selectedPatientId || !paymentMethod) {
-    alert("Por favor, selecione o paciente e o método de pagamento.");
-    return;
-  }
 
-  setIsSubmitting(true); // Desabilita o botão para evitar cliques duplos
-
-  try {
-    const { error } = await supabase.rpc('sell_package', {
-      p_package_id: selectedPackageToSell.id,
-      p_patient_id: selectedPatientId,
-      p_payment_method: paymentMethod
-    });
-
-    if (error) {
-      // O 'throw' vai pular para o bloco 'catch'
-      throw error;
+  // Função para vender um pacote a um paciente
+  const handleConfirmSale = async () => {
+    if (!selectedPackageToSell || !selectedPatientId || !paymentMethod) {
+      alert("Por favor, selecione o paciente e o método de pagamento.");
+      return;
     }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.rpc('sell_package', {
+        p_package_id: selectedPackageToSell.id,
+        p_patient_id: selectedPatientId,
+        p_payment_method: paymentMethod
+      });
+      if (error) throw error;
+      alert("Venda registrada com sucesso! Uma pendência financeira foi criada para o paciente.");
+      setShowSellModal(false);
+      setSelectedPatientId('');
+      setPaymentMethod('');
+      fetchData();
+    } catch (error) {
+      console.error("Erro ao vender pacote:", error);
+      alert("Ocorreu um erro ao registrar a venda. Verifique o console para mais detalhes.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    // MUDANÇA: Mensagem de sucesso mais precisa
-    alert("Venda registrada com sucesso! Uma pendência financeira foi criada para o paciente.");
-    
-    // Limpa e fecha o modal
-    setShowSellModal(false);
-    setSelectedPatientId('');
-    setPaymentMethod('');
-    
-    // Atualiza os dados na tela
-    fetchData();
-
-  } catch (error) {
-    console.error("Erro ao vender pacote:", error);
-    alert("Ocorreu um erro ao registrar a venda. Verifique o console para mais detalhes.");
-  } finally {
-    setIsSubmitting(false); // Reabilita o botão no final
-  }
-}
-
-  // CORREÇÃO: handleEdit agora usa snake_case para preencher o formulário
-  const handleEdit = (pkg: SessionPackage) => {
+  // Funções para controlar a abertura/fechamento do formulário de pacote
+  const handleEditPackage = (pkg: SessionPackage) => {
     setEditingPackage(pkg);
     setFormData({
       name: pkg.name,
@@ -172,70 +158,21 @@ const handleConfirmSale = async () => {
       validity_days: pkg.validity_days.toString(),
       treatment_type: pkg.treatment_type
     });
-    setShowForm(true);
+    setShowPackageForm(true);
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingPackage(undefined);
+  const handleCancelPackage = () => {
+    setShowPackageForm(false);
+    setEditingPackage(null);
     setFormData({ name: '', description: '', sessions: '', price: '', validity_days: '', treatment_type: '' });
   };
 
+  // Função para NAVEGAR para a página de agendamento de uma sessão de pacote
   const handleSchedule = (patientId: string, patientPackageId: string) => {
     navigate(`/agendamentos/novo?pacienteId=${patientId}&pacoteId=${patientPackageId}`);
   };
 
-const handleScheduleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError(null);
-
-  // 1. Pegar IDs da URL (AQUI ESTÁ A CORREÇÃO)
-  const pacienteId = searchParams.get('pacienteId');
-  const pacoteId = searchParams.get('pacoteId');
-
-  // 2. Validar os dados
-  if (!pacienteId || !pacoteId) {
-    setError("ID do paciente ou do pacote não encontrado na URL. Volte e tente novamente.");
-    return;
-  }
-  if (!formData.professionalId || !formData.date || !formData.time) {
-    setError("Por favor, preencha o profissional, a data e a hora.");
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    // 3. Montar o objeto de parâmetros para a chamada RPC
-    const rpcParams = {
-      p_patient_id: pacienteId,
-      p_patient_package_id: pacoteId,
-      p_professional_id: formData.professionalId,
-      p_appointment_date: formData.date,
-      p_appointment_time: formData.time,
-      p_room_id: formData.roomId || null,
-      p_notes: formData.notes || null
-    };
-    
-    // 4. Chamar a função do Supabase
-    const { error: rpcError } = await supabase.rpc('schedule_package_session', rpcParams);
-
-    if (rpcError) {
-      throw rpcError;
-    }
-
-    // 5. Lidar com o sucesso
-    alert("Agendamento realizado com sucesso!");
-    navigate('/agendamentos');
-
-  } catch (err: any) {
-    console.error("Erro ao agendar sessão:", err);
-    setError(`Erro: ${err.message}`);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  // Cálculos para os cards de resumo
   const totalRevenueFromSoldPackages = patientPackages.reduce((sum, p_pkg) => {
     const originalPackage = packages.find(pkg => pkg.id === p_pkg.package_id);
     return sum + (originalPackage?.price || 0);
@@ -244,16 +181,17 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
   const treatmentTypes = ['Fisioterapia Ortopédica', 'RPG', 'Pilates Clínico'];
 
   if (isLoading) {
-    return <div className="p-4">Carregando dados...</div>;
+    return <div className="p-4 text-center">Carregando pacotes...</div>;
   }
-
-  if (showForm) {
+  
+  // Renderiza o formulário de criação/edição de pacote quando showPackageForm é true
+  if (showPackageForm) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Pacote' : 'Novo Pacote'}</h1>
+          <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Modelo de Pacote' : 'Novo Modelo de Pacote'}</h1>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmitPackage} className="space-y-6">
           <Card>
             <CardHeader><CardTitle>Dados do Pacote</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -261,29 +199,19 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                 <div><Label htmlFor="name">Nome do Pacote *</Label><Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
                 <div><Label htmlFor="treatmentType">Tipo de Tratamento *</Label><Select value={formData.treatment_type} onValueChange={(value) => setFormData({ ...formData, treatment_type: value })}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{treatmentTypes.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select></div>
                 <div><Label htmlFor="sessions">Número de Sessões *</Label><Input id="sessions" type="number" value={formData.sessions} onChange={(e) => setFormData({ ...formData, sessions: e.target.value })} required /></div>
-                <div><Label htmlFor="price">Preço Total *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
+                <div><Label htmlFor="price">Preço Total (R$) *</Label><Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required /></div>
                 <div><Label htmlFor="validityDays">Validade (dias) *</Label><Input id="validityDays" type="number" value={formData.validity_days} onChange={(e) => setFormData({ ...formData, validity_days: e.target.value })} required /></div>
               </div>
               <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
             </CardContent>
           </Card>
-          <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancel}>Cancelar</Button><Button type="submit">{editingPackage ? 'Atualizar' : 'Criar'} Pacote</Button></div>
+          <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancelPackage}>Cancelar</Button><Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : editingPackage ? 'Atualizar Pacote' : 'Criar Pacote'}</Button></div>
         </form>
       </div>
     );
   }
 
-    // if (showForm) {
-    //   return (
-    //     <div className="space-y-4 lg:space-y-6">
-    //       <div className="flex items-center justify-between">
-    //         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Novo Agendamento</h1>
-    //       </div>
-    //       <AppointmentForm onSave={handleSave} onCancel={handleCancel} />
-    //     </div>
-    //   );
-    // }
-
+  // Renderiza a página principal com as duas visualizações
   return (
     <>
       <Dialog open={showSellModal} onOpenChange={setShowSellModal}>
@@ -292,13 +220,13 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label htmlFor="patient">Paciente *</Label><Select onValueChange={setSelectedPatientId} value={selectedPatientId}><SelectTrigger><SelectValue placeholder="Selecione um paciente" /></SelectTrigger><SelectContent>{patients.map(p => (<SelectItem key={p.id} value={p.id}>{p.fullName}</SelectItem>))}</SelectContent></Select></div>
             <div className="space-y-2"><Label htmlFor="payment-method">Método de Pagamento *</Label>
-            <Select onValueChange={setPaymentMethod} value={paymentMethod}><SelectTrigger>
-              <SelectValue placeholder="Selecione o método" /></SelectTrigger><SelectContent>
-                <SelectItem value="pix">pix</SelectItem>
-                <SelectItem value="credit_card">Cartão de Crédito</SelectItem><SelectItem value="debit_card">Cartão de Débito</SelectItem><SelectItem value="cash">Dinheiro</SelectItem></SelectContent></Select></div>
+              <Select onValueChange={setPaymentMethod} value={paymentMethod}><SelectTrigger>
+                <SelectValue placeholder="Selecione o método" /></SelectTrigger><SelectContent>
+                  <SelectItem value="pix">Pix</SelectItem>
+                  <SelectItem value="credit_card">Cartão de Crédito</SelectItem><SelectItem value="debit_card">Cartão de Débito</SelectItem><SelectItem value="cash">Dinheiro</SelectItem></SelectContent></Select></div>
             <div className="text-lg font-bold">Valor: R$ {selectedPackageToSell?.price.toFixed(2)}</div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setShowSellModal(false)}>Cancelar</Button><Button onClick={handleConfirmSale} disabled={!selectedPatientId || !paymentMethod}>Confirmar Venda</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setShowSellModal(false)}>Cancelar</Button><Button onClick={handleConfirmSale} disabled={!selectedPatientId || !paymentMethod || isSubmitting}>{isSubmitting ? 'Confirmando...' : 'Confirmar Venda'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -307,9 +235,10 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
           <h1 className="text-3xl font-bold">Pacotes e Serviços</h1>
           <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:space-x-2">
             <Select value={viewMode} onValueChange={setViewMode}><SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="packages">Gerenciar Modelos</SelectItem><SelectItem value="patient-packages">Pacotes dos Pacientes</SelectItem></SelectContent></Select>
-            {viewMode === "packages" && (<Button onClick={() => setShowForm(true)} className="flex items-center space-x-2"><Plus className="h-4 w-4" /> <span>Novo Modelo</span></Button>)}
+            {viewMode === "packages" && (<Button onClick={() => setShowPackageForm(true)} className="flex items-center space-x-2"><Plus className="h-4 w-4" /> <span>Novo Modelo</span></Button>)}
           </div>
         </div>
+
         {viewMode === "packages" ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -322,7 +251,6 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                 <Card key={pkg.id}>
                   <CardContent className="p-6">
                     <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      {/* PREENCHIMENTO: Conteúdo do Card de Modelo de Pacote */}
                       <div className="flex-1">
                         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
                           <div className="flex items-center space-x-3"><Package className="h-5 w-5" /><h3 className="text-lg font-semibold">{pkg.name}</h3></div>
@@ -338,7 +266,7 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                       </div>
                       <div className="flex w-full items-center space-x-2 sm:w-auto">
                         <Button variant="default" size="sm" onClick={() => { setSelectedPackageToSell(pkg); setShowSellModal(true); }} className="flex-1 sm:flex-initial"><DollarSign className="h-4 w-4 mr-1" /> Vender</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(pkg)} className="flex-1 sm:flex-initial"><Edit className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEditPackage(pkg)} className="flex-1 sm:flex-initial"><Edit className="h-4 w-4" /></Button>
                         <Button variant={pkg.is_active ? "secondary" : "default"} size="sm" onClick={() => togglePackageStatus(pkg)} className="flex-1 sm:flex-initial">{pkg.is_active ? "Desativar" : "Ativar"}</Button>
                         <Button variant="destructive" size="icon" onClick={() => deletePackage(pkg.id)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
@@ -361,7 +289,6 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                       const remainingSessions = pkg ? pkg.sessions - p_pkg.sessions_used : 0;
                       return (
                         <div key={p_pkg.id} className="border rounded p-4">
-                          {/* PREENCHIMENTO: Conteúdo do Card de Pacote do Paciente */}
                           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex-1">
                               <div className="flex flex-col items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-3 mb-2">
@@ -370,13 +297,14 @@ const handleScheduleSubmit = async (e: React.FormEvent) => {
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                                 <div><strong>Pacote:</strong> {pkg?.name || 'Modelo não encontrado'}</div>
-                                <div><strong>Sessões:</strong> {p_pkg.sessions_used} / {pkg?.sessions}</div>
+                                <div><strong>Sessões:</strong> {p_pkg.sessions_used} / {pkg?.sessions || '?'}</div>
                                 <div><strong>Restantes:</strong> {remainingSessions}</div>
                                 <div><strong>Expira em:</strong> {new Date(p_pkg.expiry_date).toLocaleDateString('pt-BR')}</div>
                               </div>
                             </div>
                             <div className="flex w-full sm:w-auto">
-                              <Button size="sm" variant="outline" className="w-full"  onClick={() => setShowForm(true)} disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}>
+                              {/* CORREÇÃO: Botão "Agendar" agora chama a função de navegação correta */}
+                              <Button size="sm" variant="outline" className="w-full" onClick={() => handleSchedule(p_pkg.patient_id, p_pkg.id)} disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}>
                                 <Calendar className="h-4 w-4 mr-1" /> Agendar
                               </Button>
                             </div>
