@@ -11,7 +11,7 @@ interface WhatsAppStatsProps {
   todayMessages: number;
   confirmations: number;
   pendingConfirmations: number;
-  responseRate: string;
+  responseRate: string | number;
 }
 
 export function WhatsAppStats({ 

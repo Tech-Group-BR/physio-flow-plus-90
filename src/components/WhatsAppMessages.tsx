@@ -52,7 +52,7 @@ export function WhatsAppMessages({
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{patient?.fullName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(appointment.date), 'dd/MM/yyyy')} às {appointment.time}
+                       {appointment.date.slice(0, 10).split('-').reverse().join('/')} às {appointment.time}
                         </p>
                       </div>
                       <Button

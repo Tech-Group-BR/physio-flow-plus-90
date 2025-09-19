@@ -76,7 +76,9 @@ export function WhatsAppPage() {
   // Estatísticas calculadas
   const todayMessages = todayAppointments.filter(a => a.whatsappSentAt).length;
   const confirmations = appointments.filter(a => a.whatsappConfirmed).length;
-  const responseRate = "85%";
+  const responseRate = confirmations && pendingConfirmations.length + confirmations > 0
+    ? Math.round((confirmations / (pendingConfirmations.length + confirmations)) * 100)
+    : 0;
 
   useEffect(() => {
     loadSettings();
@@ -155,36 +157,36 @@ export function WhatsAppPage() {
 
       toast.success(`Mensagem enviada para ${patient.fullName}`);
       
-      // Verificar confirmações pendentes após 30 segundos
-      setTimeout(async () => {
-        try {
-          // Verificar se agendamento foi confirmado
-          const { data: updatedAppointment } = await supabase
-            .from('appointments')
-            .select('status, whatsapp_confirmed')
-            .eq('id', appointmentId)
-            .single();
+   //   Verificar confirmações pendentes após 30 segundos
+      // setTimeout(async () => {
+      //   try {
+      //     // Verificar se agendamento foi confirmado
+      //     const { data: updatedAppointment } = await supabase
+      //       .from('appointments')
+      //       .select('status, whatsapp_confirmed')
+      //       .eq('id', appointmentId)
+      //       .single();
             
-          if (updatedAppointment?.whatsapp_confirmed) {
-            console.log('✅ Agendamento confirmado, enviando notificação para fisioterapeuta...');
+      //     if (updatedAppointment?.whatsapp_confirmed) {
+      //       console.log('✅ Agendamento confirmado, enviando notificação para fisioterapeuta...');
             
-            // Enviar notificação para fisioterapeuta via edge function de teste
-            const { data: testResult } = await supabase.functions.invoke('test-physio-notification', {
-              body: { appointmentId }
-            });
+      //       // Enviar notificação para fisioterapeuta via edge function de teste
+      //       const { data: testResult } = await supabase.functions.invoke('test-physio-notification', {
+      //         body: { appointmentId }
+      //       });
             
-            console.log('📱 Notificação enviada para fisioterapeuta:', testResult);
-          }
-        } catch (error) {
-          console.error('❌ Erro ao verificar confirmação:', error);
-        }
-      }, 30000);
+      //       console.log('📱 Notificação enviada para fisioterapeuta:', testResult);
+      //     }
+      //   } catch (error) {
+      //     console.error('❌ Erro ao verificar confirmação:', error);
+      //   }
+      // }, 30000);
       
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
       toast.error(`Erro ao enviar mensagem via WhatsApp: ${error.message || error}`);
     }
-  };
+    };
 
   const testPhysioNotification = async () => {
     try {
@@ -213,46 +215,46 @@ export function WhatsAppPage() {
     }
   };
 
-  const testRealConfirmation = async () => {
-    try {
-      console.log('🔄 Simulando confirmação real...');
+  // const testRealConfirmation = async () => {
+  //   try {
+  //     console.log('🔄 Simulando confirmação real...');
       
-      // Primeiro, simular uma resposta do paciente
-      const { data: confirmResult, error: confirmError } = await supabase.rpc('process_whatsapp_confirmation', {
-        p_phone: '66996525791',
-        p_message_content: 'SIM',
-        p_evolution_message_id: 'TEST_' + Date.now()
-      });
+  //     // Primeiro, simular uma resposta do paciente
+  //     const { data: confirmResult, error: confirmError } = await supabase.rpc('process_whatsapp_confirmation', {
+  //       p_phone: '66996525791',
+  //       p_message_content: 'SIM',
+  //       p_evolution_message_id: 'TEST_' + Date.now()
+  //     });
 
-      if (confirmError) {
-        throw confirmError;
-      }
+  //     if (confirmError) {
+  //       throw confirmError;
+  //     }
 
-      console.log('✅ Confirmação processada:', confirmResult);
+  //     console.log('✅ Confirmação processada:', confirmResult);
 
-      if ((confirmResult as any)?.success) {
-        // Agora testar a notificação para fisioterapeuta
-        const { data: notifData, error: notifError } = await supabase.functions.invoke('test-physio-notification', {
-          body: { appointmentId: (confirmResult as any).appointment_id }
-        });
+  //     if ((confirmResult as any)?.success) {
+  //       // Agora testar a notificação para fisioterapeuta
+  //       const { data: notifData, error: notifError } = await supabase.functions.invoke('test-physio-notification', {
+  //         body: { appointmentId: (confirmResult as any).appointment_id }
+  //       });
 
-        if (notifError) {
-          throw notifError;
-        }
+  //       if (notifError) {
+  //         throw notifError;
+  //       }
 
-        if ((notifData as any).success) {
-          toast.success('🎉 Confirmação simulada e fisioterapeuta notificada!');
-        } else {
-          toast.error('Confirmação simulada mas erro ao notificar: ' + (notifData as any).error);
-        }
-      } else {
-        toast.error('Erro na simulação: ' + (confirmResult as any)?.message);
-      }
-    } catch (error) {
-      console.error('❌ Erro no teste real:', error);
-      toast.error('Erro no teste: ' + (error.message || 'Erro desconhecido'));
-    }
-  };
+  //       if ((notifData as any).success) {
+  //         toast.success('🎉 Confirmação simulada e fisioterapeuta notificada!');
+  //       } else {
+  //         toast.error('Confirmação simulada mas erro ao notificar: ' + (notifData as any).error);
+  //       }
+  //     } else {
+  //       toast.error('Erro na simulação: ' + (confirmResult as any)?.message);
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Erro no teste real:', error);
+  //     toast.error('Erro no teste: ' + (error.message || 'Erro desconhecido'));
+  //   }
+  // };
 
   const sendBulkMessages = async (appointmentIds: string[], type: 'confirmation' | 'reminder') => {
     for (const id of appointmentIds) {
@@ -275,7 +277,7 @@ export function WhatsAppPage() {
           <Badge variant={settings.is_active ? "default" : "secondary"}>
             {settings.is_active ? "Ativo" : "Inativo"}
           </Badge>
-          <Button 
+          {/* <Button 
             onClick={testPhysioNotification}
             variant="outline" 
             size="sm"
@@ -289,7 +291,7 @@ export function WhatsAppPage() {
             size="sm"
           >
             ✅ Teste Completo
-          </Button>
+          </Button> */}
         </div>
       </div>
 
