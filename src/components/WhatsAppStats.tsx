@@ -70,7 +70,7 @@ export function WhatsAppStats({
             <Activity className="h-8 w-8 text-purple-600" />
             <div>
               <p className="text-sm text-gray-600">Taxa Resposta</p>
-              <p className="text-2xl font-bold text-gray-900">{responseRate}</p>
+              <p className="text-2xl font-bold text-gray-900">{responseRate}%</p>
             </div>
           </div>
         </CardContent>
