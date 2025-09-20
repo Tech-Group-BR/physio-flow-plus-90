@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogD
 import { useClinic } from "@/contexts/ClinicContext";
 import { Plus, Package, DollarSign, Calendar, Users, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
 interface SessionPackage {
@@ -131,7 +132,7 @@ export function PackagesPage() {
       const { error } = await supabase.rpc('sell_package', {
         p_package_id: selectedPackageToSell.id,
         p_patient_id: selectedPatientId,
-        p_payment_method: paymentMethod
+        p_payment_method: paymentMethod as Database['public']['Enums']['payment_method_enum']
       });
       if (error) throw error;
       alert("Venda registrada com sucesso! Uma pendência financeira foi criada para o paciente.");

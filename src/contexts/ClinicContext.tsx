@@ -201,8 +201,9 @@ interface ClinicContextType {
   updateLead: (lead: MainLead) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
- markReceivableAsPaid: (id: string, method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
-  markPayableAsPaid: (id: string) => Promise<void>;
+  markReceivableAsPaid: (id: string, method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
+  markPayableAsPaid: (id: string, paidDate?: string) => Promise<void>;
+  addPayment: (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -1305,6 +1306,47 @@ const markReceivableAsPaid = async (id: string, method: Database['public']['Enum
   }
 };
 
+const addPayment = async (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => {
+  try {
+    console.log('Adicionando pagamento:', payment);
+    
+    const newPayment = {
+      patient_id: payment.patientId,
+      amount: payment.amount,
+      method: payment.method === 'cartao' ? 'cartao_de_credito' as const : 
+              payment.method === 'transferencia' ? 'pix' as const :
+              payment.method === 'dinheiro' ? 'cash' as const : 
+              'pix' as const,
+      description: payment.description,
+      due_date: payment.dueDate,
+      status: payment.status as 'pendente' | 'pago' | 'vencido',
+      paid_date: payment.paidDate ? payment.paidDate : null,
+      clinic_id: currentUser?.clinicId || null
+    };
+
+    const { data, error } = await supabase
+      .from('accounts_receivable')
+      .insert(newPayment)
+      .select('*');
+
+    if (error) {
+      console.error('Erro ao adicionar pagamento:', error);
+      toast.error('Erro ao adicionar pagamento');
+      throw error;
+    }
+
+    console.log('Pagamento adicionado com sucesso:', data);
+    toast.success('Pagamento adicionado com sucesso!');
+    
+    // Refresh accounts receivable
+    await fetchAccountsReceivable();
+  } catch (error) {
+    console.error('Erro ao adicionar pagamento:', error);
+    toast.error('Erro ao adicionar pagamento');
+    throw error;
+  }
+};
+
   const value: ClinicContextType = {
     patients,
     professionals,
@@ -1357,6 +1399,7 @@ const markReceivableAsPaid = async (id: string, method: Database['public']['Enum
     fetchDashboardStats,
     markReceivableAsPaid,
     markPayableAsPaid,
+    addPayment,
   };
 
   return (

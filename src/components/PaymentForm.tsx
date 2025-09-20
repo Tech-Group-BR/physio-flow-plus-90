@@ -15,7 +15,7 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ onSave, onCancel }: PaymentFormProps) {
-  const { patients } = useClinic();
+  const { patients, addPayment } = useClinic();
   
   const [formData, setFormData] = useState({
     patientId: '',
@@ -39,7 +39,7 @@ export function PaymentForm({ onSave, onCancel }: PaymentFormProps) {
     { value: 'cancelado', label: 'Cancelado' }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.patientId || !formData.amount || !formData.method || !formData.description) {
@@ -47,20 +47,23 @@ export function PaymentForm({ onSave, onCancel }: PaymentFormProps) {
       return;
     }
     
-    const paymentData = {
-      patientId: formData.patientId,
-      amount: parseFloat(formData.amount),
-      method: formData.method as 'dinheiro' | 'pix' | 'cartao' | 'transferencia',
-      status: formData.status as 'pago' | 'pendente' | 'cancelado',
-      type: 'recebimento' as const,
-      dueDate: formData.dueDate,
-      description: formData.description,
-      paidDate: formData.status === 'pago' ? new Date().toISOString() : undefined
-    };
+    try {
+      const paymentData = {
+        patientId: formData.patientId,
+        amount: parseFloat(formData.amount),
+        method: formData.method,
+        status: formData.status,
+        description: formData.description,
+        dueDate: formData.dueDate,
+        paidDate: formData.status === 'pago' ? new Date().toISOString() : undefined
+      };
 
-    // TODO: Implement addPayment in ClinicContext
-    console.log('Payment data:', paymentData);
-    onSave();
+      await addPayment(paymentData);
+      onSave();
+    } catch (error) {
+      console.error('Erro ao salvar pagamento:', error);
+      alert('Erro ao salvar pagamento. Tente novamente.');
+    }
   };
 
   return (
