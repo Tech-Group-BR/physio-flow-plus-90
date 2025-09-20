@@ -85,7 +85,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
   };
 
   return (
-    <div className="space-y-6">
+   <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -96,6 +96,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* LAYOUT DE GRADE RESPONSIVO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="base_url">URL Base da API</Label>
@@ -129,11 +130,12 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
             />
           </div>
 
+          {/* BOTÕES RESPONSIVOS */}
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
               onClick={saveSettings} 
               disabled={isLoading}
-              className="flex items-center space-x-2"
+              className="w-full sm:w-auto flex items-center space-x-2"
             >
               <Save className="h-4 w-4" />
               <span>{isLoading ? 'Salvando...' : 'Salvar Configurações'}</span>
@@ -143,7 +145,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
               onClick={testConnection}
               disabled={isTesting}
               variant="outline"
-              className="flex items-center space-x-2"
+              className="w-full sm:w-auto flex items-center space-x-2"
             >
               <TestTube className="h-4 w-4" />
               <span>{isTesting ? 'Testando...' : 'Testar Conexão'}</span>
@@ -173,17 +175,17 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
           <div className="space-y-4">
             <div>
               <Label>URL do Webhook</Label>
-              <div className="flex items-center space-x-2 mt-1">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-1">
                 <Input
                   value={webhookUrl}
                   readOnly
-                  className="bg-gray-50"
+                  className="bg-gray-50 flex-grow"
                 />
                 <Button
                   onClick={copyWebhookUrl}
                   variant="outline"
                   size="sm"
-                  className="flex items-center space-x-2"
+                  className="w-full sm:w-auto flex items-center space-x-2"
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   <span>{copied ? 'Copiado' : 'Copiar'}</span>

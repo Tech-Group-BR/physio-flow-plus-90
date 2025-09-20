@@ -23,36 +23,39 @@ export function WhatsAppMessages({
   console.log('WhatsAppMessages - patients:', patients);
   
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-      <Card>
+     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      {/* Confirmações Pendentes Card */}
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle className="text-lg">Confirmações Pendentes</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col">
           {pendingConfirmations.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
+            <p className="text-muted-foreground text-center py-4 flex-1 flex items-center justify-center">
               Nenhuma confirmação pendente
             </p>
           ) : (
             <>
+              {/* Botão de envio em massa com largura total */}
               <Button
                 onClick={() => onSendBulkMessages(pendingConfirmations.map(a => a.id), 'confirmation')}
-                className="w-full mb-4"
+                className="w-full"
                 size="sm"
               >
                 <Send className="h-4 w-4 mr-2" />
                 Enviar Todas as Confirmações
               </Button>
               
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              {/* Lista de agendamentos com scroll */}
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2 -mr-2">
                 {pendingConfirmations.map((appointment) => {
                   const patient = patients.find(p => p.id === appointment.patientId);
                   return (
                     <div key={appointment.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium truncate">{patient?.fullName}</p>
-                        <p className="text-sm text-muted-foreground">
-                       {appointment.date.slice(0, 10).split('-').reverse().join('/')} às {appointment.time}
+                        <p className="text-sm text-muted-foreground truncate">
+                         {appointment.date.slice(0, 10).split('-').reverse().join('/')} às {appointment.time}
                         </p>
                       </div>
                       <Button
@@ -70,28 +73,31 @@ export function WhatsAppMessages({
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Lembretes para Amanhã Card */}
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle className="text-lg">Lembretes para Amanhã</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1 flex flex-col">
           {tomorrowAppointments.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
+            <p className="text-muted-foreground text-center py-4 flex-1 flex items-center justify-center">
               Nenhuma consulta amanhã
             </p>
           ) : (
             <>
+              {/* Botão de envio em massa com largura total */}
               <Button
                 onClick={() => onSendBulkMessages(tomorrowAppointments.map(a => a.id), 'reminder')}
                 variant="outline"
-                className="w-full mb-4"
+                className="w-full"
                 size="sm"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Enviar Todos os Lembretes
               </Button>
               
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              {/* Lista de agendamentos com scroll */}
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2 -mr-2">
                 {tomorrowAppointments.map((appointment) => {
                   const patient = patients.find(p => p.id === appointment.patientId);
                   return (

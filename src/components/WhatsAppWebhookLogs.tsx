@@ -73,17 +73,18 @@ export function WhatsAppWebhookLogs() {
   };
 
   return (
-    <div className="space-y-6">
+   <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Logs do Webhook WhatsApp</CardTitle>
-            <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <CardTitle className="text-xl sm:text-2xl font-bold">Logs do Webhook WhatsApp</CardTitle>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
               <Button
                 onClick={loadLogs}
                 disabled={isLoading}
                 size="sm"
                 variant="outline"
+                className="w-full sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Atualizar
@@ -92,6 +93,7 @@ export function WhatsAppWebhookLogs() {
                 onClick={clearLogs}
                 size="sm"
                 variant="destructive"
+                className="w-full sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Limpar Logs
@@ -107,10 +109,10 @@ export function WhatsAppWebhookLogs() {
               Nenhum log encontrado
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               {logs.map((log) => (
                 <div key={log.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
                     <div className="flex items-center space-x-2">
                       <Badge className={getStatusColor(log.status)}>
                         {log.status}
@@ -119,8 +121,8 @@ export function WhatsAppWebhookLogs() {
                         {getMessageTypeLabel(log.message_type)}
                       </span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-500">
+                    <div className="flex items-center space-x-2 text-xs sm:text-sm">
+                      <span className="text-gray-500">
                         {new Date(log.sent_at).toLocaleString('pt-BR')}
                       </span>
                       <Button

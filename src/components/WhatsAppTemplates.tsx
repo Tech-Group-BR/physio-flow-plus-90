@@ -63,13 +63,13 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Templates de Mensagem</CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <CardTitle className="text-xl sm:text-2xl font-bold">Templates de Mensagem</CardTitle>
           <Button 
             onClick={saveTemplates} 
             disabled={isLoading}
             size="sm"
-            className="flex items-center space-x-2"
+            className="w-full sm:w-auto flex items-center space-x-2"
           >
             <Save className="h-4 w-4" />
             <span>{isLoading ? 'Salvando...' : 'Salvar Templates'}</span>
@@ -80,7 +80,7 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
         {templates.map((template) => (
           <div key={template.id} className="border rounded-lg p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
-              <h3 className="font-medium">{template.name}</h3>
+              <h3 className="font-medium text-base sm:text-lg">{template.name}</h3>
               <Badge variant="outline" className="w-fit">{template.id}</Badge>
             </div>
             <Textarea
