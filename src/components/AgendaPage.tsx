@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { AppointmentForm } from "./AppointmentForm";
 import { useAgendaLogic } from "@/hooks/useAgendaLogic";
 import { AgendaFilters } from "./agenda/AgendaFilters";
@@ -57,10 +57,25 @@ export function AgendaPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Agenda</h1>
           <p className="text-gray-600 mt-1">Gerencie seus agendamentos</p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2 w-full sm:w-auto">
-          <Plus className="h-4 w-4" />
-          <span>Novo Agendamento</span>
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2">
+            <Plus className="h-4 w-4" />
+            <span>Novo Agendamento</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              const selectedAppointment = /* lógica para selecionar agendamento */null;
+              if (selectedAppointment) {
+                window.location.href = `/prontuario/evolucao/nova?paciente=${selectedAppointment.patientId}`;
+              }
+            }}
+            className="flex items-center space-x-2"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Nova Evolução</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

@@ -22,7 +22,7 @@ import { SalesPage } from "@/components/SalesPage";
 import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
-import { PatientDetailsPage } from "@/components/patientDetailsPage";
+import { PatientDetailsPage } from "@/components/PatientDetailsPage";
 import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
 import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
 

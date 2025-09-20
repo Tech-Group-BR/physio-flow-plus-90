@@ -42,6 +42,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [defaultPrice, setDefaultPrice] = useState(180);
   
   // Busca pacientes e profissionais uma vez, ao montar o componente
   useEffect(() => {
@@ -52,8 +53,19 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
         setPatients(patientsData || []);
         const { data: professionalsData } = await supabase.from('professionals').select('id, full_name').order('full_name');
         setProfessionals(professionalsData || []);
+        
+        // Buscar preço padrão das configurações
+        const { data: settingsData } = await supabase
+          .from('clinic_settings')
+          .select('consultation_price')
+          .limit(1)
+          .single();
+        
+        if (settingsData?.consultation_price) {
+          setDefaultPrice(settingsData.consultation_price);
+        }
       } catch (error) {
-        toast.error("Falha ao carregar pacientes e profissionais.");
+        toast.error("Falha ao carregar dados iniciais.");
         console.error(error);
       } finally {
         setIsLoading(false);
@@ -136,7 +148,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
       rpcParams.p_price = null;
     } else if (appointmentType === 'standard') {
       rpcParams.p_appointment_type = 'Consulta';
-      rpcParams.p_price = 180;
+      rpcParams.p_price = defaultPrice;
     } else if (appointmentType === 'custom') {
       if (!formData.customDescription || !formData.customPrice) {
         toast.error("Descrição e valor personalizados são obrigatórios.");
@@ -184,7 +196,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
               )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="standard" id="r2" />
-                <Label htmlFor="r2">Nova Consulta (R$ 180,00)</Label>
+                <Label htmlFor="r2">Nova Consulta (R$ {defaultPrice})</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="custom" id="r3" />

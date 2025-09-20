@@ -25,12 +25,16 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
   const saveSettings = async () => {
     setIsLoading(true);
     try {
+      // Usar clinic_id padrão se necessário
+      const settingsToSave = {
+        ...settings,
+        clinic_id: settings.clinic_id || '00000000-0000-0000-0000-000000000001',
+        updated_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('whatsapp_settings')
-        .upsert({
-          ...settings,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(settingsToSave);
 
       if (error) throw error;
 
