@@ -12,6 +12,7 @@ import { Plus, Package, DollarSign, Calendar, Users, Edit, Trash2 } from "lucide
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
 interface SessionPackage {
@@ -68,6 +69,7 @@ export function PackagesPage() {
       setPatientPackages(patientPackagesData || []);
     } catch (error) {
       console.error("Erro ao buscar dados do Supabase:", error);
+      toast.error("Erro ao carregar dados.");
     } finally {
       setIsLoading(false);
     }
@@ -81,6 +83,14 @@ export function PackagesPage() {
   const handleSubmitPackage = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    
+    // Validação básica
+    if (!formData.name || !formData.sessions || !formData.price || !formData.validity_days || !formData.treatment_type) {
+      toast.error("Por favor, preencha todos os campos obrigatórios.");
+      setIsSubmitting(false);
+      return;
+    }
+
     const packageData = {
       name: formData.name,
       description: formData.description,
@@ -96,11 +106,12 @@ export function PackagesPage() {
 
     setIsSubmitting(false);
     if (error) {
-      alert("Erro ao salvar pacote: " + error.message);
+      toast.error("Erro ao salvar pacote: " + error.message);
       console.error("Erro ao salvar pacote:", error);
     } else {
       handleCancelPackage();
       fetchData();
+      toast.success(`Pacote ${editingPackage ? 'atualizado' : 'criado'} com sucesso!`);
     }
   };
 
@@ -108,8 +119,14 @@ export function PackagesPage() {
   const deletePackage = async (packageId: string) => {
     if (window.confirm("Tem certeza que deseja apagar este modelo de pacote?")) {
       const { error } = await supabase.from('session_packages').delete().eq('id', packageId);
-      if (error) console.error("Erro ao deletar pacote:", error);
-      else fetchData();
+      if (error) {
+        console.error("Erro ao deletar pacote:", error);
+        toast.error("Erro ao deletar pacote.");
+      }
+      else {
+        fetchData();
+        toast.success("Pacote deletado com sucesso!");
+      }
     }
   };
 
@@ -117,14 +134,20 @@ export function PackagesPage() {
   const togglePackageStatus = async (pkg: SessionPackage) => {
     const newStatus = !pkg.is_active;
     const { error } = await supabase.from('session_packages').update({ is_active: newStatus }).eq('id', pkg.id);
-    if (error) console.error(`Erro ao ${newStatus ? 'ativar' : 'desativar'} pacote:`, error);
-    else fetchData();
+    if (error) {
+      console.error(`Erro ao ${newStatus ? 'ativar' : 'desativar'} pacote:`, error);
+      toast.error(`Erro ao ${newStatus ? 'ativar' : 'desativar'} pacote.`);
+    }
+    else {
+      fetchData();
+      toast.success(`Pacote ${newStatus ? 'ativado' : 'desativado'} com sucesso!`);
+    }
   };
 
   // Função para vender um pacote a um paciente
   const handleConfirmSale = async () => {
     if (!selectedPackageToSell || !selectedPatientId || !paymentMethod) {
-      alert("Por favor, selecione o paciente e o método de pagamento.");
+      toast.error("Por favor, selecione o paciente e o método de pagamento.");
       return;
     }
     setIsSubmitting(true);
@@ -135,14 +158,14 @@ export function PackagesPage() {
         p_payment_method: paymentMethod as Database['public']['Enums']['payment_method_enum']
       });
       if (error) throw error;
-      alert("Venda registrada com sucesso! Uma pendência financeira foi criada para o paciente.");
+      toast.success("Venda registrada com sucesso!");
       setShowSellModal(false);
       setSelectedPatientId('');
       setPaymentMethod('');
       fetchData();
     } catch (error) {
       console.error("Erro ao vender pacote:", error);
-      alert("Ocorreu um erro ao registrar a venda. Verifique o console para mais detalhes.");
+      toast.error("Ocorreu um erro ao registrar a venda.");
     } finally {
       setIsSubmitting(false);
     }
@@ -189,8 +212,11 @@ export function PackagesPage() {
   if (showPackageForm) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{editingPackage ? 'Editar Modelo de Pacote' : 'Novo Modelo de Pacote'}</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h1 className="text-xl sm:text-2xl font-bold">{editingPackage ? 'Editar Modelo de Pacote' : 'Novo Modelo de Pacote'}</h1>
+          <Button onClick={handleCancelPackage} variant="outline" className="w-full sm:w-auto">
+            Cancelar
+          </Button>
         </div>
         <form onSubmit={handleSubmitPackage} className="space-y-6">
           <Card>
@@ -206,7 +232,9 @@ export function PackagesPage() {
               <div><Label htmlFor="description">Descrição</Label><Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
             </CardContent>
           </Card>
-          <div className="flex justify-end space-x-4"><Button type="button" variant="outline" onClick={handleCancelPackage}>Cancelar</Button><Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Salvando...' : editingPackage ? 'Atualizar Pacote' : 'Criar Pacote'}</Button></div>
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4">
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">{isSubmitting ? 'Salvando...' : editingPackage ? 'Atualizar Pacote' : 'Criar Pacote'}</Button>
+          </div>
         </form>
       </div>
     );
@@ -233,10 +261,16 @@ export function PackagesPage() {
 
       <div className="space-y-6">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold">Pacotes e Serviços</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Pacotes e Serviços</h1>
           <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:space-x-2">
-            <Select value={viewMode} onValueChange={setViewMode}><SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="packages">Gerenciar Modelos</SelectItem><SelectItem value="patient-packages">Pacotes dos Pacientes</SelectItem></SelectContent></Select>
-            {viewMode === "packages" && (<Button onClick={() => setShowPackageForm(true)} className="flex items-center space-x-2"><Plus className="h-4 w-4" /> <span>Novo Modelo</span></Button>)}
+            <Select value={viewMode} onValueChange={setViewMode}>
+              <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="packages">Gerenciar Modelos</SelectItem>
+                <SelectItem value="patient-packages">Pacotes dos Pacientes</SelectItem>
+              </SelectContent>
+            </Select>
+            {viewMode === "packages" && (<Button onClick={() => setShowPackageForm(true)} className="flex items-center space-x-2 w-full sm:w-auto"><Plus className="h-4 w-4" /> <span>Novo Modelo</span></Button>)}
           </div>
         </div>
 
@@ -265,11 +299,11 @@ export function PackagesPage() {
                         </div>
                         {pkg.description && (<div className="mt-2 text-sm text-muted-foreground">{pkg.description}</div>)}
                       </div>
-                      <div className="flex w-full items-center space-x-2 sm:w-auto">
+                      <div className="flex flex-col w-full items-stretch space-y-2 sm:w-auto sm:flex-row sm:items-center sm:space-x-2">
                         <Button variant="default" size="sm" onClick={() => { setSelectedPackageToSell(pkg); setShowSellModal(true); }} className="flex-1 sm:flex-initial"><DollarSign className="h-4 w-4 mr-1" /> Vender</Button>
                         <Button variant="outline" size="sm" onClick={() => handleEditPackage(pkg)} className="flex-1 sm:flex-initial"><Edit className="h-4 w-4" /></Button>
                         <Button variant={pkg.is_active ? "secondary" : "default"} size="sm" onClick={() => togglePackageStatus(pkg)} className="flex-1 sm:flex-initial">{pkg.is_active ? "Desativar" : "Ativar"}</Button>
-                        <Button variant="destructive" size="icon" onClick={() => deletePackage(pkg.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="destructive" size="icon" onClick={() => deletePackage(pkg.id)} className="w-auto sm:w-10"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                   </CardContent>
@@ -303,9 +337,15 @@ export function PackagesPage() {
                                 <div><strong>Expira em:</strong> {new Date(p_pkg.expiry_date).toLocaleDateString('pt-BR')}</div>
                               </div>
                             </div>
-                            <div className="flex w-full sm:w-auto">
-                              {/* CORREÇÃO: Botão "Agendar" agora chama a função de navegação correta */}
-                              <Button size="sm" variant="outline" className="w-full" onClick={() => handleSchedule(p_pkg.patient_id, p_pkg.id)} disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}>
+                            <div className="flex flex-col w-full sm:w-auto items-stretch sm:flex-row sm:items-center">
+                              {/* Botão "Agendar" agora chama a função de navegação correta */}
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="w-full" 
+                                onClick={() => handleSchedule(p_pkg.patient_id, p_pkg.id)} 
+                                disabled={remainingSessions <= 0 || p_pkg.status !== 'active'}
+                              >
                                 <Calendar className="h-4 w-4 mr-1" /> Agendar
                               </Button>
                             </div>
