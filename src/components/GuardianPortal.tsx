@@ -58,7 +58,7 @@ export function GuardianPortal() {
               <strong>Nome:</strong> {patient.fullName}
             </div>
             <div>
-              <strong>Data de Nascimento:</strong> {format(new Date(patient.birthDate), 'dd/MM/yyyy')}
+              <strong>Data de Nascimento:</strong> {format(new Date(patient.birth_date), 'dd/MM/yyyy')}
             </div>
             <div>
               <strong>Tratamento:</strong> {patient.treatmentType}
