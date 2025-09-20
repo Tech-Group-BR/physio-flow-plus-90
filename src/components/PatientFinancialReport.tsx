@@ -65,7 +65,7 @@ export function PatientFinancialReport() {
         .single();
 
       if (error) throw error;
-      setReportData(data);
+      setReportData(data as PatientFinancialData);
     } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
       toast({

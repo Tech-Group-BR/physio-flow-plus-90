@@ -86,8 +86,8 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           .filter(p => p.session_packages)
           .map(p => ({
             id: p.id,
-            name: p.session_packages!.name,
-            sessions_remaining: p.session_packages!.sessions - p.sessions_used
+            name: (p.session_packages as any)?.name || 'Pacote',
+            sessions_remaining: ((p.session_packages as any)?.sessions || 0) - p.sessions_used
           }))
           .filter(p => p.sessions_remaining > 0);
 

@@ -22,7 +22,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
     phone: patient?.phone || '',
     email: patient?.email || '',
     cpf: patient?.cpf || '',
-    birthDate: patient?.birthDate ? patient.birthDate.split('T')[0] : '',
+    birthDate: patient?.birth_date ? new Date(patient.birth_date).toISOString().split('T')[0] : '',
     gender: patient?.gender || '',
     street: patient?.address?.street || '',
     number: patient?.address?.number || '',
@@ -83,7 +83,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
         phone: formData.phone,
         email: formData.email,
         cpf: formData.cpf,
-        birthDate: formData.birthDate,
+        birth_date: formData.birthDate,
         gender: formData.gender as 'male' | 'female',
         address: {
           street: formData.street,
@@ -95,20 +95,17 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           zipCode: formData.zipCode
         },
         insurance: formData.insurance,
-        treatmentType: formData.treatmentType,
-        emergencyContact: {
+        treatment_type: formData.treatmentType,
+        emergency_contact: {
           name: formData.emergencyName,
           phone: formData.emergencyPhone,
           relationship: formData.emergencyRelationship
         },
-        emergencyPhone: formData.emergencyPhone,
-        medicalHistory: formData.medicalHistory,
-        appointments: [],
-        payments: [],
+        emergency_phone: formData.emergencyPhone,
+        medical_history: formData.medicalHistory,
         notes: formData.notes,
-        isActive: true,
-        isMinor: isMinor,
-       
+        is_active: true,
+        is_minor: isMinor
       };
 
       console.log('Dados do paciente preparados:', patientData);
@@ -121,7 +118,7 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           phone: formData.phone,
           email: formData.email,
           cpf: formData.cpf,
-          birthDate: formData.birthDate,
+          birth_date: formData.birthDate,
           gender: formData.gender as 'male' | 'female',
           address: {
             street: formData.street,
@@ -133,18 +130,17 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
             zipCode: formData.zipCode
           },
           insurance: formData.insurance,
-          treatmentType: formData.treatmentType,
-          emergencyContact: {
+          treatment_type: formData.treatmentType,
+          emergency_contact: {
             name: formData.emergencyName,
             phone: formData.emergencyPhone,
             relationship: formData.emergencyRelationship
           },
-          emergencyPhone: formData.emergencyPhone,
-          medicalHistory: formData.medicalHistory,
+          emergency_phone: formData.emergencyPhone,
+          medical_history: formData.medicalHistory,
           notes: formData.notes,
-          isActive: patient.isActive,
-          isMinor: isMinor,
-       
+          is_active: patient.is_active,
+          is_minor: isMinor
         };
 
         console.log('Dados para atualização preparados:', updateData);
