@@ -16,11 +16,12 @@ import { WhatsAppPage } from "@/components/WhatsAppPage";
 import { PackagesPage } from "@/components/PackagesPage";
 import { ProfessionalsPage } from "@/components/ProfessionalsPage";
 import { ConfigurationsPage } from "@/components/ConfigurationsPage";
+
 import { SalesPage } from "@/components/SalesPage";
 import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
-import PatientDetailsPage from "@/components/patientDetailsPage";
+import {PatientDetailsPage} from "@/components/patientDetailsPage";
 import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
 import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
 
