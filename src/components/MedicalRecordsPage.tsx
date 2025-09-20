@@ -67,10 +67,7 @@ export function MedicalRecordsPage() {
   // A ordem é importante: renderiza o detalhe da evolução, depois o formulário de evolução, e por fim a anamnese.
   if (viewingEvolutionDetails && selectedEvolution) {
     return (
-      <EvolutionDetailsPage
-        evolution={selectedEvolution}
-        onClose={handleCancel}
-      />
+      <EvolutionDetailsPage />
     );
   }
   

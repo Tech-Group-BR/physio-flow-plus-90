@@ -95,17 +95,20 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           zipCode: formData.zipCode
         },
         insurance: formData.insurance,
-        treatment_type: formData.treatmentType,
-        emergency_contact: {
+        treatmentType: formData.treatmentType,
+        emergencyContact: {
           name: formData.emergencyName,
           phone: formData.emergencyPhone,
           relationship: formData.emergencyRelationship
         },
-        emergency_phone: formData.emergencyPhone,
-        medical_history: formData.medicalHistory,
+        emergencyPhone: formData.emergencyPhone,
+        medicalHistory: formData.medicalHistory,
         notes: formData.notes,
-        is_active: true,
-        is_minor: isMinor
+        isActive: true,
+        isMinor: isMinor,
+        guardianId: '',
+        appointments: [],
+        payments: []
       };
 
       console.log('Dados do paciente preparados:', patientData);
@@ -130,17 +133,19 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
             zipCode: formData.zipCode
           },
           insurance: formData.insurance,
-          treatment_type: formData.treatmentType,
-          emergency_contact: {
+          treatmentType: formData.treatmentType,
+          emergencyContact: {
             name: formData.emergencyName,
             phone: formData.emergencyPhone,
             relationship: formData.emergencyRelationship
           },
-          emergency_phone: formData.emergencyPhone,
-          medical_history: formData.medicalHistory,
+          emergencyPhone: formData.emergencyPhone,
+          medicalHistory: formData.medicalHistory,
           notes: formData.notes,
-          is_active: patient.is_active,
-          is_minor: isMinor
+          isMinor: isMinor,
+          guardianId: patient.guardianId || '',
+          appointments: patient.appointments || [],
+          payments: patient.payments || []
         };
 
         console.log('Dados para atualização preparados:', updateData);
