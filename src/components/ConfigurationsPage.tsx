@@ -91,25 +91,29 @@ export function ConfigurationsPage() {
 
   return (
     <div className="space-y-6">
+      {/* HEADER: Título e Botão de Salvar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold">Configurações do Sistema</h1>
-        <Button onClick={saveSettings} disabled={isLoading}>
+        <h1 className="text-2xl sm:text-3xl font-bold">Configurações do Sistema</h1>
+        <Button onClick={saveSettings} disabled={isLoading} className="w-full sm:w-auto">
           <Settings className="h-4 w-4 mr-2" />
           {isLoading ? 'Salvando...' : 'Salvar Configurações'}
         </Button>
       </div>
 
+      {/* TABS */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2">
-          <TabsTrigger value="general">Configurações Gerais</TabsTrigger>
-          <TabsTrigger value="rooms">Gerenciar Salas</TabsTrigger>
+        {/* Tab List responsiva com quebra de linha */}
+        <TabsList className="flex flex-wrap h-auto w-full grid-cols-1 sm:grid-cols-2">
+          <TabsTrigger value="general" className="w-full sm:w-auto">Configurações Gerais</TabsTrigger>
+          <TabsTrigger value="rooms" className="w-full sm:w-auto">Gerenciar Salas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Informações da Clínica */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+                <CardTitle className="flex items-center space-x-2 text-lg">
                   <Settings className="h-5 w-5" />
                   <span>Informações da Clínica</span>
                 </CardTitle>
@@ -154,9 +158,10 @@ export function ConfigurationsPage() {
               </CardContent>
             </Card>
 
+            {/* Horário de Funcionamento */}
             <Card>
               <CardHeader>
-                <CardTitle>Horário de Funcionamento</CardTitle>
+                <CardTitle className="text-lg">Horário de Funcionamento</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -217,9 +222,10 @@ export function ConfigurationsPage() {
               </CardContent>
             </Card>
 
+            {/* Valores e Configurações */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+                <CardTitle className="flex items-center space-x-2 text-lg">
                   <DollarSign className="h-5 w-5" />
                   <span>Valores e Configurações</span>
                 </CardTitle>
