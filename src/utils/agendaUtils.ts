@@ -1,3 +1,10 @@
+import { isSameDay } from 'date-fns';
+
+/**
+ * Mapeia o status do agendamento para uma classe de cor.
+ * @param {string} status - O status do agendamento.
+ * @returns {string} - As classes CSS para a cor.
+ */
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'confirmado': return 'bg-green-100 text-green-800 border-green-300';
@@ -9,33 +16,45 @@ export const getStatusColor = (status: string) => {
   }
 };
 
+/**
+ * Slots de tempo de 30 em 30 minutos.
+ * Os horários de 07:00 às 20:00.
+ */
 export const timeSlots = [
-  '07:00', '07:15', '07:30', '07:45', '08:00', '08:15', '08:30', '08:45', 
-  '09:00', '09:15', '09:30', '09:45', '10:00', '10:15', '10:30', '10:45',
-  '11:00', '11:15', '11:30', '11:45', '12:00', '12:15', '12:30', '12:45',
-  '13:00', '13:15', '13:30', '13:45', '14:00', '14:15', '14:30', '14:45',
-  '15:00', '15:15', '15:30', '15:45', '16:00', '16:15', '16:30', '16:45',
-  '17:00', '17:15', '17:30', '17:45', '18:00', '18:15', '18:30', '18:45',
-  '19:00', '19:15', '19:30', '19:45'
+  '07:00', '07:30', '08:00', '08:30', 
+  '09:00', '09:30', '10:00', '10:30', 
+  '11:00', '11:30', '12:00', '12:30', 
+  '13:00', '13:30', '14:00', '14:30', 
+  '15:00', '15:30', '16:00', '16:30', 
+  '17:00', '17:30', '18:00', '18:30', 
+  '19:00', '19:30'
 ];
 
+/**
+ * Opções de duração de agendamento em incrementos de 30 minutos.
+ */
 export const durationOptions = [
-  { value: 15, label: '15 minutos' },
   { value: 30, label: '30 minutos' },
-  { value: 45, label: '45 minutos' },
   { value: 60, label: '1 hora' },
-  { value: 75, label: '1h 15min' },
   { value: 90, label: '1h 30min' },
-  { value: 105, label: '1h 45min' },
   { value: 120, label: '2 horas' }
 ];
 
-// Calcular quantos slots um agendamento deve ocupar baseado na duração
+/**
+ * Calcula quantos slots um agendamento deve ocupar com base na duração.
+ * @param {number} duration - Duração do agendamento em minutos.
+ * @returns {number} - O número de slots de 30 minutos.
+ */
 export const calculateSlotsForDuration = (duration: number): number => {
-  return Math.ceil(duration / 15); // 15 minutos = 1 slot
+  return Math.ceil(duration / 30); // 30 minutos = 1 slot
 };
 
-// Obter todos os slots que um agendamento ocupa
+/**
+ * Obtém todos os slots que um agendamento ocupa.
+ * @param {string} startTime - O horário de início do agendamento.
+ * @param {number} duration - A duração do agendamento em minutos.
+ * @returns {string[]} - Um array de strings com os horários dos slots ocupados.
+ */
 export const getOccupiedSlots = (startTime: string, duration: number): string[] => {
   const startIndex = timeSlots.indexOf(startTime);
   if (startIndex === -1) return [startTime];
@@ -50,7 +69,13 @@ export const getOccupiedSlots = (startTime: string, duration: number): string[] 
   return occupiedSlots;
 };
 
-// Verificar se um slot está ocupado por algum agendamento
+/**
+ * Verifica se um slot de tempo está ocupado por algum agendamento.
+ * @param {string} targetTime - O horário do slot a ser verificado.
+ * @param {Date} targetDate - A data do agendamento.
+ * @param {any[]} appointments - Uma lista de agendamentos existentes.
+ * @returns {boolean} - Verdadeiro se o slot estiver ocupado, falso caso contrário.
+ */
 export const isSlotOccupied = (targetTime: string, targetDate: Date, appointments: any[]): boolean => {
   return appointments.some(appointment => {
     if (!appointment.date || !appointment.time) return false;
@@ -58,12 +83,19 @@ export const isSlotOccupied = (targetTime: string, targetDate: Date, appointment
     const appointmentDate = new Date(appointment.date + 'T00:00:00');
     if (!isSameDay(appointmentDate, targetDate)) return false;
     
-    const occupiedSlots = getOccupiedSlots(appointment.time, appointment.duration || 45);
+    const occupiedSlots = getOccupiedSlots(appointment.time, appointment.duration || 60);
     return occupiedSlots.includes(targetTime);
   });
 };
 
-// Verificar se é possível agendar em um horário específico
+/**
+ * Verifica se é possível agendar um novo compromisso em um horário e duração específicos.
+ * @param {string} targetTime - O horário de início desejado.
+ * @param {Date} targetDate - A data do agendamento.
+ * @param {number} duration - A duração do agendamento em minutos.
+ * @param {any[]} appointments - Uma lista de agendamentos existentes.
+ * @returns {boolean} - Verdadeiro se for possível agendar, falso caso contrário.
+ */
 export const canScheduleAtTime = (
   targetTime: string, 
   targetDate: Date, 
@@ -77,9 +109,4 @@ export const canScheduleAtTime = (
   );
 };
 
-// Helper para verificar se duas datas são iguais
-export const isSameDay = (date1: Date, date2: Date): boolean => {
-  return date1.getFullYear() === date2.getFullYear() &&
-         date1.getMonth() === date2.getMonth() &&
-         date1.getDate() === date2.getDate();
-};
+export { isSameDay };

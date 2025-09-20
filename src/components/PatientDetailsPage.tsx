@@ -33,23 +33,27 @@ export function PatientDetailsPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!patient) return;
+      if (!patient) {
+        setIsLoading(false);
+        return;
+      }
       
       try {
         setIsLoading(true);
         
-        // Buscar dados financeiros
         const { data: financialResult, error } = await supabase.rpc('get_patient_financial_report', {
           p_patient_id: id
         });
 
         if (error) {
           console.error('Erro ao buscar dados financeiros:', error);
+          toast.error('Erro ao carregar dados financeiros.');
         } else {
           setFinancialData(financialResult);
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
+        toast.error('Erro ao carregar dados do paciente.');
       } finally {
         setIsLoading(false);
       }
@@ -104,9 +108,9 @@ export function PatientDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => navigate('/pacientes')}>
+          <Button variant="ghost" onClick={() => navigate('/pacientes')} className="hidden sm:inline-flex">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>
@@ -118,11 +122,11 @@ export function PatientDetailsPage() {
           </div>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
           {!patientMedicalRecord && (
             <Dialog open={showMedicalRecordForm} onOpenChange={setShowMedicalRecordForm}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full">
                   <FileText className="mr-2 h-4 w-4" />
                   Criar Anamnese
                 </Button>
@@ -140,7 +144,7 @@ export function PatientDetailsPage() {
           {patientMedicalRecord && (
             <Dialog open={showEvolutionForm} onOpenChange={setShowEvolutionForm}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full">
                   <Plus className="mr-2 h-4 w-4" />
                   Nova Evolução
                 </Button>
@@ -158,11 +162,11 @@ export function PatientDetailsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Dados Gerais</TabsTrigger>
-          <TabsTrigger value="medical">Prontuário</TabsTrigger>
-          <TabsTrigger value="appointments">Agendamentos</TabsTrigger>
-          <TabsTrigger value="financial">Financeiro</TabsTrigger>
+        <TabsList className="flex flex-wrap h-auto w-full justify-start sm:grid sm:grid-cols-4">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm py-2">Dados Gerais</TabsTrigger>
+          <TabsTrigger value="medical" className="text-xs sm:text-sm py-2">Prontuário</TabsTrigger>
+          <TabsTrigger value="appointments" className="text-xs sm:text-sm py-2">Agendamentos</TabsTrigger>
+          <TabsTrigger value="financial" className="text-xs sm:text-sm py-2">Financeiro</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -170,7 +174,7 @@ export function PatientDetailsPage() {
             {/* Informações Pessoais */}
             <Card>
               <CardHeader>
-                <CardTitle>Informações Pessoais</CardTitle>
+                <CardTitle className="text-lg">Informações Pessoais</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {renderDetail("Nome completo", patient.fullName)}
@@ -185,7 +189,7 @@ export function PatientDetailsPage() {
             {/* Informações Médicas */}
             <Card>
               <CardHeader>
-                <CardTitle>Informações Médicas</CardTitle>
+                <CardTitle className="text-lg">Informações Médicas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {renderDetail("Histórico médico", patient.medicalHistory)}
@@ -199,7 +203,7 @@ export function PatientDetailsPage() {
             {patient.address && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Endereço</CardTitle>
+                  <CardTitle className="text-lg">Endereço</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {renderDetail("Rua", patient.address.street)}
@@ -217,7 +221,7 @@ export function PatientDetailsPage() {
             {patient.emergencyContact && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Contato de Emergência</CardTitle>
+                  <CardTitle className="text-lg">Contato de Emergência</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {renderDetail("Nome", patient.emergencyContact.name)}
@@ -235,7 +239,7 @@ export function PatientDetailsPage() {
               {/* Anamnese */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
+                  <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-lg sm:text-xl">
                     Anamnese
                     <Link 
                       to={`/prontuario/${patient.id}`}
@@ -266,14 +270,14 @@ export function PatientDetailsPage() {
               {/* Evoluções */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Evoluções do Tratamento</CardTitle>
+                  <CardTitle className="text-lg">Evoluções do Tratamento</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {patientEvolutions.length > 0 ? (
                     <div className="space-y-4">
                       {patientEvolutions.slice(0, 3).map((evolution) => (
                         <div key={evolution.id} className="border-l-4 border-blue-500 pl-4">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                             <span className="font-medium text-sm">
                               {format(new Date(evolution.date), 'dd/MM/yyyy')}
                             </span>
@@ -292,7 +296,7 @@ export function PatientDetailsPage() {
                       {patientEvolutions.length > 3 && (
                         <Link 
                           to={`/prontuario/${patient.id}`}
-                          className="text-sm text-blue-600 hover:text-blue-800 block"
+                          className="text-sm text-blue-600 hover:text-blue-800 block mt-4"
                         >
                           Ver todas as {patientEvolutions.length} evoluções
                         </Link>
@@ -322,7 +326,7 @@ export function PatientDetailsPage() {
         <TabsContent value="appointments" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center text-lg">
                 <Calendar className="mr-2 h-5 w-5" />
                 Histórico de Agendamentos
               </CardTitle>
@@ -331,7 +335,7 @@ export function PatientDetailsPage() {
               {patientAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {patientAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={appointment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-2">
                       <div>
                         <div className="font-medium">
                           {format(new Date(appointment.date), 'dd/MM/yyyy')} às {appointment.time}
@@ -364,7 +368,7 @@ export function PatientDetailsPage() {
         <TabsContent value="financial" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center text-lg">
                 <DollarSign className="mr-2 h-5 w-5" />
                 Resumo Financeiro
               </CardTitle>
@@ -403,14 +407,14 @@ export function PatientDetailsPage() {
                 {patientReceivables.length > 0 ? (
                   <div className="space-y-2">
                     {patientReceivables.map((receivable) => (
-                      <div key={receivable.id} className="flex items-center justify-between p-3 border rounded">
+                      <div key={receivable.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded gap-2">
                         <div>
                           <div className="font-medium">{receivable.description}</div>
                           <div className="text-sm text-gray-600">
                             Vencimento: {format(new Date(receivable.dueDate), 'dd/MM/yyyy')}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="font-medium">R$ {Number(receivable.amount).toFixed(2)}</div>
                           <Badge variant={receivable.status === 'recebido' ? 'default' : 'secondary'}>
                             {receivable.status}
