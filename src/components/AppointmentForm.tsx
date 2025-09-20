@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { Database } from '@/integrations/supabase/types';
 
 
@@ -35,19 +36,20 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
   // Estado para os dados do formulário
   const [formData, setFormData] = useState({
     professionalId: '',
-    date: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
     time: '',
     roomId: '',
     selectedPackageId: '',
     customDescription: '',
     customPrice: '',
+    standardPrice: '', // Campo para o preço da consulta padrão
     notes: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [defaultPrice, setDefaultPrice] = useState(180);
+  const [defaultPrice, setDefaultPrice] = useState(180); // Um fallback enquanto carrega
   
-  // Busca pacientes e profissionais uma vez, ao montar o componente
+  // Busca pacientes, profissionais, salas e configurações uma vez, ao montar o componente
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
@@ -82,7 +84,14 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     fetchInitialData();
   }, []);
 
+  // Efeito para atualizar o preço no formulário quando o valor padrão é carregado
+  useEffect(() => {
+    // Converte para string para ser compatível com o input
+    setFormData(prev => ({ ...prev, standardPrice: defaultPrice.toString() }));
+  }, [defaultPrice]);
+
   
+  // Efeito para buscar pacotes do paciente quando um paciente é selecionado
   useEffect(() => {
     if (!selectedPatientId) {
       setPatientPackages([]);
@@ -91,41 +100,46 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     }
     const fetchPatientPackages = async () => {
       const { data, error } = await supabase
-        .from('patient_packages')
-        .select(`id, sessions_used, session_packages ( name, sessions )`)
-        .eq('patient_id', selectedPatientId)
-        .eq('status', 'active');
+       .from('patient_packages')
+       .select(`id, sessions_used, session_packages ( name, sessions )`)
+       .eq('patient_id', selectedPatientId)
+       .eq('status', 'active');
 
-      if (error) {
-        console.error("Erro ao buscar pacotes do paciente:", error);
-        return;
+      if (error) { 
+        console.error("Erro ao buscar pacotes:", error); 
+        return; 
       }
-
       if (data) {
         const formattedPackages = data
-          .filter(p => p.session_packages)
-          .map(p => ({
-            id: p.id,
-            name: (p.session_packages as any)?.name || 'Pacote',
-            sessions_remaining: ((p.session_packages as any)?.sessions || 0) - p.sessions_used
-          }))
+          .filter(p => Array.isArray(p.session_packages) && p.session_packages.length > 0)
+          .map(p => {
+              const pkgDetails = p.session_packages[0];
+              return { 
+                id: p.id, 
+                name: pkgDetails.name, 
+                sessions_remaining: pkgDetails.sessions - p.sessions_used 
+              };
+          })
           .filter(p => p.sessions_remaining > 0);
-
+        
         setPatientPackages(formattedPackages);
-        if (formattedPackages.length > 0) {
-          setAppointmentType('package');
-        } else {
-          setAppointmentType('standard');
+
+        if (formattedPackages.length > 0) { 
+          setAppointmentType('package'); 
+        } else { 
+          setAppointmentType('standard'); 
         }
       }
     };
     fetchPatientPackages();
   }, [selectedPatientId]); 
 
+  // Handler genérico para mudanças nos campos do formulário
   const handleChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handler para salvar o agendamento
   const handleSaveAppointment = async () => {
     setIsLoading(true);
     
@@ -149,20 +163,25 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     if (appointmentType === 'package') {
       if (!formData.selectedPackageId) {
         toast.error("Por favor, selecione um pacote.");
-        setIsLoading(false);
-        return;
+        setIsLoading(false); return;
       }
       rpcParams.p_patient_package_id = formData.selectedPackageId;
       rpcParams.p_appointment_type = 'Sessão de Pacote';
       rpcParams.p_price = null;
+
     } else if (appointmentType === 'standard') {
+      // Validação e uso do novo campo de preço
+      if (!formData.standardPrice || parseFloat(formData.standardPrice) < 0) {
+        toast.error("O valor da consulta padrão é obrigatório.");
+        setIsLoading(false); return;
+      }
       rpcParams.p_appointment_type = 'Consulta';
-      rpcParams.p_price = defaultPrice;
+      rpcParams.p_price = parseFloat(formData.standardPrice);
+
     } else if (appointmentType === 'custom') {
       if (!formData.customDescription || !formData.customPrice) {
         toast.error("Descrição e valor personalizados são obrigatórios.");
-        setIsLoading(false);
-        return;
+        setIsLoading(false); return;
       }
       rpcParams.p_appointment_type = formData.customDescription;
       rpcParams.p_price = parseFloat(formData.customPrice);
@@ -171,10 +190,8 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     try {
       const { error: rpcError } = await supabase.rpc('create_appointment', rpcParams);
       if (rpcError) throw rpcError;
-      
       toast.success("Agendamento criado com sucesso!");
       onSave();
-
     } catch (err: any) {
       toast.error(err.message || "Ocorreu um erro ao salvar.");
     } finally {
@@ -205,24 +222,41 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
               )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="standard" id="r2" />
-                <Label htmlFor="r2">Nova Consulta (R$ {defaultPrice})</Label>
+                <Label htmlFor="r2">Nova Consulta</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="custom" id="r3" />
-                <Label htmlFor="r3">Outro (Valor Personalizado)</Label>
+                <Label htmlFor="r3">Outro (Personalizado)</Label>
               </div>
             </RadioGroup>
           </div>
 
-          {appointmentType === 'package' && (
-            <div className="space-y-2 animate-in fade-in-50">
-              <Label htmlFor="package">Pacote Disponível *</Label>
-              <Select onValueChange={(value) => handleChange('selectedPackageId', value)} value={formData.selectedPackageId}>
-                <SelectTrigger id="package"><SelectValue placeholder="Selecione o pacote" /></SelectTrigger>
-                <SelectContent>{patientPackages.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sessions_remaining} restantes)</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+          {/* Campo de preço que aparece para 'Nova Consulta' */}
+          {appointmentType === 'standard' && (
+             <div className="space-y-2 animate-in fade-in-50">
+               <Label htmlFor="standard-price">Valor da Consulta (R$) *</Label>
+               <Input 
+                 id="standard-price" 
+                 type="number" 
+                 placeholder="Ex: 180.00" 
+                 value={formData.standardPrice} 
+                 onChange={(e) => handleChange('standardPrice', e.target.value)} 
+               />
+             </div>
           )}
+
+          {/* Campo para selecionar o pacote */}
+          {appointmentType === 'package' && (
+             <div className="space-y-2 animate-in fade-in-50">
+               <Label htmlFor="package">Pacote Disponível *</Label>
+               <Select onValueChange={(value) => handleChange('selectedPackageId', value)} value={formData.selectedPackageId}>
+                 <SelectTrigger id="package"><SelectValue placeholder="Selecione o pacote" /></SelectTrigger>
+                 <SelectContent>{patientPackages.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sessions_remaining} restantes)</SelectItem>)}</SelectContent>
+               </Select>
+             </div>
+          )}
+
+          {/* Campos para o tipo 'Personalizado' */}
           {appointmentType === 'custom' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 border rounded-md bg-white animate-in fade-in-50">
               <div className="space-y-2">
@@ -249,12 +283,8 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           <div className="space-y-2">
             <Label htmlFor="room">Sala</Label>
             <Select onValueChange={(value) => handleChange('roomId', value)} value={formData.roomId}>
-              <SelectTrigger id="room"><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
-              <SelectContent>
-                {rooms.map(room => (
-                  <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger id="room"><SelectValue placeholder="Opcional: selecione a sala" /></SelectTrigger>
+              <SelectContent>{rooms.map(room => (<SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>))}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -267,7 +297,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
               <Input id="time" type="time" value={formData.time} onChange={(e) => handleChange('time', e.target.value)} />
             </div>
           </div>
-           <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea id="notes" placeholder="Observações sobre a consulta..." value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} />
             </div>

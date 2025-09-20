@@ -33,8 +33,8 @@ interface DbPatient {
   cpf?: string;
   birth_date?: string;
   gender?: 'male' | 'female' ;
-  address?: any;
-  emergency_contact?: any;
+  address?: string | object;
+  emergency_contact?: string | object;
   emergency_phone?: string;
   medical_history?: string;
   treatment_type?: string;
@@ -57,6 +57,9 @@ interface DbProfessional {
   specialties?: string[];
   is_active: boolean;
   role?: string;
+  bio?: string;
+  profile_picture_url?: string;
+  profile_id?: string;
 }
 
 interface DbRoom {
@@ -119,6 +122,7 @@ interface DbAccountsReceivable {
   status: 'pendente' | 'pago' | 'vencido' | 'cancelado';
   paid_date?: string;
   received_date?: string;
+  method?: string;
 }
 
 interface DbEvolution {
@@ -136,7 +140,6 @@ interface DbEvolution {
   visible_to_guardian?: boolean;
   created_at: string;
 }
-
 
 interface DbLead {
   id: string;
@@ -208,7 +211,32 @@ interface ClinicContextType {
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
-
+// --- Mappers ---
+const dbToMainPatient = (dbPatient: DbPatient): MainPatient => ({
+  id: dbPatient.id,
+  fullName: dbPatient.full_name,
+  phone: dbPatient.phone,
+  email: dbPatient.email || '',
+  cpf: dbPatient.cpf || '',
+  birth_date: dbPatient.birth_date,
+  gender: dbPatient.gender,
+  address: (dbPatient.address && typeof dbPatient.address === 'string' && dbPatient.address.trim()) 
+    ? JSON.parse(dbPatient.address) : (dbPatient.address || {}),
+  emergencyContact: (dbPatient.emergency_contact && typeof dbPatient.emergency_contact === 'string' && dbPatient.emergency_contact.trim())
+    ? JSON.parse(dbPatient.emergency_contact) : (dbPatient.emergency_contact || {}),
+  emergencyPhone: dbPatient.emergency_phone || '',
+  medicalHistory: dbPatient.medical_history || '',
+  insurance: dbPatient.insurance || '',
+  treatmentType: dbPatient.treatment_type || '',
+  notes: dbPatient.notes || '',
+  isActive: dbPatient.is_active,
+  isMinor: dbPatient.is_minor || false,
+  guardianId: dbPatient.guardian_id,
+  createdAt: dbPatient.created_at,
+  updatedAt: dbPatient.updated_at,
+  appointments: [],
+  payments: [],
+});
 
 const dbToMainProfessional = (dbPhysio: DbProfessional): MainProfessional => ({
   id: dbPhysio.id,
@@ -217,7 +245,7 @@ const dbToMainProfessional = (dbPhysio: DbProfessional): MainProfessional => ({
   phone: dbPhysio.phone || '',
   crefito: dbPhysio.crefito || '',
   specialties: dbPhysio.specialties || [],
-  bio: '',
+  bio: dbPhysio.bio || '',
   isActive: dbPhysio.is_active,
   createdAt: dbPhysio.created_at,
   updatedAt: dbPhysio.updated_at
@@ -253,9 +281,8 @@ const dbToMainAppointment = (dbAppt: DbAppointment): MainAppointment => ({
 const dbToMainMedicalRecord = (dbRecord: DbMedicalRecord): MainMedicalRecord => ({
   id: dbRecord.id,
   patientId: dbRecord.patient_id,
-  anamnesis: typeof dbRecord.anamnesis === 'string' ? 
-    (dbRecord.anamnesis.trim() ? JSON.parse(dbRecord.anamnesis) : {}) : 
-    (dbRecord.anamnesis || {}),
+  anamnesis: (dbRecord.anamnesis && typeof dbRecord.anamnesis === 'string' && dbRecord.anamnesis.trim()) 
+    ? JSON.parse(dbRecord.anamnesis) : (dbRecord.anamnesis || {}),
   evolutions: [],
   files: dbRecord.files || [],
   createdAt: dbRecord.created_at,
@@ -283,7 +310,7 @@ const dbToMainAccountsReceivable = (dbAr: DbAccountsReceivable): MainAccountsRec
   dueDate: dbAr.due_date,
   receivedDate: dbAr.received_date,
   status: dbAr.status === 'pago' ? 'recebido' : (dbAr.status === 'cancelado' ? 'pendente' : dbAr.status),
-  method: 'dinheiro',
+  method: dbAr.method || 'dinheiro',
   notes: '',
   createdAt: dbAr.created_at,
   updatedAt: dbAr.updated_at
@@ -303,62 +330,23 @@ const dbToMainEvolution = (dbEvo: DbEvolution): MainEvolution => ({
   media: (dbEvo.media || []).map(item => ({
     id: uuidv4(),
     type: 'photo' as const,
-    url: typeof item === 'string' ? item : item,
+    url: item || '',
     uploadedAt: new Date().toISOString()
   })),
   visibleToGuardian: dbEvo.visible_to_guardian || false,
   createdAt: dbEvo.created_at
 });
 
-const dbToMainPatient = (dbPatient: DbPatient): MainPatient => ({
-  id: dbPatient.id,
-  fullName: dbPatient.full_name,
-  phone: dbPatient.phone,
-  email: dbPatient.email || '',
-  cpf: dbPatient.cpf || '',
-  birth_date: dbPatient.birth_date,
-  gender: dbPatient.gender,
-  address: typeof dbPatient.address === 'string' ? JSON.parse(dbPatient.address) : dbPatient.address,
-  emergencyContact: typeof dbPatient.emergency_contact === 'string' ? JSON.parse(dbPatient.emergency_contact) : dbPatient.emergency_contact,
-  emergencyPhone: dbPatient.emergency_phone || '',
-  medicalHistory: dbPatient.medical_history || '',
-  insurance: dbPatient.insurance || '',
-  treatmentType: dbPatient.treatment_type || '',
-  notes: dbPatient.notes || '',
-  isActive: dbPatient.is_active,
-  isMinor: dbPatient.is_minor || false,
-  guardianId: dbPatient.guardian_id,
-  createdAt: dbPatient.created_at,
-  updatedAt: dbPatient.updated_at,
-    appointments: [],
-  payments: [],
-});
-
-
 const dbToMainLead = (dbLead: DbLead): MainLead => {
-  // Map database status to main status
   let mainStatus: MainLead['status'];
   switch (dbLead.status) {
-    case 'novo':
-      mainStatus = 'novo';
-      break;
-    case 'contatado':
-      mainStatus = 'contato_inicial';
-      break;
-    case 'interessado':
-      mainStatus = 'avaliacao';
-      break;
-    case 'agendado':
-      mainStatus = 'agendamento';
-      break;
-    case 'cliente':
-      mainStatus = 'cliente';
-      break;
-    case 'perdido':
-      mainStatus = 'perdido';
-      break;
-    default:
-      mainStatus = 'novo';
+    case 'novo': mainStatus = 'novo'; break;
+    case 'contatado': mainStatus = 'contato_inicial'; break;
+    case 'interessado': mainStatus = 'avaliacao'; break;
+    case 'agendado': mainStatus = 'agendamento'; break;
+    case 'cliente': mainStatus = 'cliente'; break;
+    case 'perdido': mainStatus = 'perdido'; break;
+    default: mainStatus = 'novo';
   }
 
   return {
@@ -373,6 +361,7 @@ const dbToMainLead = (dbLead: DbLead): MainLead => {
     updatedAt: dbLead.updated_at
   };
 };
+// --- End Mappers ---
 
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [patients, setPatients] = useState<MainPatient[]>([]);
@@ -394,7 +383,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setCurrentUser(session.user);
       
-      // Carregamento otimizado - dados essenciais primeiro
       const loadEssentialData = async () => {
         try {
           await Promise.all([
@@ -409,7 +397,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      // Carregamento secundário em background
       const loadSecondaryData = async () => {
         try {
           await Promise.all([
@@ -426,7 +413,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       };
 
       loadEssentialData();
-      // Aguardar antes de carregar dados menos críticos
       setTimeout(loadSecondaryData, 100);
     }
   }, [session]);
@@ -521,58 +507,45 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   };
-const fetchProfessionals = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('professionals')
-      .select('*')
-      .order('full_name', { ascending: true }); 
 
-    if (error) throw error;
+  const fetchProfessionals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('professionals')
+        .select('*')
+        .order('full_name', { ascending: true }); 
 
-    const mappedPhysios = (data || []).map(item => {
-      return {
-     id: item.id,
-    name: item.full_name,
-    email: item.email,
-    phone: String(item.phone), // <--- AQUI: converte o número para string
-    crefito: item.crefito,
-    specialties: item.specialties,
-    bio: item.bio,
-    isActive: item.is_active,
-    createdAt: item.created_at,
-    updatedAt: item.updated_at
-      };
-    });
-    setProfessionals(mappedPhysios);
-  } catch (error) {
-    console.error('Erro ao buscar profissionais:', error);
-  }
-};
+      if (error) throw error;
 
- const addProfessional = async (Professional: Omit<MainProfessional, 'id' | 'createdAt' | 'updatedAt'>) => {
-  try {
-    const { error } = await supabase
-      .from('professionals')
-      .insert({
-        full_name: Professional.name,
-        phone: Professional.phone,
-        email: Professional.email,
-        crefito: Professional.crefito,
-        specialties: Professional.specialties,
-        bio: Professional.bio || null,
-        is_active: true,
-        profile_picture_url: null,
-        profile_id: Professional.profile_id || null
+      const mappedPhysios = (data || []).map(item => dbToMainProfessional(item as DbProfessional));
+      setProfessionals(mappedPhysios);
+    } catch (error) {
+      console.error('Erro ao buscar profissionais:', error);
+    }
+  };
 
-      });
-    if (error) throw error;
-    await fetchProfessionals();
-  } catch (error) {
-    console.error('Erro ao adicionar fisioterapeuta:', error);
-    throw error;
-  }
-};
+  const addProfessional = async (Professional: Omit<MainProfessional, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const { error } = await supabase
+        .from('professionals')
+        .insert({
+          full_name: Professional.name,
+          phone: Professional.phone,
+          email: Professional.email,
+          crefito: Professional.crefito,
+          specialties: Professional.specialties,
+          bio: Professional.bio || null,
+          is_active: true,
+          profile_picture_url: null,
+          profile_id: Professional.profile_id || null
+        });
+      if (error) throw error;
+      await fetchProfessionals();
+    } catch (error) {
+      console.error('Erro ao adicionar fisioterapeuta:', error);
+      throw error;
+    }
+  };
 
   const updateProfessional = async (id: string, updates: Partial<MainProfessional>) => {
     try {
@@ -700,7 +673,7 @@ const fetchProfessionals = async () => {
         });
       if (error) throw error;
       await fetchAppointments();
-      await fetchAccountsReceivable(); // Refresh accounts receivable in case of auto-creation
+      await fetchAccountsReceivable();
     } catch (error) {
       console.error('Erro ao adicionar agendamento:', error);
       throw error;
@@ -728,7 +701,7 @@ const fetchProfessionals = async () => {
         .eq('id', id);
       if (error) throw error;
       await fetchAppointments();
-      await fetchAccountsReceivable(); // Refresh accounts receivable in case of auto-creation
+      await fetchAccountsReceivable();
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error);
       throw error;
@@ -870,32 +843,26 @@ const fetchProfessionals = async () => {
     }
   };
 
-const deleteAccountsPayable = async (id: string) => {
-  const originalState = [...accountsPayable];
+  const deleteAccountsPayable = async (id: string) => {
+    const originalState = [...accountsPayable];
+    setAccountsPayable(current => current.filter(p => p.id !== id));
+    toast.success("Conta a pagar excluída com sucesso!");
 
-  // 1. Atualiza a UI otimistamente (remove o item localmente)
-  setAccountsPayable(current => current.filter(p => p.id !== id));
-  toast.success("Conta a pagar excluída com sucesso!");
+    try {
+      const { error } = await supabase
+        .from('accounts_payable')
+        .delete()
+        .eq('id', id);
 
-  try {
-    // 2. Tenta deletar no banco de dados
-    const { error } = await supabase
-      .from('accounts_payable')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error; // Joga o erro para o bloco catch
-
-    await fetchDashboardStats(); // Atualiza os totais do dashboard
-
-  } catch (error) {
-    // 3. Se der erro, notifica e reverte a mudança na UI
-    toast.error("Erro ao excluir conta a pagar. A alteração foi desfeita.");
-    console.error('Erro ao deletar conta a pagar:', error);
-    setAccountsPayable(originalState); // Rollback
-    throw error;
-  }
-};
+      if (error) throw error;
+      await fetchDashboardStats();
+    } catch (error) {
+      toast.error("Erro ao excluir conta a pagar. A alteração foi desfeita.");
+      console.error('Erro ao deletar conta a pagar:', error);
+      setAccountsPayable(originalState);
+      throw error;
+    }
+  };
 
   const fetchAccountsReceivable = async () => {
     try {
@@ -952,39 +919,33 @@ const deleteAccountsPayable = async (id: string) => {
     }
   };
 
-const deleteAccountsReceivable = async (id: string) => {
-  const originalState = [...accountsReceivable];
+  const deleteAccountsReceivable = async (id: string) => {
+    const originalState = [...accountsReceivable];
+    setAccountsReceivable(current => current.filter(r => r.id !== id));
+    toast.success("Conta a receber excluída com sucesso!");
 
-  // 1. Atualiza a UI otimistamente
-  setAccountsReceivable(current => current.filter(r => r.id !== id));
-  toast.success("Conta a receber excluída com sucesso!");
+    try {
+      const { error } = await supabase
+        .from('accounts_receivable')
+        .delete()
+        .eq('id', id);
 
-  try {
-    // 2. Tenta deletar no banco
-    const { error } = await supabase
-      .from('accounts_receivable')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-
-    await fetchDashboardStats();
-
-  } catch (error) {
-    // 3. Se der erro, notifica e reverte
-    toast.error("Erro ao excluir conta a receber. A alteração foi desfeita.");
-    console.error('Erro ao deletar conta a receber:', error);
-    setAccountsReceivable(originalState); // Rollback
-    throw error;
-  }
-};
+      if (error) throw error;
+      await fetchDashboardStats();
+    } catch (error) {
+      toast.error("Erro ao excluir conta a receber. A alteração foi desfeita.");
+      console.error('Erro ao deletar conta a receber:', error);
+      setAccountsReceivable(originalState);
+      throw error;
+    }
+  };
 
   const fetchEvolutions = async () => {
     try {
       const { data, error } = await supabase
         .from('evolutions')
         .select('*')
-        .order('date', { ascending: false });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       const mappedEvolutions = (data || []).map(dbToMainEvolution);
       setEvolutions(mappedEvolutions);
@@ -995,7 +956,7 @@ const deleteAccountsReceivable = async (id: string) => {
 
   const addEvolution = async (evolution: Omit<MainEvolution, 'id' | 'createdAt'>) => {
     try {
-      const mediaStrings = evolution.media?.map(item => typeof item === 'string' ? item : item.url) || [];
+      const mediaStrings = evolution.media?.map(item => item.url) || [];
       
       const { error } = await supabase
         .from('evolutions')
@@ -1023,7 +984,7 @@ const deleteAccountsReceivable = async (id: string) => {
 
   const updateEvolution = async (evolution: MainEvolution) => {
     try {
-      const mediaStrings = evolution.media?.map(item => typeof item === 'string' ? item : item.url) || [];
+      const mediaStrings = evolution.media?.map(item => item.url) || [];
       
       const { error } = await supabase
         .from('evolutions')
@@ -1060,7 +1021,6 @@ const deleteAccountsReceivable = async (id: string) => {
     }
   };
 
- 
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
@@ -1077,29 +1037,15 @@ const deleteAccountsReceivable = async (id: string) => {
 
   const addLead = async (lead: Omit<MainLead, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      // Map main status to database status
       let dbStatus: DbLead['status'];
       switch (lead.status) {
-        case 'novo':
-          dbStatus = 'novo';
-          break;
-        case 'contato_inicial':
-          dbStatus = 'contatado';
-          break;
-        case 'avaliacao':
-          dbStatus = 'interessado';
-          break;
-        case 'agendamento':
-          dbStatus = 'agendado';
-          break;
-        case 'cliente':
-          dbStatus = 'cliente';
-          break;
-        case 'perdido':
-          dbStatus = 'perdido';
-          break;
-        default:
-          dbStatus = 'novo';
+        case 'novo': dbStatus = 'novo'; break;
+        case 'contato_inicial': dbStatus = 'contatado'; break;
+        case 'avaliacao': dbStatus = 'interessado'; break;
+        case 'agendamento': dbStatus = 'agendado'; break;
+        case 'cliente': dbStatus = 'cliente'; break;
+        case 'perdido': dbStatus = 'perdido'; break;
+        default: dbStatus = 'novo';
       }
 
       const { error } = await supabase
@@ -1123,29 +1069,15 @@ const deleteAccountsReceivable = async (id: string) => {
 
   const updateLead = async (lead: MainLead) => {
     try {
-      // Map main status to database status
       let dbStatus: DbLead['status'];
       switch (lead.status) {
-        case 'novo':
-          dbStatus = 'novo';
-          break;
-        case 'contato_inicial':
-          dbStatus = 'contatado';
-          break;
-        case 'avaliacao':
-          dbStatus = 'interessado';
-          break;
-        case 'agendamento':
-          dbStatus = 'agendado';
-          break;
-        case 'cliente':
-          dbStatus = 'cliente';
-          break;
-        case 'perdido':
-          dbStatus = 'perdido';
-          break;
-        default:
-          dbStatus = 'novo';
+        case 'novo': dbStatus = 'novo'; break;
+        case 'contato_inicial': dbStatus = 'contatado'; break;
+        case 'avaliacao': dbStatus = 'interessado'; break;
+        case 'agendamento': dbStatus = 'agendado'; break;
+        case 'cliente': dbStatus = 'cliente'; break;
+        case 'perdido': dbStatus = 'perdido'; break;
+        default: dbStatus = 'novo';
       }
 
       const { error } = await supabase
@@ -1228,128 +1160,115 @@ const deleteAccountsReceivable = async (id: string) => {
     }
   };
 
-
-
-const markReceivableAsPaid = async (id: string, method: Database['public']['Enums']['payment_method_enum']) => {
-  const originalState = [...accountsReceivable];
-  const receivedDate = new Date().toISOString();
-  
-  setAccountsReceivable(current =>
-    current.map(acc => 
-      acc.id === id 
-        ? { 
-            ...acc, 
-            status: 'recebido', 
-            receivedDate: receivedDate, 
-            method: method 
-          } as MainAccountsReceivable 
-        : acc
-    )
-  );
-  toast.success("Conta marcada como recebida!");
-
-  try {
-    // 2. Sincroniza com o banco
-    const { error } = await supabase
-      .from('accounts_receivable')
-      .update({
-        status: 'pago', // No banco o status é 'pago'
-        paid_date: receivedDate, // O campo no DB é 'paid_date'
-        received_date: receivedDate, // Atualiza também o received_date se houver
-        method: method
-      })
-      .eq('id', id);
-
-    if (error) throw error;
+  const markReceivableAsPaid = async (id: string, method: Database['public']['Enums']['payment_method_enum']) => {
+    const originalState = [...accountsReceivable];
+    const receivedDate = new Date().toISOString();
     
-    await fetchDashboardStats();
+    setAccountsReceivable(current =>
+      current.map(acc => 
+        acc.id === id 
+          ? { 
+              ...acc, 
+              status: 'recebido', 
+              receivedDate: receivedDate, 
+              method: method 
+            } as MainAccountsReceivable 
+          : acc
+      )
+    );
+    toast.success("Conta marcada como recebida!");
 
-  } catch (error) {
-    // 3. Se der erro, notifica e reverte
-    toast.error("Erro ao marcar como recebida. A alteração foi desfeita.");
-    console.error('Erro ao marcar conta como recebida:', error);
-    setAccountsReceivable(originalState); // Rollback
-    throw error;
-  }
-};
+    try {
+      const { error } = await supabase
+        .from('accounts_receivable')
+        .update({
+          status: 'pago',
+          paid_date: receivedDate,
+          received_date: receivedDate,
+          method: method
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await fetchDashboardStats();
+    } catch (error) {
+      toast.error("Erro ao marcar como recebida. A alteração foi desfeita.");
+      console.error('Erro ao marcar conta como recebida:', error);
+      setAccountsReceivable(originalState);
+      throw error;
+    }
+  };
 
   const markPayableAsPaid = async (id: string) => {
-  const originalState = [...accountsPayable];
-  const paidDate = new Date().toISOString();
+    const originalState = [...accountsPayable];
+    const paidDate = new Date().toISOString();
 
-  // 1. Atualiza a UI otimistamente (altera o status localmente)
-  setAccountsPayable(current => 
-    current.map(acc => 
-      acc.id === id 
-        ? { ...acc, status: 'pago', paidDate: paidDate } 
-        : acc
-    )
-  );
-  toast.success("Conta marcada como paga!");
+    setAccountsPayable(current => 
+      current.map(acc => 
+        acc.id === id 
+          ? { ...acc, status: 'pago', paidDate: paidDate } 
+          : acc
+      )
+    );
+    toast.success("Conta marcada como paga!");
 
-  try {
-    // 2. Sincroniza a mudança com o banco
-    const { error } = await supabase
-      .from('accounts_payable')
-      .update({
-        status: 'pago',
-        paid_date: paidDate
-      })
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('accounts_payable')
+        .update({
+          status: 'pago',
+          paid_date: paidDate
+        })
+        .eq('id', id);
 
-    if (error) throw error;
-    
-    await fetchDashboardStats();
+      if (error) throw error;
+      
+      await fetchDashboardStats();
+    } catch (error) {
+      toast.error("Erro ao marcar como paga. A alteração foi desfeita.");
+      console.error('Erro ao marcar conta como paga:', error);
+      setAccountsPayable(originalState);
+      throw error;
+    }
+  };
 
-  } catch (error) {
-    // 3. Em caso de erro, notifica e reverte
-    toast.error("Erro ao marcar como paga. A alteração foi desfeita.");
-    console.error('Erro ao marcar conta como paga:', error);
-    setAccountsPayable(originalState); // Rollback
-    throw error;
-  }
-};
+  const addPayment = async (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => {
+    try {
+      console.log('Adicionando pagamento:', payment);
+      
+      const newPayment = {
+        patient_id: payment.patientId,
+        amount: payment.amount,
+        method: payment.method as Database['public']['Enums']['payment_method_enum'],
+        description: payment.description,
+        due_date: payment.dueDate,
+        status: payment.status as 'pendente' | 'pago' | 'vencido',
+        paid_date: payment.paidDate ? payment.paidDate : null,
+        clinic_id: currentUser?.clinicId || null
+      };
 
-const addPayment = async (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => {
-  try {
-    console.log('Adicionando pagamento:', payment);
-    
-    const newPayment = {
-      patient_id: payment.patientId,
-      amount: payment.amount,
-      method: payment.method === 'cartao' ? 'cartao_de_credito' as const : 
-              payment.method === 'transferencia' ? 'pix' as const :
-              payment.method === 'dinheiro' ? 'cash' as const : 
-              'pix' as const,
-      description: payment.description,
-      due_date: payment.dueDate,
-      status: payment.status as 'pendente' | 'pago' | 'vencido',
-      paid_date: payment.paidDate ? payment.paidDate : null,
-      clinic_id: currentUser?.clinicId || null
-    };
+      const { data, error } = await supabase
+        .from('accounts_receivable')
+        .insert(newPayment)
+        .select('*');
 
-    const { data, error } = await supabase
-      .from('accounts_receivable')
-      .insert(newPayment)
-      .select('*');
+      if (error) {
+        console.error('Erro ao adicionar pagamento:', error);
+        toast.error('Erro ao adicionar pagamento');
+        throw error;
+      }
 
-    if (error) {
+      console.log('Pagamento adicionado com sucesso:', data);
+      toast.success('Pagamento adicionado com sucesso!');
+      
+      await fetchAccountsReceivable();
+    } catch (error) {
       console.error('Erro ao adicionar pagamento:', error);
       toast.error('Erro ao adicionar pagamento');
       throw error;
     }
-
-    console.log('Pagamento adicionado com sucesso:', data);
-    toast.success('Pagamento adicionado com sucesso!');
-    
-    // Refresh accounts receivable
-    await fetchAccountsReceivable();
-  } catch (error) {
-    console.error('Erro ao adicionar pagamento:', error);
-    toast.error('Erro ao adicionar pagamento');
-    throw error;
-  }
-};
+  };
 
   const value: ClinicContextType = {
     patients,
