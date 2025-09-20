@@ -141,7 +141,7 @@ export function DragDropAgendaWeekView({
         <AppointmentDetailsModal
           appointment={selectedAppointment}
           patient={getPatient(selectedAppointment.patientId)}
-          Professional={getProfessional(selectedAppointment.professionalId)}
+          professional={getProfessional(selectedAppointment.professionalId)}
           room={getRoom(selectedAppointment.roomId)}
           isOpen={showModal}
           onClose={() => {

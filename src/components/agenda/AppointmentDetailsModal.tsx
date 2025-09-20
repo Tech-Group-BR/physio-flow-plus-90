@@ -13,7 +13,7 @@ import { AppointmentEditForm } from "./AppointmentEditForm";
 interface AppointmentDetailsModalProps {
   appointment: any;
   patient: any;
-  Professional: any;
+  professional: any;
   room: any;
   isOpen: boolean;
   onClose: () => void;
@@ -25,7 +25,7 @@ interface AppointmentDetailsModalProps {
 export function AppointmentDetailsModal({
   appointment,
   patient,
-  Professional,
+  professional,
   room,
   isOpen,
   onClose,
@@ -77,7 +77,7 @@ export function AppointmentDetailsModal({
   };
 
   if (isEditing) {
-    console.log('Renderizando modal de edição:', { appointment, patient, Professional, room });
+    console.log('Renderizando modal de edição:', { appointment, patient, professional, room });
 
     // Fallback caso o componente não carregue
     if (!appointment || !patient) {
@@ -195,7 +195,7 @@ export function AppointmentDetailsModal({
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium">Fisioterapeuta:</span> {Professional?.name}
+                <span className="font-medium">Fisioterapeuta:</span> {professional?.name}
               </div>
               <div>
                 <span className="font-medium">Sala:</span> {room?.name || 'Não definida'}
