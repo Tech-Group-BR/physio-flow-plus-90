@@ -14,6 +14,7 @@ import { Database } from '@/integrations/supabase/types';
 interface Patient { id: string; full_name: string; }
 interface Professional { id: string; full_name: string; }
 interface PatientPackageInfo { id: string; name: string; sessions_remaining: number; }
+interface Room { id: string; name: string; }
 
 // As props que o formulário recebe da AgendaPage
 interface AppointmentFormProps {
@@ -25,6 +26,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
   // Estados para os dados do formulário e de suporte
   const [patients, setPatients] = useState<Patient[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [patientPackages, setPatientPackages] = useState<PatientPackageInfo[]>([]);
 
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -35,6 +37,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     professionalId: '',
     date: '',
     time: '',
+    roomId: '',
     selectedPackageId: '',
     customDescription: '',
     customPrice: '',
@@ -49,10 +52,15 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     const fetchInitialData = async () => {
       setIsLoading(true);
       try {
-        const { data: patientsData } = await supabase.from('patients').select('id, full_name').order('full_name');
-        setPatients(patientsData || []);
-        const { data: professionalsData } = await supabase.from('professionals').select('id, full_name').order('full_name');
-        setProfessionals(professionalsData || []);
+        const [patientsRes, professionalsRes, roomsRes] = await Promise.all([
+          supabase.from('patients').select('id, full_name').order('full_name'),
+          supabase.from('professionals').select('id, full_name').order('full_name'),
+          supabase.from('rooms').select('id, name').eq('is_active', true)
+        ]);
+
+        setPatients(patientsRes.data || []);
+        setProfessionals(professionalsRes.data || []);
+        setRooms(roomsRes.data || []);
         
         // Buscar preço padrão das configurações
         const { data: settingsData } = await supabase
@@ -134,6 +142,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
       p_professional_id: formData.professionalId,
       p_appointment_date: formData.date,
       p_appointment_time: formData.time,
+      p_room_id: formData.roomId || null,
       p_notes: formData.notes
     };
 
@@ -234,6 +243,18 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
             <Select onValueChange={(value) => handleChange('professionalId', value)} value={formData.professionalId}>
               <SelectTrigger id="professional"><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
               <SelectContent>{professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="room">Sala</Label>
+            <Select onValueChange={(value) => handleChange('roomId', value)} value={formData.roomId}>
+              <SelectTrigger id="room"><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+              <SelectContent>
+                {rooms.map(room => (
+                  <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

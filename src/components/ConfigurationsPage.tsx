@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DollarSign, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { RoomsManager } from "./RoomsManager";
 
 export function ConfigurationsPage() {
   const [activeTab, setActiveTab] = useState("general");
@@ -99,8 +100,9 @@ export function ConfigurationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-1">
+        <TabsList className="grid h-auto w-full grid-cols-2">
           <TabsTrigger value="general">Configurações Gerais</TabsTrigger>
+          <TabsTrigger value="rooms">Gerenciar Salas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -271,6 +273,10 @@ export function ConfigurationsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="rooms" className="space-y-4">
+          <RoomsManager />
         </TabsContent>
       </Tabs>
     </div>
