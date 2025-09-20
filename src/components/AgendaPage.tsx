@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AppointmentForm } from "./AppointmentForm";
 import { useAgendaLogic } from "@/hooks/useAgendaLogic";
 import { AgendaFilters } from "./agenda/AgendaFilters";
@@ -19,7 +19,6 @@ export function AgendaPage() {
     setSelectedRoom,
     viewMode,
     setViewMode,
-    appointments,
     patients,
     professionals,
     rooms,
@@ -58,24 +57,10 @@ export function AgendaPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Agenda</h1>
           <p className="text-gray-600 mt-1">Gerencie seus agendamentos</p>
         </div>
-        <div className="flex space-x-2">
-          <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Novo Agendamento</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              // Temporary disabled - needs patient selection logic
-              console.log('Nova Evolução - implement patient selection');
-            }}
-            className="flex items-center space-x-2"
-            disabled
-          >
-            <FileText className="h-4 w-4" />
-            <span>Nova Evolução</span>
-          </Button>
-        </div>
+        <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2 w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          <span>Novo Agendamento</span>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -97,35 +82,23 @@ export function AgendaPage() {
         <DragDropAgendaWeekView
           weekDays={getWeekDays()}
           getAppointmentForSlot={getAppointmentForSlot}
-          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
-          onSlotClick={(date, time) => {
-            // Implement quick booking logic here
-            console.log('Quick booking for:', date, time);
-            setShowForm(true);
-          }}
         />
       ) : (
         <DragDropAgendaDayView
           selectedDate={selectedDate}
           getAppointmentForSlot={getAppointmentForSlot}
-          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
-          onSlotClick={(date, time) => {
-            // Implement quick booking logic here
-            console.log('Quick booking for:', date, time);
-            setShowForm(true);
-          }}
         />
       )}
     </div>
