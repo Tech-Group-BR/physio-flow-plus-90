@@ -415,6 +415,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           await Promise.all([
             fetchProfessionals(),
             fetchRooms(),
+            fetchMedicalRecords(),
+            fetchEvolutions(),
             fetchAccountsReceivable(),
             fetchLeads()
           ]);
