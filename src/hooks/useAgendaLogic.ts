@@ -26,7 +26,6 @@ export const useAgendaLogic = () => {
         },
         (payload) => {
           console.log('📡 Appointment change detected:', payload);
-          // Recarregar appointments automaticamente sem reload da página
           window.dispatchEvent(new CustomEvent('appointmentsUpdated'));
         }
       )
@@ -44,7 +43,10 @@ export const useAgendaLogic = () => {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
-    const appointmentDate = new Date(appointment.date + 'T00:00:00');
+    // CORREÇÃO: Constrói a data a partir das partes para evitar o problema de fuso horário.
+    const parts = appointment.date.split('-').map(Number);
+    const appointmentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+
     let dateMatch = false;
 
     if (viewMode === "day") {
@@ -63,7 +65,10 @@ export const useAgendaLogic = () => {
 
   const getAppointmentForSlot = (date: Date, time: string) => {
     const appointment = filteredAppointments.find(apt => {
-      const appointmentDate = new Date(apt.date + 'T00:00:00');
+      // CORREÇÃO: Constrói a data a partir das partes.
+      const parts = apt.date.split('-').map(Number);
+      const appointmentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+
       const timeMatches = apt.time === time || apt.time === time + ':00';
       const dateMatches = isSameDay(appointmentDate, date);
       
@@ -93,7 +98,6 @@ export const useAgendaLogic = () => {
 
       console.log('✅ Agendamento atualizado com sucesso');
       
-      // Update locally using the correct signature
       updateAppointment(appointmentId, updates);
       
     } catch (error) {
@@ -121,7 +125,6 @@ export const useAgendaLogic = () => {
 
       console.log('✅ WhatsApp enviado com sucesso:', data);
 
-      // Update appointment using the correct signature
       updateAppointment(appointmentId, { 
         whatsappSentAt: new Date().toISOString()
       });
@@ -135,10 +138,10 @@ export const useAgendaLogic = () => {
   const navigateDate = (direction: 'prev' | 'next' | 'today') => {
     if (direction === 'today') {
       setSelectedDate(new Date());
-    } else if (direction === 'prev') {
-      setSelectedDate(subWeeks(selectedDate, 1));
+    } else if (viewMode === 'day') {
+      setSelectedDate(prevDate => addDays(prevDate, direction === 'next' ? 1 : -1));
     } else {
-      setSelectedDate(addWeeks(selectedDate, 1));
+      setSelectedDate(prevDate => addWeeks(prevDate, direction === 'next' ? 1 : -1));
     }
   };
 

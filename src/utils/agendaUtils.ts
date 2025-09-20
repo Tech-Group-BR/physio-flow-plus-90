@@ -35,6 +35,7 @@ export const timeSlots = [
  */
 export const durationOptions = [
   { value: 30, label: '30 minutos' },
+   { value: 45, label: '45 minutos' },
   { value: 60, label: '1 hora' },
   { value: 90, label: '1h 30min' },
   { value: 120, label: '2 horas' }

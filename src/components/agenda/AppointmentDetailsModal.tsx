@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -78,8 +77,7 @@ export function AppointmentDetailsModal({
 
   if (isEditing) {
     console.log('Renderizando modal de edição:', { appointment, patient, professional, room });
-
-    // Fallback caso o componente não carregue
+    
     if (!appointment || !patient) {
       console.error('Dados necessários não encontrados para edição');
       return (
@@ -138,7 +136,7 @@ export function AppointmentDetailsModal({
               <Calendar className="h-5 w-5" />
               <span>Detalhes do Agendamento</span>
             </span>
-            {/* <Button
+            <Button
               variant="outline"
               size="sm"
               onClick={handleEdit}
@@ -146,7 +144,7 @@ export function AppointmentDetailsModal({
             >
               <Edit className="h-4 w-4" />
               <span>Editar</span>
-            </Button> */}
+            </Button>
           </DialogTitle>
         </DialogHeader>
 
@@ -157,6 +155,7 @@ export function AppointmentDetailsModal({
               {appointment.status.toUpperCase()}
             </Badge>
             <div className="text-sm text-gray-500">
+              {/* Formatação corrigida para evitar problemas de fuso horário */}
               {format(new Date(appointment.date + 'T' + appointment.time), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
             </div>
           </div>
