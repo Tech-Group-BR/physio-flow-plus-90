@@ -26,8 +26,8 @@ export const useAgendaLogic = () => {
         },
         (payload) => {
           console.log('📡 Appointment change detected:', payload);
-          // Recarregar appointments quando houver mudanças
-          window.location.reload();
+          // Recarregar appointments automaticamente sem reload da página
+          window.dispatchEvent(new CustomEvent('appointmentsUpdated'));
         }
       )
       .subscribe();

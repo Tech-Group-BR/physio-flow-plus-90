@@ -391,18 +391,38 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setCurrentUser(session.user);
       
-      Promise.all([
-        fetchPatients(),
-        fetchProfessionals(),
-        fetchRooms(),
-        fetchAppointments(),
-        fetchMedicalRecords(),
-        fetchAccountsPayable(),
-        fetchAccountsReceivable(),
-        fetchEvolutions(),
-        fetchLeads(),
-        fetchDashboardStats()
-      ]).finally(() => setLoading(false));
+      // Carregamento otimizado - dados essenciais primeiro
+      const loadEssentialData = async () => {
+        try {
+          await Promise.all([
+            fetchDashboardStats(),
+            fetchAppointments(),
+            fetchPatients()
+          ]);
+        } catch (error) {
+          console.error('Erro ao carregar dados essenciais:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Carregamento secundário em background
+      const loadSecondaryData = async () => {
+        try {
+          await Promise.all([
+            fetchProfessionals(),
+            fetchRooms(),
+            fetchAccountsReceivable(),
+            fetchLeads()
+          ]);
+        } catch (error) {
+          console.error('Erro ao carregar dados secundários:', error);
+        }
+      };
+
+      loadEssentialData();
+      // Aguardar antes de carregar dados menos críticos
+      setTimeout(loadSecondaryData, 100);
     }
   }, [session]);
 

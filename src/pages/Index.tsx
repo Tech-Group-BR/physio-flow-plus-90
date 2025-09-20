@@ -9,6 +9,7 @@ import { Dashboard } from "@/components/Dashboard";
 // Componentes das Páginas
 import { PatientsPage } from "@/components/PatientsPage";
 import { AgendaPage } from "@/components/AgendaPage";
+import { AgendaPageWithRecurrence } from "@/components/AgendaPageWithRecurrence";
 import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
 import { FinancialPage } from "@/components/FinancialPage";
 import { ReportsPage } from "@/components/ReportsPage";
@@ -21,7 +22,7 @@ import { SalesPage } from "@/components/SalesPage";
 import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
-import {PatientDetailsPage} from "@/components/PatientDetailsPage";
+import { PatientDetailsPage } from "@/components/patientDetailsPage";
 import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
 import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
 
@@ -49,7 +50,7 @@ const Index = () => {
               {/* CORREÇÃO: Coloque as rotas aqui dentro do componente de layout */}
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/agenda" element={<AgendaPage />} />
+                <Route path="/agenda" element={<AgendaPageWithRecurrence />} />
                 <Route path="/pacientes" element={<PatientsPage />} />
                 <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
                 <Route path="/prontuarios" element={<MedicalRecordsPage />} />
