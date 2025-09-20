@@ -62,10 +62,21 @@ export const useAgendaLogic = () => {
   });
 
   const getAppointmentForSlot = (date: Date, time: string) => {
+    console.log('🔍 Buscando agendamento para:', { date, time, totalAppointments: filteredAppointments.length });
+    
     const appointment = filteredAppointments.find(apt => {
+      if (!apt.date || !apt.time) {
+        console.log('❌ Agendamento sem data/hora:', apt);
+        return false;
+      }
+      
       const appointmentDate = new Date(apt.date + 'T00:00:00');
       const timeMatches = apt.time === time || apt.time === time + ':00';
       const dateMatches = isSameDay(appointmentDate, date);
+      
+      if (timeMatches && dateMatches) {
+        console.log('✅ Agendamento encontrado:', apt);
+      }
       
       return timeMatches && dateMatches;
     });

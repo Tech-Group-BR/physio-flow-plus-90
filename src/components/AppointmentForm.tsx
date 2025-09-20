@@ -38,11 +38,13 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
     selectedPackageId: '',
     customDescription: '',
     customPrice: '',
-    notes: ''
+    notes: '',
+    roomId: ''
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+const [isLoading, setIsLoading] = useState(false);
   const [defaultPrice, setDefaultPrice] = useState(180);
+  const [rooms, setRooms] = useState<{id: string; name: string}[]>([]);
   
   // Busca pacientes e profissionais uma vez, ao montar o componente
   useEffect(() => {
@@ -53,6 +55,10 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
         setPatients(patientsData || []);
         const { data: professionalsData } = await supabase.from('professionals').select('id, full_name').order('full_name');
         setProfessionals(professionalsData || []);
+        
+        // Buscar salas
+        const { data: roomsData } = await supabase.from('rooms').select('id, name').eq('is_active', true).order('name');
+        setRooms(roomsData || []);
         
         // Buscar preço padrão das configurações
         const { data: settingsData } = await supabase
@@ -134,7 +140,8 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
       p_professional_id: formData.professionalId,
       p_appointment_date: formData.date,
       p_appointment_time: formData.time,
-      p_notes: formData.notes
+      p_notes: formData.notes,
+      p_room_id: formData.roomId || null
     };
 
     if (appointmentType === 'package') {
@@ -206,23 +213,44 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
           </div>
 
           {appointmentType === 'package' && (
-            <div className="space-y-2 animate-in fade-in-50">
-              <Label htmlFor="package">Pacote Disponível *</Label>
-              <Select onValueChange={(value) => handleChange('selectedPackageId', value)} value={formData.selectedPackageId}>
-                <SelectTrigger id="package"><SelectValue placeholder="Selecione o pacote" /></SelectTrigger>
-                <SelectContent>{patientPackages.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sessions_remaining} restantes)</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          )}
-          {appointmentType === 'custom' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 border rounded-md bg-white animate-in fade-in-50">
-              <div className="space-y-2">
-                <Label htmlFor="custom-desc">Descrição do Serviço *</Label>
-                <Input id="custom-desc" placeholder="Ex: Avaliação, Retorno" value={formData.customDescription} onChange={(e) => handleChange('customDescription', e.target.value)} />
+            <div className="space-y-3 p-4 border rounded-md bg-green-50 animate-in fade-in-50">
+              <div className="flex items-center space-x-2">
+                <span className="text-green-600">•</span>
+                <span className="text-sm font-medium text-green-800">Usando sessão do pacote selecionado</span>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="custom-price">Valor (R$) *</Label>
-                <Input id="custom-price" type="number" placeholder="150.00" value={formData.customPrice} onChange={(e) => handleChange('customPrice', e.target.value)} />
+                <Label htmlFor="package">Pacote Disponível *</Label>
+                <Select onValueChange={(value) => handleChange('selectedPackageId', value)} value={formData.selectedPackageId}>
+                  <SelectTrigger id="package"><SelectValue placeholder="Selecione o pacote" /></SelectTrigger>
+                  <SelectContent>{patientPackages.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sessions_remaining} restantes)</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          {appointmentType === 'standard' && (
+            <div className="space-y-3 p-4 border rounded-md bg-blue-50 animate-in fade-in-50">
+              <div className="flex items-center space-x-2">
+                <span className="text-blue-600">•</span>
+                <span className="text-sm font-medium text-blue-800">Sessão de valor padrão: R$ {defaultPrice}</span>
+              </div>
+            </div>
+          )}
+          
+          {appointmentType === 'custom' && (
+            <div className="space-y-3 p-4 border rounded-md bg-orange-50 animate-in fade-in-50">
+              <div className="flex items-center space-x-2">
+                <span className="text-orange-600">•</span>
+                <span className="text-sm font-medium text-orange-800">Sessão personalizada com valor customizado</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="custom-desc">Descrição do Serviço *</Label>
+                  <Input id="custom-desc" placeholder="Ex: Avaliação, Retorno" value={formData.customDescription} onChange={(e) => handleChange('customDescription', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custom-price">Valor (R$) *</Label>
+                  <Input id="custom-price" type="number" placeholder="150.00" value={formData.customPrice} onChange={(e) => handleChange('customPrice', e.target.value)} />
+                </div>
               </div>
             </div>
           )}
@@ -246,6 +274,17 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
               <Input id="time" type="time" value={formData.time} onChange={(e) => handleChange('time', e.target.value)} />
             </div>
           </div>
+          
+          {rooms.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="room">Sala</Label>
+              <Select onValueChange={(value) => handleChange('roomId', value)} value={formData.roomId}>
+                <SelectTrigger id="room"><SelectValue placeholder="Selecione a sala (opcional)" /></SelectTrigger>
+                <SelectContent>{rooms.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          )}
+          
            <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea id="notes" placeholder="Observações sobre a consulta..." value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} />

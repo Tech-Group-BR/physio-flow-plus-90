@@ -12,6 +12,8 @@ import { toast } from "sonner";
 export function ConfigurationsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [isLoading, setIsLoading] = useState(false);
+  const [rooms, setRooms] = useState<{id: string; name: string; is_active: boolean}[]>([]);
+  const [newRoomName, setNewRoomName] = useState('');
 
   const [generalSettings, setGeneralSettings] = useState({
     clinicName: 'FisioTech Sistema',
@@ -32,6 +34,7 @@ export function ConfigurationsPage() {
 
   useEffect(() => {
     loadSettings();
+    loadRooms();
   }, []);
 
   const loadSettings = async () => {
@@ -57,6 +60,57 @@ export function ConfigurationsPage() {
       }
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
+    }
+  };
+
+  const loadRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('id, name, is_active')
+        .order('name');
+
+      if (data) {
+        setRooms(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar salas:', error);
+    }
+  };
+
+  const addRoom = async () => {
+    if (!newRoomName.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .insert({ name: newRoomName.trim() });
+
+      if (error) throw error;
+      
+      setNewRoomName('');
+      loadRooms();
+      toast.success('Sala adicionada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao adicionar sala:', error);
+      toast.error('Erro ao adicionar sala');
+    }
+  };
+
+  const toggleRoomStatus = async (roomId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update({ is_active: !currentStatus })
+        .eq('id', roomId);
+
+      if (error) throw error;
+      
+      loadRooms();
+      toast.success('Status da sala atualizado!');
+    } catch (error) {
+      console.error('Erro ao atualizar sala:', error);
+      toast.error('Erro ao atualizar sala');
     }
   };
 
@@ -99,8 +153,9 @@ export function ConfigurationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-1">
+        <TabsList className="grid h-auto w-full grid-cols-2">
           <TabsTrigger value="general">Configurações Gerais</TabsTrigger>
+          <TabsTrigger value="rooms">Salas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -271,6 +326,47 @@ export function ConfigurationsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="rooms" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciar Salas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Nome da nova sala"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addRoom()}
+                />
+                <Button onClick={addRoom} disabled={!newRoomName.trim()}>
+                  Adicionar
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {rooms.map(room => (
+                  <div key={room.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <span className={room.is_active ? 'text-black' : 'text-gray-400 line-through'}>
+                      {room.name}
+                    </span>
+                    <Button 
+                      variant={room.is_active ? "destructive" : "default"}
+                      size="sm"
+                      onClick={() => toggleRoomStatus(room.id, room.is_active)}
+                    >
+                      {room.is_active ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  </div>
+                ))}
+                {rooms.length === 0 && (
+                  <p className="text-gray-500 text-center py-4">Nenhuma sala cadastrada</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
