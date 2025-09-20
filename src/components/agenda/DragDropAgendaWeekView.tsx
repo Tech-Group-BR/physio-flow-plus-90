@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { timeSlots } from "@/utils/agendaUtils";
+import { timeSlots, getOccupiedSlots, isSlotOccupied } from "@/utils/agendaUtils";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,9 +14,11 @@ interface DragDropAgendaWeekViewProps {
   patients: any[];
   professionals: any[];
   rooms: any[];
+  appointments: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
+  onSlotClick: (date: Date, time: string) => void;
 }
 
 export function DragDropAgendaWeekView({
@@ -25,9 +27,11 @@ export function DragDropAgendaWeekView({
   patients,
   professionals,
   rooms,
+  appointments,
   onUpdateStatus,
   onSendWhatsApp,
-  onUpdateAppointment
+  onUpdateAppointment,
+  onSlotClick
 }: DragDropAgendaWeekViewProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
@@ -87,6 +91,17 @@ export function DragDropAgendaWeekView({
                   {timeSlots.map((time) => {
                     const appointment = getAppointmentForSlot(day, time);
                     const dayTimeId = `${format(day, 'yyyy-MM-dd')}_${time}`;
+                    const isOccupied = isSlotOccupied(time, day, appointments);
+                    const isSlotBlocked = isOccupied && !appointment;
+
+                    // Se o slot está ocupado por um agendamento que não começa aqui, não renderizar
+                    if (isSlotBlocked) {
+                      return (
+                        <div key={dayTimeId} className="h-16 border-b bg-gray-100 flex items-center justify-center">
+                          <div className="text-xs text-gray-400">Ocupado</div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <Droppable key={dayTimeId} droppableId={dayTimeId}>
@@ -94,34 +109,52 @@ export function DragDropAgendaWeekView({
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`h-16 border-b p-1 relative ${snapshot.isDraggingOver ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'
-                              }`}
+                            className={`h-16 border-b p-1 relative cursor-pointer ${
+                              snapshot.isDraggingOver ? 'bg-blue-50' : 
+                              appointment ? 'bg-white' : 'bg-white hover:bg-gray-50'
+                            }`}
+                            onClick={() => !appointment && onSlotClick(day, time)}
                           >
                             {appointment && (
                               <Draggable
                                 draggableId={appointment.id}
                                 index={0}
                               >
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className={`h-full ${snapshot.isDragging ? 'opacity-50' : ''}`}
-                                    onClick={() => handleAppointmentClick(appointment)}
-                                  >
-                                    <AppointmentCard
-                                      appointment={appointment}
-                                      patients={patients}
-                                      professionals={professionals}
-                                      rooms={rooms}
-                                      onUpdateStatus={onUpdateStatus}
-                                      onSendWhatsApp={onSendWhatsApp}
-                                      variant="compact"
-                                      onClick={() => handleAppointmentClick(appointment)}
-                                    />
-                                  </div>
-                                )}
+                                {(provided, snapshot) => {
+                                  const occupiedSlots = getOccupiedSlots(appointment.time, appointment.duration || 60);
+                                  const isMainSlot = appointment.time === time;
+                                  
+                                  if (!isMainSlot) return null;
+                                  
+                                  return (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`relative ${snapshot.isDragging ? 'opacity-50' : ''}`}
+                                      style={{
+                                        height: `${occupiedSlots.length * 64}px`,
+                                        zIndex: 10,
+                                        ...provided.draggableProps.style
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAppointmentClick(appointment);
+                                      }}
+                                    >
+                                      <AppointmentCard
+                                        appointment={appointment}
+                                        patients={patients}
+                                        professionals={professionals}
+                                        rooms={rooms}
+                                        onUpdateStatus={onUpdateStatus}
+                                        onSendWhatsApp={onSendWhatsApp}
+                                        variant="compact"
+                                        onClick={() => handleAppointmentClick(appointment)}
+                                      />
+                                    </div>
+                                  );
+                                }}
                               </Draggable>
                             )}
                             {provided.placeholder}

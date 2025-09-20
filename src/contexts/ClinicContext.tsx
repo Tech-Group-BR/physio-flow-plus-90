@@ -253,7 +253,9 @@ const dbToMainAppointment = (dbAppt: DbAppointment): MainAppointment => ({
 const dbToMainMedicalRecord = (dbRecord: DbMedicalRecord): MainMedicalRecord => ({
   id: dbRecord.id,
   patientId: dbRecord.patient_id,
-  anamnesis: typeof dbRecord.anamnesis === 'string' ? JSON.parse(dbRecord.anamnesis) : (dbRecord.anamnesis || ''),
+  anamnesis: typeof dbRecord.anamnesis === 'string' ? 
+    (dbRecord.anamnesis.trim() ? JSON.parse(dbRecord.anamnesis) : {}) : 
+    (dbRecord.anamnesis || {}),
   evolutions: [],
   files: dbRecord.files || [],
   createdAt: dbRecord.created_at,

@@ -153,7 +153,7 @@ export const useAgendaLogic = () => {
     setSelectedRoom,
     viewMode,
     setViewMode,
-    appointments,
+    appointments: filteredAppointments,
     patients,
     professionals,
     rooms,

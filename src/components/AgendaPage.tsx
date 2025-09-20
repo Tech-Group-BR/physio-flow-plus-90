@@ -19,6 +19,7 @@ export function AgendaPage() {
     setSelectedRoom,
     viewMode,
     setViewMode,
+    appointments,
     patients,
     professionals,
     rooms,
@@ -65,12 +66,11 @@ export function AgendaPage() {
           <Button 
             variant="outline" 
             onClick={() => {
-              const selectedAppointment = /* lógica para selecionar agendamento */null;
-              if (selectedAppointment) {
-                window.location.href = `/prontuario/evolucao/nova?paciente=${selectedAppointment.patientId}`;
-              }
+              // Temporary disabled - needs patient selection logic
+              console.log('Nova Evolução - implement patient selection');
             }}
             className="flex items-center space-x-2"
+            disabled
           >
             <FileText className="h-4 w-4" />
             <span>Nova Evolução</span>
@@ -97,23 +97,35 @@ export function AgendaPage() {
         <DragDropAgendaWeekView
           weekDays={getWeekDays()}
           getAppointmentForSlot={getAppointmentForSlot}
+          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onSlotClick={(date, time) => {
+            // Implement quick booking logic here
+            console.log('Quick booking for:', date, time);
+            setShowForm(true);
+          }}
         />
       ) : (
         <DragDropAgendaDayView
           selectedDate={selectedDate}
           getAppointmentForSlot={getAppointmentForSlot}
+          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onSlotClick={(date, time) => {
+            // Implement quick booking logic here
+            console.log('Quick booking for:', date, time);
+            setShowForm(true);
+          }}
         />
       )}
     </div>

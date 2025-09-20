@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { timeSlots } from "@/utils/agendaUtils";
+import { timeSlots, isSlotOccupied } from "@/utils/agendaUtils";
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { useState } from "react";
 import { AppointmentCard } from "./AppointmentCard";
@@ -9,23 +9,27 @@ import { AppointmentDetailsModal } from "./AppointmentDetailsModal";
 interface DragDropAgendaDayViewProps {
   selectedDate: Date;
   getAppointmentForSlot: (date: Date, time: string) => any;
+  appointments: any[];
   patients: any[];
   professionals: any[];
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
+  onSlotClick: (date: Date, time: string) => void;
 }
 
 export function DragDropAgendaDayView({
   selectedDate,
   getAppointmentForSlot,
+  appointments,
   patients,
   professionals,
   rooms,
   onUpdateStatus,
   onSendWhatsApp,
-  onUpdateAppointment
+  onUpdateAppointment,
+  onSlotClick
 }: DragDropAgendaDayViewProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
@@ -58,6 +62,22 @@ export function DragDropAgendaDayView({
           <div className="space-y-3">
             {timeSlots.map((time) => {
               const appointment = getAppointmentForSlot(selectedDate, time);
+              const isOccupied = isSlotOccupied(time, selectedDate, appointments);
+              const isSlotBlocked = isOccupied && !appointment;
+
+              if (isSlotBlocked) {
+                return (
+                  <div key={time} className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 p-4 border rounded-lg bg-gray-100">
+                    <div className="w-full sm:w-20 text-sm font-medium text-gray-600 sm:text-center">
+                      {time}
+                    </div>
+                    <div className="flex-1 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center text-gray-500">
+                      Ocupado
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <Droppable key={time} droppableId={`day_${time}`}>
                   {(provided, snapshot) => (
@@ -94,8 +114,11 @@ export function DragDropAgendaDayView({
                           )}
                         </Draggable>
                       ) : (
-                        <div className="flex-1 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-gray-400">
-                          Horário disponível
+                        <div 
+                          className="flex-1 p-4 border-2 border-dashed border-gray-200 rounded-lg text-center text-gray-400 cursor-pointer hover:border-gray-300 hover:bg-gray-50"
+                          onClick={() => onSlotClick(selectedDate, time)}
+                        >
+                          Horário disponível - Clique para agendar
                         </div>
                       )}
                       {provided.placeholder}
