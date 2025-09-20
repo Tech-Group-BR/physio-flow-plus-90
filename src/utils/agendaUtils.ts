@@ -58,7 +58,7 @@ export const isSlotOccupied = (targetTime: string, targetDate: Date, appointment
     const appointmentDate = new Date(appointment.date + 'T00:00:00');
     if (!isSameDay(appointmentDate, targetDate)) return false;
     
-    const occupiedSlots = getOccupiedSlots(appointment.time, appointment.duration || 60);
+    const occupiedSlots = getOccupiedSlots(appointment.time, appointment.duration || 45);
     return occupiedSlots.includes(targetTime);
   });
 };

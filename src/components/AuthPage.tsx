@@ -46,7 +46,8 @@ export function AuthPage() {
 
   const [loginForm, setLoginForm] = useState({
     email: 'admin@sistema.com',
-    password: '123456789'
+    password: '123456789',
+    clinicCode: '123456'
   });
 
   const [signupForm, setSignupForm] = useState({
@@ -55,7 +56,8 @@ export function AuthPage() {
     fullName: '',
     phone: '',
     role: 'guardian' as 'admin' | 'Professional' | 'guardian',
-    crefito: ''
+    crefito: '',
+    clinicCode: ''
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -66,7 +68,18 @@ export function AuthPage() {
     console.log('🚀 Tentando fazer login com:', loginForm.email);
 
     try {
-      const { error } = await signIn(loginForm.email, loginForm.password);
+      // Validar código da clínica primeiro
+      const { data: validClinic, error: clinicError } = await supabase
+        .rpc('validate_clinic_code', { code: loginForm.clinicCode });
+
+      if (clinicError || !validClinic) {
+        toast.error('Código da clínica inválido');
+        setError('Código da clínica inválido');
+        setAuthLoading(false);
+        return;
+      }
+
+      const { error } = await signIn(loginForm.email, loginForm.password, loginForm.clinicCode);
       
       if (error) {
         console.error('❌ Erro no login:', error);
@@ -102,11 +115,23 @@ export function AuthPage() {
     console.log('📝 Tentando cadastrar:', signupForm.email);
 
     try {
+      // Validar código da clínica primeiro
+      const { data: validClinic, error: clinicError } = await supabase
+        .rpc('validate_clinic_code', { code: signupForm.clinicCode });
+
+      if (clinicError || !validClinic) {
+        toast.error('Código da clínica inválido');
+        setError('Código da clínica inválido');
+        setAuthLoading(false);
+        return;
+      }
+
       const { error } = await signUp(signupForm.email, signupForm.password, {
         full_name: signupForm.fullName,
         phone: signupForm.phone,
         role: signupForm.role,
-        crefito: signupForm.crefito
+        crefito: signupForm.crefito,
+        clinic_code: signupForm.clinicCode
       });
       
       if (error) {
@@ -131,7 +156,8 @@ export function AuthPage() {
           fullName: '',
           phone: '',
           role: 'guardian',
-          crefito: ''
+          crefito: '',
+          clinicCode: ''
         });
         // Mudar para aba de login
         const loginTab = document.querySelector('[value="login"]') as HTMLButtonElement;
@@ -156,7 +182,8 @@ export function AuthPage() {
       fullName: 'Administrador do Sistema',
       phone: '(11) 99999-9999',
       role: 'admin',
-      crefito: ''
+      crefito: '',
+      clinicCode: '123456'
     });
     toast.info('Dados do administrador preenchidos!');
   };
@@ -165,7 +192,8 @@ export function AuthPage() {
   const useTestCredentials = () => {
     setLoginForm({
       email: 'admin@sistema.com',
-      password: '123456789'
+      password: '123456789',
+      clinicCode: '123456'
     });
     toast.info('Credenciais de teste preenchidas!');
   };
@@ -214,11 +242,12 @@ export function AuthPage() {
 
               <TabsContent value="login">
                 <div className="space-y-4">
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                    <strong>🔑 Credenciais de Teste:</strong><br />
-                    Email: admin@sistema.com<br />
-                    Senha: 123456789
-                  </div>
+                   <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                     <strong>🔑 Credenciais de Teste:</strong><br />
+                     Email: admin@sistema.com<br />
+                     Senha: 123456789<br />
+                     Código da Clínica: 123456
+                   </div>
                   
                   <Button 
                     type="button" 
@@ -230,32 +259,47 @@ export function AuthPage() {
                     ⚡ Usar Credenciais de Teste
                   </Button>
                   
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                      <Label htmlFor="login-email">E-mail</Label>
-                      <Input
-                        id="login-email"
-                        type="email"
-                        value={loginForm.email}
-                        onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                        required
-                        disabled={authLoading}
-                        placeholder="admin@sistema.com"
-                      />
-                    </div>
+                   <form onSubmit={handleLogin} className="space-y-4">
+                     <div>
+                       <Label htmlFor="login-clinic-code">Código da Clínica</Label>
+                       <Input
+                         id="login-clinic-code"
+                         type="text"
+                         value={loginForm.clinicCode}
+                         onChange={(e) => setLoginForm({ ...loginForm, clinicCode: e.target.value })}
+                         required
+                         disabled={authLoading}
+                         placeholder="123456"
+                         maxLength={6}
+                         pattern="[0-9]{6}"
+                       />
+                     </div>
 
-                    <div>
-                      <Label htmlFor="login-password">Senha</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        value={loginForm.password}
-                        onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                        required
-                        disabled={authLoading}
-                        placeholder="123456789"
-                      />
-                    </div>
+                     <div>
+                       <Label htmlFor="login-email">E-mail</Label>
+                       <Input
+                         id="login-email"
+                         type="email"
+                         value={loginForm.email}
+                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                         required
+                         disabled={authLoading}
+                         placeholder="admin@sistema.com"
+                       />
+                     </div>
+
+                     <div>
+                       <Label htmlFor="login-password">Senha</Label>
+                       <Input
+                         id="login-password"
+                         type="password"
+                         value={loginForm.password}
+                         onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                         required
+                         disabled={authLoading}
+                         placeholder="123456789"
+                       />
+                     </div>
 
                     <Button type="submit" className="w-full" disabled={authLoading}>
                       {authLoading ? '🔄 Entrando...' : '🚀 Entrar'}
@@ -280,18 +324,33 @@ export function AuthPage() {
                     🔧 Preencher dados do Admin
                   </Button>
                   
-                  <form onSubmit={handleSignup} className="space-y-4">
-                    <div>
-                      <Label htmlFor="signup-name">Nome Completo</Label>
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        value={signupForm.fullName}
-                        onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                        required
-                        placeholder="Administrador do Sistema"
-                      />
-                    </div>
+                   <form onSubmit={handleSignup} className="space-y-4">
+                     <div>
+                       <Label htmlFor="signup-clinic-code">Código da Clínica</Label>
+                       <Input
+                         id="signup-clinic-code"
+                         type="text"
+                         value={signupForm.clinicCode}
+                         onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value })}
+                         required
+                         placeholder="123456"
+                         maxLength={6}
+                         pattern="[0-9]{6}"
+                       />
+                       <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
+                     </div>
+
+                     <div>
+                       <Label htmlFor="signup-name">Nome Completo</Label>
+                       <Input
+                         id="signup-name"
+                         type="text"
+                         value={signupForm.fullName}
+                         onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                         required
+                         placeholder="Administrador do Sistema"
+                       />
+                     </div>
 
                     <div>
                       <Label htmlFor="signup-email">E-mail</Label>

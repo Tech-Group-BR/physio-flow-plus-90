@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, clinicCode?: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, clinicCode?: string) => {
     console.log('🔐 Iniciando processo de login para:', email);
     
     try {
@@ -70,6 +70,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('❌ Erro no login:', error.message);
         return { error };
+      }
+      
+      if (data.user && clinicCode) {
+        // Atualizar o código da clínica no perfil do usuário
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ clinic_code: clinicCode })
+          .eq('id', data.user.id);
+          
+        if (updateError) {
+          console.error('❌ Erro ao atualizar código da clínica:', updateError);
+        } else {
+          console.log('✅ Código da clínica atualizado no perfil');
+        }
       }
       
       if (data.user) {

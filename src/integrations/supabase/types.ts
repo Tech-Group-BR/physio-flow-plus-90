@@ -318,6 +318,7 @@ export type Database = {
       clinic_settings: {
         Row: {
           address: string | null
+          clinic_code: string | null
           consultation_price: number | null
           created_at: string | null
           email: string | null
@@ -331,6 +332,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          clinic_code?: string | null
           consultation_price?: number | null
           created_at?: string | null
           email?: string | null
@@ -344,6 +346,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          clinic_code?: string | null
           consultation_price?: number | null
           created_at?: string | null
           email?: string | null
@@ -778,6 +781,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          clinic_code: string | null
           created_at: string | null
           email: string | null
           full_name: string
@@ -788,6 +792,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          clinic_code?: string | null
           created_at?: string | null
           email?: string | null
           full_name: string
@@ -798,6 +803,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          clinic_code?: string | null
           created_at?: string | null
           email?: string | null
           full_name?: string
@@ -1110,6 +1116,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      generate_clinic_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1231,6 +1241,10 @@ export type Database = {
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
         Returns: string
+      }
+      validate_clinic_code: {
+        Args: { code: string }
+        Returns: boolean
       }
     }
     Enums: {
