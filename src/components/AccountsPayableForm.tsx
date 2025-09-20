@@ -18,7 +18,6 @@ export function AccountsPayableForm({ onSave, onCancel }: AccountsPayableFormPro
 
   const [formData, setFormData] = useState({
     description: '',
-    supplier: '',
     amount: 0,
     dueDate: '',
     status: 'pendente' as const,
@@ -40,7 +39,7 @@ export function AccountsPayableForm({ onSave, onCancel }: AccountsPayableFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.description || !formData.supplier || formData.amount <= 0 || !formData.dueDate) {
+    if (!formData.description || formData.amount <= 0 || !formData.dueDate) {
       alert('Por favor, preencha todos os campos obrigatórios (*).');
       return;
     }
@@ -48,7 +47,6 @@ export function AccountsPayableForm({ onSave, onCancel }: AccountsPayableFormPro
     try {
       await addAccountsPayable({
         description: formData.description,
-        supplier: formData.supplier,
         amount: formData.amount,
         dueDate: formData.dueDate,
         status: formData.status,
@@ -83,14 +81,19 @@ export function AccountsPayableForm({ onSave, onCancel }: AccountsPayableFormPro
             </div>
 
             <div>
-              <Label htmlFor="supplier">Fornecedor *</Label>
-              <Input
-                id="supplier"
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                placeholder="Nome do fornecedor"
-                required
-              />
+              <Label htmlFor="category">Categoria</Label>
+              <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
