@@ -13,6 +13,7 @@ import { Professional } from '@/types';
 import { BadgeCheck } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Phone } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 
 export function ProfessionalsPage() {
@@ -35,7 +36,8 @@ export function ProfessionalsPage() {
     specialties: [] as string[],
     bio: '',
     isActive: true,
-    profile_picture_url: ''
+    profile_picture_url: '',
+    clinicId: useAuth().user?.user_metadata.clinic_id
   });
 
   const filteredProfessionals = professionals.filter(physio =>
@@ -53,7 +55,8 @@ export function ProfessionalsPage() {
       specialties: [],
       bio: '',
       isActive: true,
-      profile_picture_url: ''
+      profile_picture_url: '',
+      clinicId: useAuth().user?.user_metadata.clinic_id 
     });
     setEditingProfessional(null);
   };
@@ -78,6 +81,9 @@ export function ProfessionalsPage() {
     }
   };
 
+
+  console.log("authhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", useAuth());
+
   const handleEdit = (Professional: Professional) => {
     setEditingProfessional(Professional);
     setFormData({
@@ -88,7 +94,8 @@ export function ProfessionalsPage() {
       specialties: Professional.specialties,
       bio: Professional.bio,
       isActive: Professional.isActive,
-      profile_picture_url: Professional.profile_picture_url || ''
+      profile_picture_url: Professional.profile_picture_url || '',
+      clinicId: auth().user?.user_metadata.clinic_id
     });
     setIsDialogOpen(true);
   };

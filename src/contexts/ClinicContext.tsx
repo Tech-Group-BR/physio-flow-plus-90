@@ -452,7 +452,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           notes: patient.notes,
           is_active: patient.isActive,
           is_minor: patient.isMinor,
-          guardian_id: patient.guardianId,
+          guardian_id: patient.guardianId? patient.guardianId : null,
         });
       if (error) throw error;
       await fetchPatients();
@@ -480,7 +480,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.notes !== undefined) updateData.notes = updates.notes;
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.isMinor !== undefined) updateData.is_minor = updates.isMinor;
-      if (updates.guardianId !== undefined) updateData.guardian_id = updates.guardianId;
+           updateData.guardian_id = null;
 
       const { error } = await supabase
         .from('patients')

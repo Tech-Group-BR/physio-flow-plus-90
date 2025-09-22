@@ -47,7 +47,7 @@ export function AuthPage() {
   const [loginForm, setLoginForm] = useState({
     email: 'admin@sistema.com',
     password: '123456789',
-    clinicCode: '123456'
+    clinicCode: '702544'
   });
 
   const [signupForm, setSignupForm] = useState({

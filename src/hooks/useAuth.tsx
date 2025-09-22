@@ -1,170 +1,95 @@
-
-import { useState, useEffect, createContext, useContext } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { cleanupAuthState, forceSignOut } from '@/utils/authCleanup';
+import { Session, User } from '@supabase/supabase-js';
+import { Database } from '@/integrations/supabase/types';
 
+// --- TIPAGEM (sem alterações) ---
+type Profile = Database['public']['Tables']['profiles']['Row'];
+export type AppUser = User & {
+  profile: Profile | null;
+};
 interface AuthContextType {
-  user: User | null;
   session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string, clinicCode?: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
+  user: AppUser | null;
+  loading: boolean; // Continuará a representar o estado de carregamento geral
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // --- NOVO ESTADO PARA CONTROLAR A CARGA INICIAL ---
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 Inicializando autenticação...');
-    
-    // Configurar listener de mudança de estado PRIMEIRO
+    // 1. VERIFICAR A SESSÃO ATIVA UMA VEZ PARA A CARGA INICIAL
+    const fetchInitialSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Erro na busca da sessão inicial:", error);
+      }
+      
+      // Se tiver sessão, busca o perfil
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setProfile(profileData);
+      }
+      
+      setSession(session);
+      setLoading(false); // Termina o carregamento inicial
+      setInitialLoadComplete(true); // Marca que a carga inicial foi concluída
+    };
+
+    fetchInitialSession();
+
+    // 2. OUVINTE PARA MUDANÇAS FUTURAS (LOGIN/LOGOUT)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('🔄 Auth state change:', event, session?.user?.email);
+      async (_event, session) => {
+        // Ignora a primeira chamada do ouvinte se a carga inicial ainda não terminou
+        if (!initialLoadComplete) return;
+
+        setLoading(true);
+        if (session?.user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setProfile(profileData);
+        } else {
+          setProfile(null);
+        }
         
-        // Atualizar estado sincronamente
         setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Sempre definir loading como false após mudança de estado
         setLoading(false);
       }
     );
 
-    // DEPOIS verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('📱 Sessão inicial:', session?.user?.email || 'Nenhuma sessão');
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [initialLoadComplete]); // Depende do initialLoadComplete para reavaliar
 
-    return () => subscription.unsubscribe();
-  }, []);
+  const user = session?.user ? { ...session.user, profile: profile } : null;
 
-  const signIn = async (email: string, password: string, clinicCode?: string) => {
-    console.log('🔐 Iniciando processo de login para:', email);
-    
-    try {
-      // Limpar estado existente primeiro
-      cleanupAuthState();
-      
-      // Tentar logout global para garantir estado limpo
-      await forceSignOut(supabase);
-      
-      // Pequena pausa para garantir que a limpeza foi processada
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('🔐 Tentando login após limpeza...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        console.error('❌ Erro no login:', error.message);
-        return { error };
-      }
-      
-      if (data.user && clinicCode) {
-        // Atualizar o código da clínica no perfil do usuário
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ clinic_code: clinicCode })
-          .eq('id', data.user.id);
-          
-        if (updateError) {
-          console.error('❌ Erro ao atualizar código da clínica:', updateError);
-        } else {
-          console.log('✅ Código da clínica atualizado no perfil');
-        }
-      }
-      
-      if (data.user) {
-        console.log('✅ Login bem-sucedido:', data.user.email);
-        // Não redirecionar aqui - deixar o roteamento handle isso
-      }
-      
-      return { error: null };
-    } catch (err: any) {
-      console.error('❌ Erro inesperado no login:', err);
-      return { error: err };
-    }
-  };
-
-  const signUp = async (email: string, password: string, userData: any) => {
-    console.log('📝 Iniciando processo de cadastro para:', email);
-    
-    try {
-      // Limpar estado existente primeiro
-      cleanupAuthState();
-      await forceSignOut(supabase);
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: userData
-        }
-      });
-      
-      if (error) {
-        console.error('❌ Erro no cadastro:', error.message);
-        return { error };
-      }
-      
-      console.log('✅ Cadastro realizado:', data.user?.email);
-      return { error: null };
-    } catch (err: any) {
-      console.error('❌ Erro inesperado no cadastro:', err);
-      return { error: err };
-    }
-  };
-
-  const signOut = async () => {
-    console.log('🚪 Iniciando logout...');
-    
-    try {
-      // Limpar estado primeiro
-      cleanupAuthState();
-      
-      // Tentar logout global
-      await forceSignOut(supabase);
-      
-      // O roteamento irá lidar com o redirecionamento
-      console.log('✅ Logout realizado com sucesso');
-    } catch (err) {
-      console.error('❌ Erro no logout:', err);
-      // Mesmo com erro, limpar estado local
-      setUser(null);
-      setSession(null);
-    }
-  };
-
+  // Renderiza o conteúdo apenas se o carregamento inicial estiver completo
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signIn,
-      signUp,
-      signOut
-    }}>
-      {children}
+    <AuthContext.Provider value={{ session, user, loading: !initialLoadComplete || loading }}>
+      {!initialLoadComplete ? <div>Carregando aplicação...</div> : children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

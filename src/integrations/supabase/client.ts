@@ -4,10 +4,16 @@ import type { Database } from './types';
 
 // As credenciais agora são lidas do arquivo .env.local
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// CORREÇÃO: Usando o nome da variável que você definiu no seu .env
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
+
+// Verificação para garantir que as variáveis não estão vazias
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error("Supabase URL or Key is missing. Check your .env.local file.");
+}
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

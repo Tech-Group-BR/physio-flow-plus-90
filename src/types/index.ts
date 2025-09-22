@@ -50,6 +50,7 @@ export interface Patient {
   guardianId?: string;
   createdAt: string;
   updatedAt: string;
+  clinicId?: string;
 }
 
 export interface Professional {
@@ -65,6 +66,7 @@ export interface Professional {
   updatedAt?: string | null;
   profile_id?: string | null;
   profile_picture_url?: string | null;
+  clinicId?: string;
 }
 export interface Appointment {
   id: string;
@@ -244,6 +246,7 @@ export interface User {
   permissions: string[];
   isActive: boolean;
   createdAt: string;
+  clinicId?: string;
 }
 
 export interface DashboardStats {

@@ -790,6 +790,7 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string | null
+          clinic_id: string 
         }
         Insert: {
           clinic_code?: string | null
