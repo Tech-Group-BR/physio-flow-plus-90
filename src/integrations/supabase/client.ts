@@ -2,8 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://chgvegvnyflldpjoummj.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoZ3ZlZ3ZueWZsbGRwam91bW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwMzU0MzMsImV4cCI6MjA2NTYxMTQzM30.ch_d54vshF3SEkA3wYXaHsUnGsh60wWiaPIoZgHci8s";
+// As credenciais agora são lidas do arquivo .env.local
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
