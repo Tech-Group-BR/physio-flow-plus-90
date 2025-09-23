@@ -103,33 +103,23 @@ export function AgendaPageWithRecurrence() {
         <DragDropAgendaWeekView
           weekDays={getWeekDays()}
           getAppointmentForSlot={getAppointmentForSlot}
-          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
-          onSlotClick={(date, time) => {
-            console.log('Quick booking for:', date, time);
-            setShowForm(true);
-          }}
         />
       ) : (
         <DragDropAgendaDayView
           selectedDate={selectedDate}
           getAppointmentForSlot={getAppointmentForSlot}
-          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
-          onSlotClick={(date, time) => {
-            console.log('Quick booking for:', date, time);
-            setShowForm(true);
-          }}
         />
       )}
     </div>

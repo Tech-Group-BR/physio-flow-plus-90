@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,7 +60,14 @@ export function AppointmentCard({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Badge className={getStatusColor(appointment.status)} title={patient?.fullName || 'Paciente'}>
-              {appointment.status.toUpperCase()}
+              {/* Exibe o status em português */}
+              {{
+                marcado: "Marcado",
+                confirmado: "Confirmado",
+                realizado: "Realizado",
+                faltante: "Faltante",
+                cancelado: "Cancelado"
+              }[appointment.status] || appointment.status}
             </Badge>
             <span className="text-sm text-gray-500">
               {appointment.time}
@@ -146,6 +152,18 @@ export function AppointmentCard({
               >
                 ✅ Realizado
               </Button>
+            )}
+
+            {appointment.status === 'realizado' && (
+              <Badge className="bg-green-100 text-green-700">Consulta realizada</Badge>
+            )}
+
+            {appointment.status === 'faltante' && (
+              <Badge className="bg-yellow-100 text-yellow-700">Faltante</Badge>
+            )}
+
+            {appointment.status === 'cancelado' && (
+              <Badge className="bg-red-100 text-red-700">Cancelado</Badge>
             )}
           </div>
         </div>

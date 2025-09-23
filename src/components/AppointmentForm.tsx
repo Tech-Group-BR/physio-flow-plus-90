@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from '@/integrations/supabase/types';
-
+import { useAuth } from "@/hooks/useAuth";
 
 // Tipos para os dados que vamos buscar
 interface Patient { id: string; full_name: string; }
@@ -49,6 +49,8 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [defaultPrice, setDefaultPrice] = useState(180); // Um fallback enquanto carrega
   
+  const { clinicId } = useAuth();
+
   // Busca pacientes, profissionais, salas e configurações uma vez, ao montar o componente
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -64,15 +66,17 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
         setProfessionals(professionalsRes.data || []);
         setRooms(roomsRes.data || []);
         
-        // Buscar preço padrão das configurações
-        const { data: settingsData } = await supabase
-          .from('clinic_settings')
-          .select('consultation_price')
-          .limit(1)
-          .single();
-        
-        if (settingsData?.consultation_price) {
-          setDefaultPrice(settingsData.consultation_price);
+        // Buscar preço padrão das configurações da clínica correta
+        if (clinicId) {
+          const { data: settingsData } = await supabase
+            .from('clinic_settings')
+            .select('consultation_price')
+            .eq('id', clinicId) // <-- filtro pelo id da clínica
+            .single();
+
+          if (settingsData?.consultation_price) {
+            setDefaultPrice(settingsData.consultation_price);
+          }
         }
       } catch (error) {
         toast.error("Falha ao carregar dados iniciais.");
@@ -82,7 +86,7 @@ export function AppointmentForm({ onSave, onCancel }: AppointmentFormProps) {
       }
     };
     fetchInitialData();
-  }, []);
+  }, [clinicId]);
 
   // Efeito para atualizar o preço no formulário quando o valor padrão é carregado
   useEffect(() => {

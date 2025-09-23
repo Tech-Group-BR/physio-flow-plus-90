@@ -13,6 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { durationOptions } from "@/utils/agendaUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { fetchClinicSettings } from "@/services/settingsService";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Patient {
   id: string;
@@ -48,6 +49,8 @@ export function AppointmentFormWithRecurrence({
   selectedDate, 
   selectedTime 
 }: AppointmentFormWithRecurrenceProps) {
+  const { clinicId } = useAuth();
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -95,7 +98,7 @@ export function AppointmentFormWithRecurrence({
         supabase.from('rooms').select('id, name').eq('is_active', true).order('name')
       ]);
 
-      const settings = await fetchClinicSettings();
+      const settings = await fetchClinicSettings(clinicId);
 
       if (patientsRes.data) setPatients(patientsRes.data);
       if (professionalsRes.data) setProfessionals(professionalsRes.data);
@@ -175,7 +178,7 @@ export function AppointmentFormWithRecurrence({
     setSaving(true);
     try {
       const appointments = [];
-      const baseDate = new Date(formData.date);
+      const baseDate = selectedDate ? selectedDate : new Date(formData.date);
 
       let treatmentType = '';
       let price = null;
@@ -194,13 +197,20 @@ export function AppointmentFormWithRecurrence({
       }
 
       for (let i = 0; i < (isRecurrent ? recurrenceCount : 1); i++) {
-        const appointmentDate = i === 0 ? baseDate : addWeeks(baseDate, i);
-        
+        let appointmentDate;
+        if (i === 0) {
+          appointmentDate = formData.date; // já está no formato correto
+        } else {
+          // Para recorrência, adicione semanas ao objeto Date
+          const nextDate = selectedDate ? addWeeks(selectedDate, i) : addWeeks(new Date(formData.date), i);
+          appointmentDate = format(nextDate, 'yyyy-MM-dd');
+        }
+
         appointments.push({
           patient_id: selectedPatientId,
           professional_id: formData.professionalId,
           room_id: formData.roomId || null,
-          date: format(appointmentDate, 'yyyy-MM-dd'),
+          date: appointmentDate,
           time: formData.time,
           duration: formData.duration,
           treatment_type: treatmentType,

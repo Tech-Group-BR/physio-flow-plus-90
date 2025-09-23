@@ -83,6 +83,7 @@ export interface Appointment {
   whatsappSentAt?: string;
   createdAt: string;
   updatedAt: string;
+  clinicId?: string;
 }
 
 export interface Payment {

@@ -1,27 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
 
-interface ClinicSettings {
+export interface ClinicSettings {
   id: string | null;
   consultation_price: number | null;
 }
 
-/**
- * Busca o ID da clínica e o preço da consulta na tabela 'clinic_settings'.
- * @returns Um objeto com o ID e o preço da consulta, ou null se não for encontrado.
- */
-export async function fetchClinicSettings(): Promise<ClinicSettings | null> {
+export async function fetchClinicSettings(clinicId: string | undefined): Promise<ClinicSettings | null> {
+  if (!clinicId) {
+    console.warn('clinicId está indefinido!');
+    return null;
+  }
   try {
     const { data, error } = await supabase
       .from('clinic_settings')
-      .select('id, consultation_price')
+      .select('id,consultation_price')
+      .eq('id', clinicId)
       .single();
 
-    if (error) {
-      console.error('Erro ao buscar as configurações da clínica:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    return data;
+    return data as ClinicSettings;
   } catch (error) {
     console.error('Erro inesperado ao buscar dados da clínica:', error);
     return null;

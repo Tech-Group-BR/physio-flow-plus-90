@@ -9,10 +9,13 @@ import { DollarSign, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { RoomsManager } from "./RoomsManager";
+import { useAuth } from "@/hooks/useAuth";
 
 export function ConfigurationsPage() {
+  const { clinicId } = useAuth();
   const [activeTab, setActiveTab] = useState("general");
   const [isLoading, setIsLoading] = useState(false);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
 
   const [generalSettings, setGeneralSettings] = useState({
     clinicName: 'FisioTech Sistema',
@@ -36,14 +39,16 @@ export function ConfigurationsPage() {
   }, []);
 
   const loadSettings = async () => {
+    if (!clinicId) return;
     try {
       const { data, error } = await supabase
         .from('clinic_settings')
         .select('*')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .eq('id', clinicId) // <-- usa o clinicId como id
         .single();
 
       if (data) {
+        setSettingsId(data.id); // <-- Salva o id real do settings
         const workingHours = data.working_hours as any;
         setGeneralSettings(prev => ({
           ...prev,
@@ -64,10 +69,14 @@ export function ConfigurationsPage() {
   const saveSettings = async () => {
     setIsLoading(true);
     try {
+      if (!settingsId) {
+        toast.error('ID das configurações não encontrado!');
+        setIsLoading(false);
+        return;
+      }
       const { error } = await supabase
         .from('clinic_settings')
-        .upsert({
-          id: '00000000-0000-0000-0000-000000000001',
+        .update({
           name: generalSettings.clinicName,
           email: generalSettings.clinicEmail,
           phone: generalSettings.clinicPhone,
@@ -76,7 +85,8 @@ export function ConfigurationsPage() {
           timezone: generalSettings.timezone,
           working_hours: generalSettings.workingHours,
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('id', settingsId); // <-- atualiza pelo id (que é o clinicId)
 
       if (error) throw error;
       

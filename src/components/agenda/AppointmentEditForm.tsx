@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Appointment } from "@/types";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
 
     try {
         const { patients, professionals, rooms } = useClinic();
+        const { clinicId } = useAuth();
         console.log('useClinic executado com sucesso:', {
             patients: patients?.length,
             professionals: professionals?.length,
@@ -41,10 +43,17 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
 
         const handleSubmit = async (e: React.FormEvent) => {
             e.preventDefault();
-            console.log('Formulário submetido:', formData);
+
+            // Certifique-se que formData.date está no formato 'YYYY-MM-DD'
+            // Se estiver usando Date objects, converta para string local:
+            // const localDate = new Date(formData.date).toISOString().slice(0, 10);
 
             try {
-                await onSave(formData);
+                await onSave({
+                    ...formData,
+                    date: formData.date,
+                    clinicId // envie o clinicId se necessário no backend
+                });
             } catch (error: any) {
                 console.error('Erro ao salvar:', error);
                 toast.error('Erro ao salvar agendamento');
