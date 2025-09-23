@@ -8,6 +8,7 @@ import { Calendar, Clock, Edit, FileText, Phone, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppointmentEditForm } from "./AppointmentEditForm";
+import { Link } from "react-router-dom"; // adicione o import
 
 interface AppointmentDetailsModalProps {
   appointment: any;
@@ -59,6 +60,7 @@ export function AppointmentDetailsModal({
     try {
       await onUpdateStatus(appointment.id, status);
       toast.success(`Status alterado para ${status} com sucesso!`);
+      onClose(); // <-- fecha o modal após atualizar
     } catch (error) {
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status. Tente novamente.');
@@ -165,6 +167,14 @@ export function AppointmentDetailsModal({
             <h3 className="font-semibold flex items-center space-x-2">
               <User className="h-4 w-4" />
               <span>Paciente</span>
+              <Link
+                to={`/pacientes/${patient.id}`}
+                className="ml-2 text-blue-600 underline text-xs"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Ver ficha
+              </Link>
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>

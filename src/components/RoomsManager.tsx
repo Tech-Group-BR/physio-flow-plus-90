@@ -7,13 +7,14 @@ import { useClinic } from "@/contexts/ClinicContext";
 import { Plus, Edit, Trash2, MapPin } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { is } from "date-fns/locale";
 
 interface Room {
   id: string;
   name: string;
   capacity: number;
   equipment: string[];
-  isActive: boolean;
+  is_active: boolean;
 }
 
 export function RoomsManager() {
@@ -23,7 +24,8 @@ export function RoomsManager() {
   const [formData, setFormData] = useState({
     name: '',
     capacity: 1,
-    equipment: ''
+    equipment: '',
+    is_active: true
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +35,7 @@ export function RoomsManager() {
         name: formData.name,
         capacity: formData.capacity,
         equipment: formData.equipment.split(',').map(item => item.trim()).filter(item => item),
-        isActive: true
+        is_active: true
       };
 
       if (editingRoom) {
@@ -57,7 +59,8 @@ export function RoomsManager() {
     setFormData({
       name: room.name,
       capacity: room.capacity,
-      equipment: room.equipment.join(', ')
+      equipment: room.equipment.join(', '),
+      is_active: room.is_active
     });
     setIsDialogOpen(true);
   };
@@ -78,7 +81,8 @@ export function RoomsManager() {
     setFormData({
       name: '',
       capacity: 1,
-      equipment: ''
+      equipment: '',
+      is_active: true
     });
     setEditingRoom(null);
   };
@@ -204,11 +208,11 @@ export function RoomsManager() {
                 
                 <div className="pt-2">
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    room.isActive 
+                    room.is_active 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {room.isActive ? 'Ativa' : 'Inativa'}
+                    {room.is_active ? 'Ativa' : 'Inativa'}
                   </span>
                 </div>
               </div>

@@ -153,9 +153,7 @@ export interface Room {
   name: string;
   capacity: number;
   equipment: string[];
-  isActive: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  is_active: boolean; // <-- troque aqui
 }
 
 export interface Package {
