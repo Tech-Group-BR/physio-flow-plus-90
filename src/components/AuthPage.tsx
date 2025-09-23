@@ -16,6 +16,7 @@ export function AuthPage() {
   const navigate = useNavigate();
   const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('login');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -130,8 +131,8 @@ export function AuthPage() {
         full_name: signupForm.fullName,
         phone: signupForm.phone,
         role: signupForm.role,
-        crefito: signupForm.crefito,
-        clinic_code: signupForm.clinicCode
+        clinic_code: signupForm.clinicCode,
+        crefito: signupForm.crefito
       });
       
       if (error) {
@@ -149,7 +150,6 @@ export function AuthPage() {
         console.log('✅ Cadastro realizado com sucesso!');
         setError('');
         toast.success('Cadastro realizado! Faça login para continuar.');
-        // Limpar formulário após sucesso
         setSignupForm({
           email: '',
           password: '',
@@ -159,11 +159,11 @@ export function AuthPage() {
           crefito: '',
           clinicCode: ''
         });
-        // Mudar para aba de login
-        const loginTab = document.querySelector('[value="login"]') as HTMLButtonElement;
-        if (loginTab) {
-          loginTab.click();
-        }
+        // Redireciona para a página de login
+        navigate('/login', { replace: true });
+        // Se sua página de login é a mesma, pode apenas mudar a aba:
+        // const loginTab = document.querySelector('[value="login"]') as HTMLButtonElement;
+        // if (loginTab) loginTab.click();
       }
     } catch (err: any) {
       console.error('❌ Erro inesperado no cadastro:', err);
@@ -228,7 +228,7 @@ export function AuthPage() {
 
         <Card>
           <CardContent className="p-6">
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Cadastrar</TabsTrigger>
@@ -382,14 +382,15 @@ export function AuthPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="admin">Administrador</SelectItem>
+                          <SelectItem value="professional">Profissional</SelectItem>
+                          <SelectItem value="receptionist">Recepcionista</SelectItem>
                           <SelectItem value="guardian">Responsável/Paciente</SelectItem>
-                          <SelectItem value="Professional">Fisioterapeuta</SelectItem>
-                          <SelectItem value="admin">🔑 Administrador</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {signupForm.role === 'Professional' && (
+                    {/* {signupForm.role === 'Professional' && (
                       <div>
                         <Label htmlFor="signup-crefito">CREFITO</Label>
                         <Input
@@ -400,7 +401,7 @@ export function AuthPage() {
                           placeholder="Ex: CREFITO-3/12345"
                         />
                       </div>
-                    )}
+                    )} */}
 
                     <div>
                       <Label htmlFor="signup-password">Senha</Label>

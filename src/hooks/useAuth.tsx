@@ -99,10 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, userData: any) => {
-    console.log('📝 Iniciando processo de cadastro para:', email);
     try {
       cleanupAuthState();
       await forceSignOut(supabase);
+
+      // 1. Cria usuário no Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -112,16 +113,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
       if (error) {
-        console.error('❌ Erro no cadastro:', error.message);
         return { error };
       }
-      console.log('✅ Cadastro realizado:', data.user?.email);
+
+      // 2. Busca o id da clínica pelo código
+      const { clinic_code } = userData;
+      let clinicId = null;
+      if (clinic_code) {
+        const { data: clinicData, error: clinicError } = await supabase
+          .from("clinic_settings")
+          .select("id")
+          .eq("clinic_code", clinic_code)
+          .single();
+        if (clinicError || !clinicData) {
+          return { error: clinicError || "Código da clínica inválido" };
+        }
+        clinicId = clinicData.id;
+      }
+
+      // 3. Cria perfil na tabela profiles
+      const userId = data.user?.id;
+      if (userId) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: userId,
+            full_name: userData.full_name,
+            email,
+            phone: userData.phone,
+            role: userData.role,
+            is_active: true,
+            clinic_code: userData.clinic_code,
+            clinic_id: clinicId,
+          });
+        if (profileError) {
+          return { error: profileError };
+        }
+      }
+
       return { error: null };
     } catch (err: any) {
-      console.error('❌ Erro inesperado no cadastro:', err);
       return { error: err };
     }
   };
+
 
   const signOut = async () => {
     console.log('🚪 Iniciando logout...');
