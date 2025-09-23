@@ -1,92 +1,70 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { Database } from '@/integrations/supabase/types'; // Importando tipos do Supabase
 
-// --- 1. DEFINIÇÃO DE TIPOS ---
-
-// Tipo para os dados que vêm da sua tabela 'profiles'
-type Profile = Database['public']['Tables']['profiles']['Row'];
-
-// Nosso novo tipo de usuário "enriquecido"
-export type AppUser = User & {
-  profile: Profile | null;
-};
-
-// Contexto atualizado para usar o novo tipo de usuário
 interface AuthContextType {
   session: Session | null;
-  user: AppUser | null;
+  user: User | null;
   loading: boolean;
+  clinicId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null); // <-- 2. NOVO ESTADO PARA O PERFIL
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clinicId, setClinicId] = useState<string | null>(null);
+
+  // Busca o clinicId da tabela profiles sempre que o usuário muda
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('clinic_id')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (data && data.clinic_id) {
+            setClinicId(data.clinic_id);
+          } else {
+            setClinicId(null);
+          }
+        });
+    } else {
+      setClinicId(null);
+    }
+  }, [user]);
 
   useEffect(() => {
-    // --- 3. USEEFFECT ATUALIZADO E UNIFICADO ---
-    const fetchSessionAndProfile = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Erro ao buscar sessão:", error);
-        setLoading(false);
-        return;
-      }
-
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
+      setUser(session?.user || null);
       setLoading(false);
-    };
+    });
 
-    fetchSessionAndProfile();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
+      setUser(session?.user || null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- 4. OBJETO 'user' COMBINADO NO VALUE ---
-  // Montamos o objeto de usuário enriquecido em tempo real
-  const user = session?.user ? {
-    ...session.user,
-    profile: profile // Anexamos o perfil que buscamos
-  } : null;
-
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      loading 
+    <AuthContext.Provider value={{
+      session,
+      user,
+      loading,
+      clinicId
     }}>
-      {children}
+      {loading ? <div>Carregando autenticação...</div> : children}
     </AuthContext.Provider>
   );
 }

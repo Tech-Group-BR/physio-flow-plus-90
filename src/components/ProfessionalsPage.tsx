@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +14,6 @@ import { Mail } from 'lucide-react';
 import { Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-
 export function ProfessionalsPage() {
   const { 
     professionals, 
@@ -24,7 +22,12 @@ export function ProfessionalsPage() {
     updateProfessional, 
     deleteProfessional 
   } = useClinic();
-  
+
+  // Pegue clinicId e user do contexto de autenticação
+  const { clinicId, user } = useAuth();
+
+  console.log("clinicId do contexto de autenticação:", clinicId);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
@@ -37,7 +40,7 @@ export function ProfessionalsPage() {
     bio: '',
     isActive: true,
     profile_picture_url: '',
-    clinicId: useAuth().user?.user_metadata.clinic_id
+    clinicId: clinicId // <-- usa clinicId do contexto
   });
 
   const filteredProfessionals = professionals.filter(physio =>
@@ -56,33 +59,33 @@ export function ProfessionalsPage() {
       bio: '',
       isActive: true,
       profile_picture_url: '',
-      clinicId: useAuth().user?.user_metadata.clinic_id 
+      clinicId: clinicId // <-- sempre do contexto
     });
     setEditingProfessional(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Sempre garanta que clinicId está atualizado do contexto
+    const dataToSend = { ...formData, clinicId };
+
     try {
       if (editingProfessional) {
-        await updateProfessional(editingProfessional.id, formData);
+        await updateProfessional(editingProfessional.id, dataToSend);
         toast.success('Fisioterapeuta atualizado com sucesso!');
       } else {
-        await addProfessional(formData);
+        await addProfessional(dataToSend);
         toast.success('Fisioterapeuta adicionado com sucesso!');
       }
-      
+
       resetForm();
       setIsDialogOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao salvar fisioterapeuta'  );
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar fisioterapeuta');
       console.error('Erro:', error);
     }
   };
-
-
-  console.log("authhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", useAuth());
 
   const handleEdit = (Professional: Professional) => {
     setEditingProfessional(Professional);
@@ -95,7 +98,7 @@ export function ProfessionalsPage() {
       bio: Professional.bio,
       isActive: Professional.isActive,
       profile_picture_url: Professional.profile_picture_url || '',
-      clinicId: auth().user?.user_metadata.clinic_id
+      clinicId: clinicId // <-- sempre do contexto
     });
     setIsDialogOpen(true);
   };
@@ -116,7 +119,8 @@ export function ProfessionalsPage() {
     try {
       await updateProfessional(Professional.id, {
         ...Professional,
-        isActive: !Professional.isActive
+        isActive: !Professional.isActive,
+        clinicId: clinicId // <-- sempre do contexto
       });
       toast.success(`Fisioterapeuta ${Professional.isActive ? 'desativado' : 'ativado'} com sucesso!`);
     } catch (error) {

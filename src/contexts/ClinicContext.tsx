@@ -376,7 +376,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [dashboardStats, setDashboardStats] = useState<MainDashboardStats | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const { session } = useAuth();
+  const { session, clinicId } = useAuth();
 
   useEffect(() => {
     if (session) {
@@ -452,7 +452,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           notes: patient.notes,
           is_active: patient.isActive,
           is_minor: patient.isMinor,
-          guardian_id: patient.guardianId? patient.guardianId : null,
+          guardian_id: patient.guardianId ? patient.guardianId : null,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
       await fetchPatients();
@@ -480,7 +481,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.notes !== undefined) updateData.notes = updates.notes;
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.isMinor !== undefined) updateData.is_minor = updates.isMinor;
-           updateData.guardian_id = null;
+      updateData.guardian_id = updates.guardianId ?? null;
+      updateData.clinic_id = clinicId; // <-- sempre envia
 
       const { error } = await supabase
         .from('patients')
@@ -537,7 +539,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           bio: Professional.bio || null,
           is_active: true,
           profile_picture_url: null,
-          profile_id: Professional.profile_id || null
+          profile_id: Professional.profile_id || null,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
       await fetchProfessionals();
@@ -556,6 +559,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.crefito !== undefined) updateData.crefito = updates.crefito;
       if (updates.specialties !== undefined) updateData.specialties = updates.specialties;
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+      updateData.clinic_id = clinicId; // <-- sempre envia
 
       const { error } = await supabase
         .from('professionals')
@@ -669,7 +673,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           status: appointment.status,
           notes: appointment.notes,
           whatsapp_confirmed: appointment.whatsappConfirmed,
-          whatsapp_sent_at: appointment.whatsappSentAt
+          whatsapp_sent_at: appointment.whatsappSentAt,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
       await fetchAppointments();
@@ -694,6 +699,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.notes !== undefined) updateData.notes = updates.notes;
       if (updates.whatsappConfirmed !== undefined) updateData.whatsapp_confirmed = updates.whatsappConfirmed;
       if (updates.whatsappSentAt !== undefined) updateData.whatsapp_sent_at = updates.whatsappSentAt;
+      updateData.clinic_id = clinicId; // <-- sempre envia
 
       const { error } = await supabase
         .from('appointments')
@@ -744,7 +750,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           id: uuidv4(),
           patient_id: medicalRecord.patientId,
           anamnesis: typeof medicalRecord.anamnesis === 'object' ? JSON.stringify(medicalRecord.anamnesis) : medicalRecord.anamnesis,
-          files: medicalRecord.files
+          files: medicalRecord.files,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
       await fetchMedicalRecords();
@@ -888,7 +895,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           description: accountsReceivable.description,
           amount: accountsReceivable.amount,
           due_date: accountsReceivable.dueDate,
-          status: accountsReceivable.status === 'recebido' ? 'pago' : accountsReceivable.status
+          status: accountsReceivable.status === 'recebido' ? 'pago' : accountsReceivable.status,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
       await fetchAccountsReceivable();
@@ -957,7 +965,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const addEvolution = async (evolution: Omit<MainEvolution, 'id' | 'createdAt'>) => {
     try {
       const mediaStrings = evolution.media?.map(item => item.url) || [];
-      
       const { error } = await supabase
         .from('evolutions')
         .insert({
@@ -971,9 +978,9 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           next_session: evolution.nextSession,
           files: evolution.files,
           media: mediaStrings,
-          visible_to_guardian: evolution.visibleToGuardian
+          visible_to_guardian: evolution.visibleToGuardian,
+          clinic_id: clinicId // <-- sempre envia
         });
-
       if (error) throw error;
       await fetchEvolutions();
     } catch (error) {

@@ -14,11 +14,13 @@ import { MedicalRecordForm } from './MedicalRecordForm';
 import { EvolutionForm } from './EvolutionForm';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from '@/hooks/useAuth';
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { patients, medicalRecords, evolutions, appointments, accountsReceivable, fetchMedicalRecords, fetchEvolutions } = useClinic();
+  const { clinicId } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false);
