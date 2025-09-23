@@ -32,9 +32,9 @@ interface DbPatient {
   email?: string;
   cpf?: string;
   birth_date?: string;
-  gender?: 'male' | 'female' ;
-  address?: string | object;
-  emergency_contact?: string | object;
+  gender?: 'male' | 'female';
+  address?: any; // <-- alterado de 'string | object' para 'any'
+  emergency_contact?: any; // <-- alterado de 'string | object' para 'any'
   emergency_phone?: string;
   medical_history?: string;
   treatment_type?: string;
@@ -310,7 +310,7 @@ const dbToMainAccountsReceivable = (dbAr: DbAccountsReceivable): MainAccountsRec
   dueDate: dbAr.due_date,
   receivedDate: dbAr.received_date,
   status: dbAr.status === 'pago' ? 'recebido' : (dbAr.status === 'cancelado' ? 'pendente' : dbAr.status),
-  method: dbAr.method || 'dinheiro',
+  method: (dbAr.method as MainAccountsReceivable['method']) || 'dinheiro', // <-- ajuste aqui
   notes: '',
   createdAt: dbAr.created_at,
   updatedAt: dbAr.updated_at
@@ -481,7 +481,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       if (updates.notes !== undefined) updateData.notes = updates.notes;
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.isMinor !== undefined) updateData.is_minor = updates.isMinor;
-      updateData.guardian_id = updates.guardianId ?? null;
+      updateData.guardian_id =
+        updates.guardianId && updates.guardianId.trim() !== "" ? updates.guardianId : null;
       updateData.clinic_id = clinicId; // <-- sempre envia
 
       const { error } = await supabase
