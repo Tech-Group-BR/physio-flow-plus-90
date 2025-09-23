@@ -1,0 +1,2 @@
+[functions.whatsapp-response-webhook]
+verify_jwt = false

@@ -256,7 +256,7 @@ const dbToMainRoom = (dbRoom: DbRoom): MainRoom => ({
   name: dbRoom.name,
   capacity: dbRoom.capacity || 1,
   equipment: dbRoom.equipment || [],
-  isActive: dbRoom.is_active,
+  is_active: dbRoom.is_active, // <-- nome correto
   createdAt: dbRoom.created_at,
   updatedAt: dbRoom.updated_at
 });
@@ -310,7 +310,7 @@ const dbToMainAccountsReceivable = (dbAr: DbAccountsReceivable): MainAccountsRec
   dueDate: dbAr.due_date,
   receivedDate: dbAr.received_date,
   status: dbAr.status === 'pago' ? 'recebido' : (dbAr.status === 'cancelado' ? 'pendente' : dbAr.status),
-  method: (dbAr.method as MainAccountsReceivable['method']) || 'dinheiro', // <-- ajuste aqui
+  method: (dbAr.method as MainAccountsReceivable['method']) || 'cash',
   notes: '',
   createdAt: dbAr.created_at,
   updatedAt: dbAr.updated_at
@@ -617,9 +617,16 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
 
   const updateRoom = async (room: MainRoom) => {
     try {
+      const updateData: any = {
+        name: room.name,
+        capacity: room.capacity,
+        equipment: room.equipment,
+        is_active: room.is_active // <-- nome correto
+        // Remova createdAt/created_at do update!
+      };
       const { error } = await supabase
         .from('rooms')
-        .update(room)
+        .update(updateData)
         .eq('id', room.id);
       if (error) throw error;
       await fetchRooms();

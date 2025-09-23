@@ -67,12 +67,12 @@ serve(async (req) => {
       });
     }
 
-    // Filtro 3: Verifica se a mensagem é um dos comandos válidos (#SIM ou #NÃO)
-    const upperCaseMessage = messageText.toUpperCase();
-    const isConfirmation = upperCaseMessage === '#SIM';
-    const isCancellation = upperCaseMessage === '#NÃO';
+ 
+    
+    const isConfirmation = messageText === '1';
+    const isCancellation = messageText === '2';
     if (!isConfirmation && !isCancellation) {
-      console.log('⚠️ Resposta inválida, não é #SIM ou #NÃO:', messageText);
+      console.log('⚠️ Resposta inválida, não é 1 ou 2:', messageText);
       return new Response(JSON.stringify({ success: true, message: 'Resposta não processável.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

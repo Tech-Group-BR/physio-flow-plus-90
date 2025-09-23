@@ -122,6 +122,8 @@ if (physioError || !professional) {
   );
 }
 
+     
+
 console.log('✅ Professional found:', {
   name: professional.full_name,
   phone: professional.phone ? `${professional.phone.substring(0, 4)}...` : 'missing'
@@ -130,12 +132,17 @@ console.log('✅ Professional found:', {
     let message: string;
     let templateToUse: string;
 
+     // Detectar se é homem ou mulher pelo nome ou campo gender se existir
+      const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
+      const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
+      const title = isDra ? 'a Dra.' : 'o Dr.';
+
     if (recipientType === 'patient') {
       phoneNumber = patient.phone;
 
       // Usar template de confirmação com nova formatação
       if (messageType === 'confirmation') {
-        templateToUse = 'Olá {nome}! \n\n Você tem consulta marcada para {data} às {horario} com {fisioterapeuta}. \n\n 📝 Para confirmar sua presença: \n ✅ Responda #SIM para CONFIRMAR \n ❌ Responda #NÃO para CANCELAR \n\n Aguardamos sua resposta!';
+        templateToUse = 'Olá {nome}! \n\n Você tem consulta marcada para {data} às {horario} com {title} {fisioterapeuta}. \n\n 📝 Para confirmar sua presença: \n\n  Responda: \n  1️⃣ - para CONFIRMAR ✅ \n  2️⃣ - para CANCELAR ❌\n\n Aguardamos sua resposta!';
       } else {
         templateToUse = settings.reminder_template;
       }
@@ -143,10 +150,7 @@ console.log('✅ Professional found:', {
       // Fisioterapeuta - detectar gênero para usar Dr/Dra
       phoneNumber = professional?.phone || '';
 
-      // Detectar se é homem ou mulher pelo nome ou campo gender se existir
-      const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
-      const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
-      const title = isDra ? 'Dra' : 'Dr';
+
 
       templateToUse = `🏥 *NOTIFICAÇÃO DE AGENDAMENTO*\n\nOlá {title} {fisioterapeuta}!\n\nVocê tem um novo agendamento:\n👤 Paciente: {paciente}\n📅 Data: {data}\n🕐 Horário: {horario}\n📝 Tipo: {tipo}\n\nO paciente será notificado para confirmação.`;
     }
@@ -168,12 +172,13 @@ console.log('✅ Professional found:', {
         .replace(/{nome}/g, patient.full_name)
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time.slice(0, 5))
+        .replace(/{title}/g, title)
         .replace(/{fisioterapeuta}/g, professional.full_name);
     } else {
       // Para fisioterapeuta - detectar título Dr/Dra
       const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
       const isDra = firstName.endsWith('a') || firstName.includes('maria') || firstName.includes('ana');
-      const title = isDra ? 'Dra' : 'Dr';
+      const title = isDra ? 'a Dra.' : 'o Dr.';
 
       message = templateToUse
         .replace(/{title}/g, title)
