@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -18,37 +17,16 @@ export function AuthPage() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<string>('login');
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user && !loading) {
-      console.log('✅ Usuário já logado, redirecionando...', user.email);
       navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);
 
-  // Seed automático do usuário admin (idempotente)
-  useEffect(() => {
-    let cancelled = false;
-    const seed = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('seed-admin', {
-          body: { email: 'admin@sistema.com', password: '123456789' }
-        });
-        if (!cancelled && !error) {
-          console.log('🌱 Seed admin:', data);
-        }
-      } catch (e) {
-        console.warn('Seed admin falhou (pode já existir):', e);
-      }
-    };
-    seed();
-    return () => { cancelled = true; };
-  }, []);
-
   const [loginForm, setLoginForm] = useState({
-    email: 'admin@sistema.com',
-    password: '123456789',
-    clinicCode: '702544'
+    email: '',
+    password: '',
+    clinicCode: ''
   });
 
   const [signupForm, setSignupForm] = useState({
@@ -56,7 +34,7 @@ export function AuthPage() {
     password: '',
     fullName: '',
     phone: '',
-    role: 'guardian' as 'admin' | 'Professional' | 'guardian',
+    role: 'guardian',
     crefito: '',
     clinicCode: ''
   });
@@ -66,10 +44,7 @@ export function AuthPage() {
     setAuthLoading(true);
     setError('');
 
-    console.log('🚀 Tentando fazer login com:', loginForm.email);
-
     try {
-      // Validar código da clínica primeiro
       const { data: validClinic, error: clinicError } = await supabase
         .rpc('validate_clinic_code', { code: loginForm.clinicCode });
 
@@ -81,13 +56,10 @@ export function AuthPage() {
       }
 
       const { error } = await signIn(loginForm.email, loginForm.password, loginForm.clinicCode);
-      
+
       if (error) {
-        console.error('❌ Erro no login:', error);
         const errorMessage = error.message || 'Erro desconhecido';
         setError(`Erro: ${errorMessage}`);
-        
-        // Mensagens de erro mais específicas
         if (errorMessage.includes('Invalid login credentials')) {
           toast.error('Email ou senha incorretos. Verifique seus dados.');
         } else if (errorMessage.includes('Email not confirmed')) {
@@ -97,14 +69,12 @@ export function AuthPage() {
         }
       } else {
         toast.success('Login realizado com sucesso!');
-        console.log('✅ Login realizado, usuário será redirecionado automaticamente...');
       }
     } catch (err: any) {
-      console.error('❌ Erro inesperado:', err);
       setError('Erro inesperado no login');
       toast.error('Erro inesperado no login');
     }
-    
+
     setAuthLoading(false);
   };
 
@@ -113,10 +83,7 @@ export function AuthPage() {
     setAuthLoading(true);
     setError('');
 
-    console.log('📝 Tentando cadastrar:', signupForm.email);
-
     try {
-      // Validar código da clínica primeiro
       const { data: validClinic, error: clinicError } = await supabase
         .rpc('validate_clinic_code', { code: signupForm.clinicCode });
 
@@ -134,20 +101,16 @@ export function AuthPage() {
         clinic_code: signupForm.clinicCode,
         crefito: signupForm.crefito
       });
-      
+
       if (error) {
-        console.error('❌ Erro no cadastro:', error);
         const errorMessage = error.message || 'Erro desconhecido';
         setError(`Erro: ${errorMessage}`);
-        
-        // Mensagens específicas para cadastro
         if (errorMessage.includes('User already registered')) {
           toast.error('Este email já está cadastrado. Tente fazer login.');
         } else {
           toast.error('Erro no cadastro: ' + errorMessage);
         }
       } else {
-        console.log('✅ Cadastro realizado com sucesso!');
         setError('');
         toast.success('Cadastro realizado! Faça login para continuar.');
         setSignupForm({
@@ -159,46 +122,16 @@ export function AuthPage() {
           crefito: '',
           clinicCode: ''
         });
-        // Redireciona para a página de login
-        navigate('/login', { replace: true });
-        // Se sua página de login é a mesma, pode apenas mudar a aba:
-        // const loginTab = document.querySelector('[value="login"]') as HTMLButtonElement;
-        // if (loginTab) loginTab.click();
+        setActiveTab('login');
       }
     } catch (err: any) {
-      console.error('❌ Erro inesperado no cadastro:', err);
       setError('Erro inesperado no cadastro');
       toast.error('Erro inesperado no cadastro');
     }
-    
+
     setAuthLoading(false);
   };
 
-  // Função para preencher dados do admin rapidamente
-  const fillAdminData = () => {
-    setSignupForm({
-      email: 'admin@sistema.com',
-      password: '123456789',
-      fullName: 'Administrador do Sistema',
-      phone: '(11) 99999-9999',
-      role: 'admin',
-      crefito: '',
-      clinicCode: '123456'
-    });
-    toast.info('Dados do administrador preenchidos!');
-  };
-
-  // Função para testar credenciais pré-definidas
-  const useTestCredentials = () => {
-    setLoginForm({
-      email: 'admin@sistema.com',
-      password: '123456789',
-      clinicCode: '123456'
-    });
-    toast.info('Credenciais de teste preenchidas!');
-  };
-
-  // Mostrar loading se ainda está carregando auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -220,10 +153,6 @@ export function AuthPage() {
           <p className="mt-2 text-sm text-gray-600">
             Faça login ou cadastre-se para acessar
           </p>
-          <div className="mt-2 text-xs text-blue-600">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-            Ambiente: {window.location.hostname === 'localhost' ? 'Desenvolvimento' : 'Produção'}
-          </div>
         </div>
 
         <Card>
@@ -241,199 +170,158 @@ export function AuthPage() {
               )}
 
               <TabsContent value="login">
-                <div className="space-y-4">
-                   <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                     <strong>🔑 Credenciais de Teste:</strong><br />
-                     Email: admin@sistema.com<br />
-                     Senha: 123456789<br />
-                     Código da Clínica: 123456
-                   </div>
-                  
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full text-sm"
-                    onClick={useTestCredentials}
-                    disabled={authLoading}
-                  >
-                    ⚡ Usar Credenciais de Teste
-                  </Button>
-                  
-                   <form onSubmit={handleLogin} className="space-y-4">
-                     <div>
-                       <Label htmlFor="login-clinic-code">Código da Clínica</Label>
-                       <Input
-                         id="login-clinic-code"
-                         type="text"
-                         value={loginForm.clinicCode}
-                         onChange={(e) => setLoginForm({ ...loginForm, clinicCode: e.target.value })}
-                         required
-                         disabled={authLoading}
-                         placeholder="123456"
-                         maxLength={6}
-                         pattern="[0-9]{6}"
-                       />
-                     </div>
-
-                     <div>
-                       <Label htmlFor="login-email">E-mail</Label>
-                       <Input
-                         id="login-email"
-                         type="email"
-                         value={loginForm.email}
-                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                         required
-                         disabled={authLoading}
-                         placeholder="admin@sistema.com"
-                       />
-                     </div>
-
-                     <div>
-                       <Label htmlFor="login-password">Senha</Label>
-                       <Input
-                         id="login-password"
-                         type="password"
-                         value={loginForm.password}
-                         onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                         required
-                         disabled={authLoading}
-                         placeholder="123456789"
-                       />
-                     </div>
-
-                    <Button type="submit" className="w-full" disabled={authLoading}>
-                      {authLoading ? '🔄 Entrando...' : '🚀 Entrar'}
-                    </Button>
-                  </form>
-                  
-                  <div className="text-center text-sm text-gray-600">
-                    <p>💡 <strong>Dica:</strong> Se não conseguir entrar, primeiro cadastre-se como administrador</p>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <Label htmlFor="login-clinic-code">Código da Clínica</Label>
+                    <Input
+                      id="login-clinic-code"
+                      type="text"
+                      value={loginForm.clinicCode}
+                      onChange={(e) => setLoginForm({ ...loginForm, clinicCode: e.target.value })}
+                      required
+                      disabled={authLoading}
+                      placeholder="Digite o código da clínica"
+                      maxLength={6}
+                      pattern="[0-9]{6}"
+                    />
                   </div>
-                </div>
+
+                  <div>
+                    <Label htmlFor="login-email">E-mail</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      value={loginForm.email}
+                      onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                      required
+                      disabled={authLoading}
+                      placeholder="Digite seu e-mail"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="login-password">Senha</Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                      required
+                      disabled={authLoading}
+                      placeholder="Digite sua senha"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={authLoading}>
+                    {authLoading ? '🔄 Entrando...' : '🚀 Entrar'}
+                  </Button>
+                </form>
               </TabsContent>
 
               <TabsContent value="signup">
-                <div className="space-y-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full text-sm bg-green-50 hover:bg-green-100"
-                    onClick={fillAdminData}
-                    disabled={authLoading}
-                  >
-                    🔧 Preencher dados do Admin
-                  </Button>
-                  
-                   <form onSubmit={handleSignup} className="space-y-4">
-                     <div>
-                       <Label htmlFor="signup-clinic-code">Código da Clínica</Label>
-                       <Input
-                         id="signup-clinic-code"
-                         type="text"
-                         value={signupForm.clinicCode}
-                         onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value })}
-                         required
-                         placeholder="123456"
-                         maxLength={6}
-                         pattern="[0-9]{6}"
-                       />
-                       <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
-                     </div>
-
-                     <div>
-                       <Label htmlFor="signup-name">Nome Completo</Label>
-                       <Input
-                         id="signup-name"
-                         type="text"
-                         value={signupForm.fullName}
-                         onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                         required
-                         placeholder="Administrador do Sistema"
-                       />
-                     </div>
-
-                    <div>
-                      <Label htmlFor="signup-email">E-mail</Label>
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        value={signupForm.email}
-                        onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                        required
-                        placeholder="admin@sistema.com"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="signup-phone">Telefone</Label>
-                      <Input
-                        id="signup-phone"
-                        type="tel"
-                        value={signupForm.phone}
-                        onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="signup-role">Tipo de Usuário</Label>
-                      <Select value={signupForm.role} onValueChange={(value: any) => setSignupForm({ ...signupForm, role: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="professional">Profissional</SelectItem>
-                          <SelectItem value="receptionist">Recepcionista</SelectItem>
-                          <SelectItem value="guardian">Responsável/Paciente</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* {signupForm.role === 'Professional' && (
-                      <div>
-                        <Label htmlFor="signup-crefito">CREFITO</Label>
-                        <Input
-                          id="signup-crefito"
-                          type="text"
-                          value={signupForm.crefito}
-                          onChange={(e) => setSignupForm({ ...signupForm, crefito: e.target.value })}
-                          placeholder="Ex: CREFITO-3/12345"
-                        />
-                      </div>
-                    )} */}
-
-                    <div>
-                      <Label htmlFor="signup-password">Senha</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        value={signupForm.password}
-                        onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                        required
-                        minLength={6}
-                        placeholder="123456789"
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={authLoading}>
-                      {authLoading ? '🔄 Cadastrando...' : '✅ Cadastrar'}
-                    </Button>
-                  </form>
-                  
-                  <div className="text-center text-sm text-gray-600">
-                    <p>⚠️ <strong>Importante:</strong> Primeiro cadastre-se, depois faça login</p>
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div>
+                    <Label htmlFor="signup-clinic-code">Código da Clínica</Label>
+                    <Input
+                      id="signup-clinic-code"
+                      type="text"
+                      value={signupForm.clinicCode}
+                      onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value })}
+                      required
+                      placeholder="Digite o código da clínica"
+                      maxLength={6}
+                      pattern="[0-9]{6}"
+                    />
+                    <p className="text-xs text-gray-500">Solicite o código à clínica</p>
                   </div>
+
+                  <div>
+                    <Label htmlFor="signup-name">Nome Completo</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      value={signupForm.fullName}
+                      onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                      required
+                      placeholder="Digite seu nome completo"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="signup-email">E-mail</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      value={signupForm.email}
+                      onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                      required
+                      placeholder="Digite seu e-mail"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="signup-phone">Telefone</Label>
+                    <Input
+                      id="signup-phone"
+                      type="tel"
+                      value={signupForm.phone}
+                      onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                      placeholder="(99) 99999-9999"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="signup-role">Tipo de Usuário</Label>
+                    <Select value={signupForm.role} onValueChange={(value: string) => setSignupForm({ ...signupForm, role: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="professional">Profissional</SelectItem>
+                        <SelectItem value="receptionist">Recepcionista</SelectItem>
+                        <SelectItem value="guardian">Responsável/Paciente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {signupForm.role === 'professional' && (
+                    <div>
+                      <Label htmlFor="signup-crefito">CREFITO</Label>
+                      <Input
+                        id="signup-crefito"
+                        type="text"
+                        value={signupForm.crefito}
+                        onChange={(e) => setSignupForm({ ...signupForm, crefito: e.target.value })}
+                        placeholder="Ex: CREFITO-3/12345"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="signup-password">Senha</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={signupForm.password}
+                      onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                      required
+                      minLength={6}
+                      placeholder="Digite sua senha"
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={authLoading}>
+                    {authLoading ? '🔄 Cadastrando...' : '✅ Cadastrar'}
+                  </Button>
+                </form>
+                <div className="text-center text-xs text-gray-500 mt-2">
+                  <p>⚠️ Após cadastrar, confirme seu e-mail para acessar o sistema.</p>
                 </div>
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
-
-        <div className="text-center text-xs text-gray-500">
-          <p>🔐 <strong>Sistema Corrigido para Produção!</strong></p>
-          <p>✅ Autenticação funcionando em todos os ambientes</p>
-        </div>
       </div>
     </div>
   );
