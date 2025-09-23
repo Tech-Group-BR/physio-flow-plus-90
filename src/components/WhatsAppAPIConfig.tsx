@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, TestTube, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WhatsAppAPIConfigProps {
   settings: any;
@@ -19,8 +19,36 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const { clinicId } = useAuth();
 
-  const webhookUrl = `https://chgvegvnyflldpjoummj.supabase.co/functions/v1/whatsapp-response-webhook`;
+  // Buscar configurações salvas ao carregar o componente
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!clinicId) return;
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('whatsapp_settings')
+          .select('*')
+          .eq('clinic_id', clinicId)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          onSettingsChange(data); // Preenche o formulário com os dados salvos
+        }
+      } catch (error) {
+        console.error('Erro ao buscar configurações do WhatsApp:', error);
+        toast.error('Erro ao buscar configurações do WhatsApp');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSettings();
+  }, [clinicId]);
+
+  const webhookUrl = `https://vqkooseljxkelclexipo.supabase.co/functions/v1/whatsapp-webhook`;
+
 
   const saveSettings = async () => {
     setIsLoading(true);
@@ -28,7 +56,7 @@ export function WhatsAppAPIConfig({ settings, onSettingsChange }: WhatsAppAPICon
       // Usar clinic_id padrão se necessário
       const settingsToSave = {
         ...settings,
-        clinic_id: settings.clinic_id || '00000000-0000-0000-0000-000000000001',
+        clinic_id: clinicId, // use o id real da clínica
         updated_at: new Date().toISOString()
       };
 
