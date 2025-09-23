@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 // Interfaces para tipagem dos dados (padrão snake_case do banco)
 interface SessionPackage {
@@ -38,7 +39,8 @@ interface PatientPackage {
 
 export function PackagesPage() {
   const navigate = useNavigate();
-  const { patients } = useClinic();
+  const { patients} = useClinic();
+  const { clinicId} = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState("packages");
 
@@ -83,7 +85,7 @@ export function PackagesPage() {
   const handleSubmitPackage = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Validação básica
     if (!formData.name || !formData.sessions || !formData.price || !formData.validity_days || !formData.treatment_type) {
       toast.error("Por favor, preencha todos os campos obrigatórios.");
@@ -98,6 +100,7 @@ export function PackagesPage() {
       price: parseFloat(formData.price),
       validity_days: parseInt(formData.validity_days),
       treatment_type: formData.treatment_type,
+      clinic_id: clinicId // <-- Adicione esta linha para criação e atualização
     };
 
     const { error } = editingPackage
@@ -153,10 +156,11 @@ export function PackagesPage() {
     setIsSubmitting(true);
     try {
       const { error } = await supabase.rpc('sell_package', {
+        p_clinic_id: clinicId,
         p_package_id: selectedPackageToSell.id,
         p_patient_id: selectedPatientId,
         p_payment_method: paymentMethod as Database['public']['Enums']['payment_method_enum']
-      });
+      } as any);
       if (error) throw error;
       toast.success("Venda registrada com sucesso!");
       setShowSellModal(false);
