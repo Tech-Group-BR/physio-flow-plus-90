@@ -147,9 +147,9 @@ export function DragDropAgendaDayView({
     }))
   });
 
-  // Definir alturas consistentes para alinhamento - reduzidas em 20%
-  const slotHeight = isMobile ? 96 : 128; // Era 120 : 160, agora 96 : 128 (20% menor)
-  const headerHeight = isMobile ? 77 : 102; // Era 96 : 128, agora 77 : 102 (20% menor)
+  // Definir alturas consistentes para alinhamento - corrigidas
+  const slotHeight = isMobile ? 96 : 128; // Voltando aos valores corretos
+  const headerHeight = isMobile ? 77 : 102; // Voltando aos valores corretos
 
   // Função para calcular posição do agendamento baseado no horário
   const getAppointmentPosition = (timeString: string) => {
@@ -285,7 +285,7 @@ export function DragDropAgendaDayView({
                   })}
                 </div>
 
-                {/* Cards de agendamento - altura mínima ajustada */}
+                {/* Cards de agendamento - renderizar TODOS */}
                 {dayAppointments.map((appointment) => {
                   if (!appointment?.time) {
                     console.log('Agendamento sem horário:', appointment);
@@ -317,7 +317,7 @@ export function DragDropAgendaDayView({
                   }
 
                   const duration = appointment.duration || 60;
-                  const height = Math.max((duration / 30) * slotHeight - 8, 64); // Altura mínima reduzida de 80 para 64
+                  const height = Math.max((duration / 30) * slotHeight - 8, 80); // Altura mínima aumentada de 64 para 80
 
                   let backgroundColor = "#f6fff6";
                   switch (appointment.status) {
@@ -335,16 +335,6 @@ export function DragDropAgendaDayView({
                       break;
                   }
 
-                  console.log('Renderizando agendamento:', {
-                    id: appointment.id,
-                    time: timeWithoutSeconds,
-                    calculatedTop: top,
-                    height,
-                    duration,
-                    backgroundColor,
-                    usingAppointmentsProp: appointments && appointments.length > 0
-                  });
-
                   return (
                     <div
                       key={appointment.id}
@@ -357,7 +347,7 @@ export function DragDropAgendaDayView({
                         zIndex: 10,
                         background: backgroundColor,
                         boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1)",
-                        borderRadius: '6px',
+                        borderRadius: '8px', // Aumentado de 6px para 8px
                       }}
                       className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => handleAppointmentClick(appointment)}
