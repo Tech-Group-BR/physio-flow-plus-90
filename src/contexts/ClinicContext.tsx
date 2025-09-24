@@ -327,12 +327,6 @@ const dbToMainEvolution = (dbEvo: DbEvolution): MainEvolution => ({
   treatmentPerformed: dbEvo.treatment_performed,
   nextSession: dbEvo.next_session,
   files: dbEvo.files || [],
-  media: (dbEvo.media || []).map(item => ({
-    id: uuidv4(),
-    type: 'photo' as const,
-    url: item || '',
-    uploadedAt: new Date().toISOString()
-  })),
   visibleToGuardian: dbEvo.visible_to_guardian || false,
   createdAt: dbEvo.created_at
 });
@@ -985,9 +979,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           treatment_performed: evolution.treatmentPerformed,
           next_session: evolution.nextSession,
           files: evolution.files,
-          media: mediaStrings,
           visible_to_guardian: evolution.visibleToGuardian,
-          clinic_id: clinicId // <-- sempre envia
+          clinic_id: clinicId
         });
       if (error) throw error;
       await fetchEvolutions();
@@ -1010,7 +1003,6 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           treatment_performed: evolution.treatmentPerformed,
           next_session: evolution.nextSession,
           files: evolution.files,
-          media: mediaStrings,
           visible_to_guardian: evolution.visibleToGuardian
         })
         .eq('id', evolution.id);

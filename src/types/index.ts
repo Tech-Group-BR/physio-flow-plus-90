@@ -205,7 +205,7 @@ export interface Anamnesis {
 
 export interface EvolutionMedia {
   id: string;
-  type: 'photo' | 'video';
+  type: 'photo' | 'video' | 'image';
   url: string;
   description?: string;
   uploadedAt: string;
@@ -221,8 +221,14 @@ export interface Evolution {
   mobilityScale: number;
   treatmentPerformed: string;
   nextSession: string;
-  files: string[];
-  media: EvolutionMedia[];
+  files?: {
+    id: string;
+    url: string;
+    type: 'photo' | 'video' | 'image';
+    description?: string;
+    uploadedAt?: string;
+  }[];
+  // media: EvolutionMedia[]; // (remova se não usar mais)
   visibleToGuardian: boolean;
   createdAt: string;
 }

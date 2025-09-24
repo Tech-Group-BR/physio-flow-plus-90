@@ -36,7 +36,7 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
 
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<{ url: string, type: 'image' | 'video' }[]>([]);
 
   /* // Omitido: A lista de níveis de dor não é mais necessária
   const painLevels = [
@@ -56,23 +56,24 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+      'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
+    ];
     const invalidFiles = files.filter(file => !validTypes.includes(file.type));
-    
     if (invalidFiles.length > 0) {
       toast({
         title: "Tipo de arquivo inválido",
-        description: "Apenas arquivos de imagem (JPG, PNG, WEBP) são permitidos.",
+        description: "Apenas imagens (JPG, PNG, WEBP) e vídeos (MP4, WEBM, OGG, MOV) são permitidos.",
         variant: "destructive",
       });
       return;
     }
-
-    const oversizedFiles = files.filter(file => file.size > 5 * 1024 * 1024);
+    const oversizedFiles = files.filter(file => file.size > 20 * 1024 * 1024); // até 20MB por vídeo
     if (oversizedFiles.length > 0) {
       toast({
         title: "Arquivo muito grande",
-        description: "Cada foto deve ter no máximo 5MB.",
+        description: "Cada arquivo deve ter no máximo 20MB.",
         variant: "destructive",
       });
       return;
@@ -81,11 +82,16 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
     setPhotos(prev => [...prev, ...files]);
     
     files.forEach(file => {
+      const isVideo = file.type.startsWith('video/');
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPhotoPreviews(prev => [...prev, e.target?.result as string]);
+        setPhotoPreviews(prev => [...prev, { url: e.target?.result as string, type: isVideo ? 'video' : 'image' }]);
       };
-      reader.readAsDataURL(file);
+      if (isVideo) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
     });
   };
 
@@ -94,10 +100,10 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadPhotos = async (): Promise<string[]> => {
+  const uploadPhotos = async (): Promise<{ url: string; type: 'photo' | 'video' }[]> => {
     if (photos.length === 0) return [];
 
-    const uploadedUrls: string[] = [];
+    const uploadedUrls: { url: string; type: 'photo' | 'video' }[] = [];
     
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
@@ -118,7 +124,8 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
         .from('evolution-photos')
         .getPublicUrl(filePath);
 
-      uploadedUrls.push(publicUrl);
+      const isVideo = photo.type.startsWith('video/');
+      uploadedUrls.push({ url: publicUrl, type: isVideo ? 'video' : 'photo' });
     }
 
     return uploadedUrls;
@@ -159,10 +166,9 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
         // Omitido: mobilityScale: formData.mobilityScale ? parseInt(formData.mobilityScale) : 0,
         treatmentPerformed: formData.treatmentPerformed,
         // Omitido: nextSession: formData.nextSession,
-        files: [],
-        media: photoUrls.map(url => ({
+        files: photoUrls.map(({ url, type }) => ({
           id: `${Date.now()}_${Math.random()}`,
-          type: 'photo' as const,
+          type,
           url,
           description: '',
           uploadedAt: new Date().toISOString()
@@ -318,16 +324,16 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Camera className="w-8 h-8 mb-2 text-muted-foreground" />
                     <p className="mb-2 text-sm text-muted-foreground">
-                      <span className="font-semibold">Clique para adicionar fotos</span> ou arraste e solte
+                      <span className="font-semibold">Clique para adicionar fotos ou vídeos</span> ou arraste e solte
                     </p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG, WEBP (máx. 5MB cada)</p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG, WEBP, MP4, WEBM, MOV (máx. 20MB cada)</p>
                   </div>
                   <input 
                     id="photo-upload" 
                     type="file" 
                     className="hidden" 
                     multiple 
-                    accept="image/*"
+                    accept="image/*,video/*" // <-- permite ambos
                     onChange={handlePhotoUpload}
                   />
                 </label>
@@ -337,17 +343,18 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {photoPreviews.map((preview, index) => (
                     <div key={index} className="relative group">
-                      <img 
-                        src={preview} 
-                        alt={`Preview ${index + 1}`} 
-                        className="w-full h-24 object-cover rounded-lg border"
-                      />
+                      {preview.type === 'image' ? (
+                        <img src={preview.url} alt={`Preview ${index + 1}`} className="w-full h-24 object-cover rounded-lg border" />
+                      ) : (
+                        <video src={preview.url} controls className="w-full h-24 object-cover rounded-lg border" />
+                      )}
+                      {/* botão de remover */}
                       <button
                         type="button"
                         onClick={() => removePhoto(index)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 bg-white bg-opacity-80 rounded-full p-1 hover:bg-red-100"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-4 h-4 text-red-500" />
                       </button>
                     </div>
                   ))}

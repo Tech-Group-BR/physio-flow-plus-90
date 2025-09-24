@@ -85,19 +85,29 @@ export function EvolutionDetailsPage() {
           {/* REMOVIDO: Exibição da Escala de Dor, Escala de Mobilidade e Próxima Sessão */}
           
           {/* Seção para exibir as fotos (funcionalidade mantida) */}
-          {evolution.media && evolution.media.length > 0 && (
+          {evolution.files && evolution.files.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Fotos da Evolução</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Mídias da Evolução</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {evolution.media.map((photo) => (
-                  <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
-                    <img 
-                      src={photo.url} 
-                      alt="Foto da evolução" 
-                      className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
-                    />
-                  </a>
-                ))}
+                {evolution.files.map((file) =>
+                  file.type === 'photo' || file.type === 'image' ? (
+                    <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
+                      <img
+                        src={file.url}
+                        alt="Foto da evolução"
+                        className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  ) : (
+                    <div key={file.id} className="relative">
+                      <video
+                        src={file.url}
+                        controls
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                    </div>
+                  )
+                )}
               </div>
             </div>
           )}

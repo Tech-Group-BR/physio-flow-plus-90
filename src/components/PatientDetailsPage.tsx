@@ -43,6 +43,7 @@ export function PatientDetailsPage() {
       try {
         setIsLoading(true);
         
+        // @ts-ignore
         const { data: financialResult, error } = await supabase.rpc('get_patient_financial_report', {
           p_patient_id: id
         });

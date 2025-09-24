@@ -85,19 +85,47 @@ serve(async (req) => {
     // Limpa o número de telefone do remetente para o formato usado no banco de dados
     const remoteJid = payload.data.key.remoteJid;
     const phoneWithCountryCode = remoteJid.match(/\d+/)?.[0] || '';
-    const cleanPhone = phoneWithCountryCode.startsWith('55')
+    let cleanPhone = phoneWithCountryCode.startsWith('55')
       ? phoneWithCountryCode.substring(2)
       : phoneWithCountryCode;
 
-    // Busca o paciente no banco de dados usando o número de telefone
-    const { data: patientData, error: patientError } = await supabase
-      .from('patients')
-      .select('id, full_name')
-      .eq('phone', cleanPhone)
-      .single();
+    // Gera variações do número para busca
+    const variations = new Set<string>();
+    variations.add(cleanPhone);
 
-    if (patientError || !patientData) {
-      console.error('⚠️ Paciente não encontrado no banco de dados:', cleanPhone, patientError);
+    // Adiciona/remover 9 após DDD (para celulares)
+    if (cleanPhone.length === 10) {
+      // Ex: 6696525791 → 66996525791
+      variations.add(cleanPhone.slice(0, 2) + '9' + cleanPhone.slice(2));
+    }
+    if (cleanPhone.length === 11 && cleanPhone[2] === '9') {
+      // Ex: 66996525791 → 6696525791
+      variations.add(cleanPhone.slice(0, 2) + cleanPhone.slice(3));
+    }
+
+    // Adiciona variações com 55
+    for (const v of Array.from(variations)) {
+      if (!v.startsWith('55')) variations.add('55' + v);
+    }
+
+    // Tenta encontrar o paciente com qualquer variação
+    let patientData = null;
+    let patientError = null;
+    for (const phone of variations) {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, full_name')
+        .eq('phone', phone)
+        .maybeSingle();
+      if (data) {
+        patientData = data;
+        break;
+      }
+      if (error) patientError = error;
+    }
+
+    if (!patientData) {
+      console.error('⚠️ Paciente não encontrado no banco de dados (testadas variações):', Array.from(variations).join(', '), patientError);
       return new Response(JSON.stringify({ success: false, message: 'Paciente não encontrado.' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -169,8 +197,8 @@ serve(async (req) => {
 
       // 1. Envia feedback para o PACIENTE
       const patientFeedbackMessage = isConfirmation
-        ? `✅ Obrigado! Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} está *CONFIRMADA*.`
-        : `✅ Entendido. Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
+        ? `✅ Obrigado! \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} está *CONFIRMADA*.`
+        : `✅ Entendido. \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
       
       const patientPhone = '55' + cleanPhone;
       
