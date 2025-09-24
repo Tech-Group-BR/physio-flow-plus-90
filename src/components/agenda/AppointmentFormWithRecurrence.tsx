@@ -326,10 +326,7 @@ export function AppointmentFormWithRecurrence({
         </div>
       </form>
 
-      {/* Debug info */}
-      <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-        <strong>Debug:</strong> {JSON.stringify(formData, null, 2)}
-      </div>
+     
     </div>
   );
 }
