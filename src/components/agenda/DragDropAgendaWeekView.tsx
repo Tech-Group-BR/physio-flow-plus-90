@@ -4,9 +4,10 @@ import { DragDropContext } from "@hello-pangea/dnd";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
+import { Plus } from "lucide-react"; // Adicionando o import do ícone Plus
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentDetailsModal } from "./AppointmentDetailsModal";
-import { Plus } from "lucide-react";
+import { AppointmentFormWithRecurrence } from "./AppointmentFormWithRecurrence";
 
 interface DragDropAgendaWeekViewProps {
   weekDays: Date[];
@@ -17,7 +18,7 @@ interface DragDropAgendaWeekViewProps {
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
-  onCreateAppointment?: (date: Date, time: string) => void; // Nova prop
+  onCreateAppointment?: (appointmentData: any) => void; // Para salvar o novo agendamento
 }
 
 export function DragDropAgendaWeekView({
@@ -33,6 +34,11 @@ export function DragDropAgendaWeekView({
 }: DragDropAgendaWeekViewProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  
+  // Estados para novo agendamento
+  const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string>('');
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
@@ -52,9 +58,24 @@ export function DragDropAgendaWeekView({
   };
 
   const handleEmptySlotClick = (date: Date, time: string) => {
+    setSelectedDate(date);
+    setSelectedTime(time);
+    setShowNewAppointmentModal(true);
+  };
+
+  const handleSaveNewAppointment = async (appointmentData: any) => {
     if (onCreateAppointment) {
-      onCreateAppointment(date, time);
+      await onCreateAppointment(appointmentData);
     }
+    setShowNewAppointmentModal(false);
+    setSelectedDate(null);
+    setSelectedTime('');
+  };
+
+  const handleCancelNewAppointment = () => {
+    setShowNewAppointmentModal(false);
+    setSelectedDate(null);
+    setSelectedTime('');
   };
 
   const getPatient = (patientId: string) => patients.find(p => p.id === patientId);
@@ -210,6 +231,7 @@ export function DragDropAgendaWeekView({
         </CardContent>
       </Card>
 
+      {/* Modal para detalhes do agendamento existente */}
       {selectedAppointment && (
         <AppointmentDetailsModal
           appointment={selectedAppointment}
@@ -225,6 +247,20 @@ export function DragDropAgendaWeekView({
           onSendWhatsApp={onSendWhatsApp}
           onUpdateAppointment={onUpdateAppointment}
         />
+      )}
+
+      {/* Modal para novo agendamento */}
+      {showNewAppointmentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <AppointmentFormWithRecurrence
+              initialDate={selectedDate || undefined}
+              initialTime={selectedTime}
+              onSave={handleSaveNewAppointment}
+              onCancel={handleCancelNewAppointment}
+            />
+          </div>
+        </div>
       )}
     </DragDropContext>
   );

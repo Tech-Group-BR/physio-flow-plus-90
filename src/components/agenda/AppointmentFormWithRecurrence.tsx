@@ -9,17 +9,30 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useClinic } from "@/contexts/ClinicContext";
+import { format } from "date-fns";
 
-export function AppointmentFormWithRecurrence() {
+interface AppointmentFormProps {
+  initialDate?: Date;
+  initialTime?: string;
+  onCancel?: () => void;
+  onSave?: (appointmentData: any) => void;
+}
+
+export function AppointmentFormWithRecurrence({ 
+  initialDate, 
+  initialTime, 
+  onCancel, 
+  onSave 
+}: AppointmentFormProps) {
   const { clinicId, loading } = useAuth();
-  const { patients } = useClinic();
+  const { patients, professionals, rooms } = useClinic();
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
   const [formData, setFormData] = useState({
     patientId: "",
     professionalId: "",
     roomId: "",
-    date: "",
-    time: "",
+    date: initialDate ? format(initialDate, 'yyyy-MM-dd') : "",
+    time: initialTime || "",
     duration: 60,
     type: "consulta",
     customPrice: "",
@@ -28,6 +41,22 @@ export function AppointmentFormWithRecurrence() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Atualizar formData quando initialDate ou initialTime mudarem
+  useEffect(() => {
+    if (initialDate) {
+      setFormData(prev => ({ 
+        ...prev, 
+        date: format(initialDate, 'yyyy-MM-dd') 
+      }));
+    }
+    if (initialTime) {
+      setFormData(prev => ({ 
+        ...prev, 
+        time: initialTime 
+      }));
+    }
+  }, [initialDate, initialTime]);
 
   useEffect(() => {
     if (!loading && clinicId) {
@@ -45,12 +74,20 @@ export function AppointmentFormWithRecurrence() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Salve o agendamento aqui
+      if (onSave) {
+        await onSave(formData);
+      }
       toast.success("Agendamento salvo com sucesso!");
     } catch (error) {
       toast.error("Erro ao salvar agendamento");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
     }
   };
 
@@ -61,7 +98,7 @@ export function AppointmentFormWithRecurrence() {
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
       <h1 className="text-2xl font-bold mb-2">Novo Agendamento</h1>
-      <p className="text-gray-500 mb-6">Criar novo agendamento com opção de recorrência</p>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <Label>Paciente *</Label>
@@ -83,6 +120,7 @@ export function AppointmentFormWithRecurrence() {
             </SelectContent>
           </Select>
         </div>
+
         <div>
           <Label>Tipo de Agendamento *</Label>
           <div className="flex gap-6 mt-2">
@@ -108,6 +146,7 @@ export function AppointmentFormWithRecurrence() {
             </label>
           </div>
         </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Fisioterapeuta *</Label>
@@ -119,7 +158,11 @@ export function AppointmentFormWithRecurrence() {
                 <SelectValue placeholder="Selecione o profissional" />
               </SelectTrigger>
               <SelectContent>
-                {/* <SelectItem value="...">Nome do profissional</SelectItem> */}
+                {professionals?.map((professional) => (
+                  <SelectItem key={professional.id} value={professional.id}>
+                    {professional.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -133,11 +176,16 @@ export function AppointmentFormWithRecurrence() {
                 <SelectValue placeholder="Selecione a sala" />
               </SelectTrigger>
               <SelectContent>
-                {/* <SelectItem value="...">Nome da sala</SelectItem> */}
+                {rooms?.map((room) => (
+                  <SelectItem key={room.id} value={room.id}>
+                    {room.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Data *</Label>
@@ -145,6 +193,7 @@ export function AppointmentFormWithRecurrence() {
               type="date"
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className={initialDate ? "bg-blue-50 border-blue-200" : ""}
             />
           </div>
           <div>
@@ -153,9 +202,11 @@ export function AppointmentFormWithRecurrence() {
               type="time"
               value={formData.time}
               onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              className={initialTime ? "bg-blue-50 border-blue-200" : ""}
             />
           </div>
         </div>
+
         <div>
           <Label>Duração</Label>
           <Select value={formData.duration.toString()} onValueChange={(value) => setFormData({ ...formData, duration: Number(value) })}>
@@ -168,6 +219,7 @@ export function AppointmentFormWithRecurrence() {
             </SelectContent>
           </Select>
         </div>
+
         <div>
           <label className="flex items-center gap-2">
             <Checkbox
@@ -177,6 +229,7 @@ export function AppointmentFormWithRecurrence() {
             Agendamento recorrente
           </label>
         </div>
+
         <div>
           <Label>Observações</Label>
           <Textarea
@@ -186,8 +239,9 @@ export function AppointmentFormWithRecurrence() {
             rows={3}
           />
         </div>
+
         <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button type="button" variant="outline">
+          <Button type="button" variant="outline" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button type="submit" disabled={submitting}>
