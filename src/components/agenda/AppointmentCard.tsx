@@ -31,7 +31,6 @@ export function AppointmentCard({
   const professional = professionals.find(p => p.id === appointment.professionalId);
   const room = rooms.find(r => r.id === appointment.roomId);
 
-  // Calcular horário de fim (sem segundos)
   const getEndTime = (startTime: string, duration: number = 60) => {
     const [hours, minutes] = startTime.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes + duration;
@@ -40,7 +39,6 @@ export function AppointmentCard({
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   };
 
-  // Função para pegar os dois primeiros nomes
   const getTwoFirstNames = (fullName: string) => {
     if (!fullName) return '';
     const names = fullName.split(' ');
@@ -50,7 +48,6 @@ export function AppointmentCard({
   const startTime = appointment.time.slice(0, 5);
   const endTime = getEndTime(startTime, appointment.duration || 60);
 
-  // Função para obter o texto do status com confirmação do paciente
   const getStatusText = (status: string, whatsappConfirmed: boolean) => {
     const statusTexts = {
       marcado: "Marcado",
@@ -62,7 +59,6 @@ export function AppointmentCard({
     
     const baseStatus = statusTexts[status] || status;
     
-    // Se foi confirmado pelo WhatsApp, adicionar o ícone
     if (whatsappConfirmed && (status === 'confirmado' || status === 'marcado')) {
       return `${baseStatus} ✅`;
     }
@@ -70,7 +66,8 @@ export function AppointmentCard({
     return baseStatus;
   };
 
-  // Nova variante mini para agenda diária
+  const isShortAppointment = (appointment.duration || 60) <= 30;
+
   if (variant === 'mini') {
     return (
       <div
@@ -82,7 +79,6 @@ export function AppointmentCard({
         onClick={onClick}
       >
         <div className="space-y-0.5 p-1" style={{ borderRadius: '12px' }}>
-          {/* Nome do paciente - compacto */}
           <div className="text-center">
             <Badge 
               className={`${getStatusColor(appointment.status)} text-xs px-1.5 py-0 border-none font-medium`} 
@@ -93,14 +89,12 @@ export function AppointmentCard({
             </Badge>
           </div>
 
-          {/* Horário - super compacto */}
           <div className="text-center">
             <div className="text-xs font-bold text-gray-700 leading-tight">
               <div style={{ fontSize: '11px' }}>{startTime}</div>
             </div>
           </div>
 
-          {/* Profissional - só primeiro nome */}
           <div className="text-xs text-gray-600 text-center font-medium truncate" style={{ fontSize: '10px' }}>
             {professional?.name?.split(' ')[0] || 'N/A'}
           </div>
@@ -120,7 +114,6 @@ export function AppointmentCard({
         onClick={onClick}
       >
         <div className="space-y-1 p-1.5" style={{ borderRadius: '16px' }}>
-          {/* Nome do paciente - dois primeiros nomes */}
           <div className="text-center">
             <Badge 
               className={`${getStatusColor(appointment.status)} text-xs px-2 py-0.5 border-none font-medium`} 
@@ -131,7 +124,6 @@ export function AppointmentCard({
             </Badge>
           </div>
 
-          {/* Horário compacto */}
           <div className="text-center">
             <div className="text-xs font-bold text-gray-700 py-1 px-2">
               <div>{startTime}</div>
@@ -139,12 +131,10 @@ export function AppointmentCard({
             </div>
           </div>
 
-          {/* Profissional - dois primeiros nomes */}
           <div className="text-xs text-gray-600 text-center font-medium truncate px-1">
             {getTwoFirstNames(professional?.name || 'N/A')}
           </div>
 
-          {/* Sala (opcional, só se tiver espaço) */}
           {room && (
             <div className="text-xs text-gray-500 text-center truncate px-1">
               {room.name}
@@ -157,120 +147,136 @@ export function AppointmentCard({
 
   return (
     <Card 
-      className="cursor-pointer hover:shadow-xl transition-all duration-300 border-none" 
+      className="cursor-pointer hover:shadow-xl transition-all duration-300 border-none h-full overflow-hidden" 
       style={{ 
-        borderRadius: '20px'
+        borderRadius: '12px' // Reduzi de '20px' para '12px'
       }}
     >
-      <CardContent className="p-3" style={{ borderRadius: '20px' }}> {/* Mudei de p-2 para p-3 */}
-        <div className="space-y-1.5">
-          <div className="flex items-start justify-between">
+      <CardContent className="p-0.5 h-full flex flex-col" style={{ borderRadius: '12px' }}> {/* Também ajustei aqui */}
+        <div className="flex-1 overflow-hidden">
+          <div className="flex items-start justify-between mb-1">
             <Badge 
-              className={`${getStatusColor(appointment.status)} text-sm px-3 py-1.5 border-none font-medium`} 
-              style={{ borderRadius: '16px' }} 
+              className={`${getStatusColor(appointment.status)} text-xs px-1 py-0 border-none font-medium`}
+              style={{ borderRadius: '8px' }} 
               title={`${patient?.fullName || 'Paciente'}${appointment.whatsappConfirmed ? ' - Confirmado pelo paciente' : ''}`}
             >
-              {getStatusText(appointment.status, appointment.whatsappConfirmed)}
+              {isShortAppointment ? getStatusText(appointment.status, appointment.whatsappConfirmed).slice(0, 3) : getStatusText(appointment.status, appointment.whatsappConfirmed)}
             </Badge>
             
-            {/* Horário */}
             <div className="text-right">
-              <div className="text-sm font-bold text-gray-700 py-1 px-2">
-                <div>{startTime}</div>
-                <div className="text-xs text-gray-500 font-normal">até</div>
-                <div>{endTime}</div>
+              <div className="text-xs font-bold text-gray-700">
+                {startTime}-{endTime}
               </div>
             </div>
           </div>
 
-          <div className="space-y-4"> {/* Mudei de space-y-1 para space-y-1.5 */}
-            <div className="flex items-center space-x-2 text-sm">
-              <User className="h-4 w-4 text-gray-500" />
-              <span className="font-semibold text-gray-700 truncate">{patient?.fullName || 'Paciente não encontrado'}</span>
+          <div className="space-y-0">
+            <div className="flex items-center space-x-1 text-xs">
+              <User className="h-2.5 w-2.5 text-gray-500 flex-shrink-0" />
+              <span className="font-semibold text-gray-700 truncate text-xs">{patient?.fullName || 'Paciente'}</span>
             </div>
 
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
-                <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
+            <div className="flex items-center space-x-1 text-xs text-gray-600">
+              <div className="h-2.5 w-2.5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <div className="h-1 w-1 rounded-full bg-blue-500"></div>
               </div>
-              <span className="font-medium truncate">{professional?.name || 'Fisioterapeuta não encontrado'}</span>
+              <span className="font-medium truncate text-xs">{professional?.name || 'Profissional'}</span>
             </div>
 
             {room && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span className="font-medium truncate">{room.name}</span>
+              <div className="flex items-center space-x-1 text-xs text-gray-600">
+                <MapPin className="h-2.5 w-2.5 text-gray-500 flex-shrink-0" />
+                <span className="font-medium truncate text-xs">{room.name}</span>
+              </div>
+            )}
+
+            {appointment.confirmationSentAt && (
+              <div className="text-xs text-blue-600 font-medium truncate">
+                📱 {isShortAppointment ? 'OK' : 'Enviado'}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Apenas mostrar quando confirmação foi enviada (sem ocupar muito espaço) */}
-          {appointment.confirmationSentAt && (
-            <div className="text-xs text-blue-600 font-medium leading-tight truncate">
-              📱 {format(new Date(appointment.confirmationSentAt), 'dd/MM HH:mm', { locale: ptBR })}
-            </div>
-          )}
-
-          {/* Ações rápidas */}
-          <div className="flex flex-wrap gap-1 pt-1.5 border-t"> {/* Mudei de pt-1 para pt-1.5 */}
-            {appointment.status === 'marcado' && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUpdateStatus(appointment.id, 'confirmado');
-                  }}
-                  className="text-xs h-6"
-                  style={{ borderRadius: '12px' }}
-                >
-                  ✅ Confirmar
-                </Button>
-                {!appointment.confirmationSentAt && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSendWhatsApp(appointment.id);
-                    }}
-                    className="text-xs h-6"
-                    style={{ borderRadius: '12px' }}
-                  >
-                    📱 WhatsApp
-                  </Button>
-                )}
-              </>
-            )}
-
-            {appointment.status === 'confirmado' && (
+        <div 
+          className="flex flex-wrap gap-0.5 border-t pt-0.5 mt-0.5" 
+          style={{ 
+            minHeight: isShortAppointment ? '18px' : '22px', 
+            height: isShortAppointment ? '18px' : '22px' 
+          }}
+        >
+          {appointment.status === 'marcado' && (
+            <>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onUpdateStatus(appointment.id, 'realizado');
+                  onUpdateStatus(appointment.id, 'confirmado');
                 }}
-                className="text-xs h-6"
-                style={{ borderRadius: '12px' }}
+                className={`text-xs ${isShortAppointment ? 'h-4 px-1' : 'h-5 px-2'} flex-shrink-0`}
+                style={{ borderRadius: '4px' }}
               >
-                ✅ Realizado
+                {isShortAppointment ? '✅' : '✅ Confirmar'}
               </Button>
-            )}
+              {!appointment.confirmationSentAt && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSendWhatsApp(appointment.id);
+                  }}
+                  className={`text-xs ${isShortAppointment ? 'h-4 px-1' : 'h-5 px-2'} flex-shrink-0`}
+                  style={{ borderRadius: '4px' }}
+                >
+                  {isShortAppointment ? '📱' : '📱 WhatsApp'}
+                </Button>
+              )}
+            </>
+          )}
 
-            {appointment.status === 'realizado' && (
-              <Badge className="bg-green-100 text-green-700 text-xs" style={{ borderRadius: '12px' }}>Realizada</Badge>
-            )}
+          {appointment.status === 'confirmado' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus(appointment.id, 'realizado');
+              }}
+              className={`text-xs ${isShortAppointment ? 'h-4 px-1' : 'h-5 px-2'} flex-shrink-0`}
+              style={{ borderRadius: '4px' }}
+            >
+              {isShortAppointment ? '✅' : '✅ Realizado'}
+            </Button>
+          )}
 
-            {appointment.status === 'faltante' && (
-              <Badge className="bg-yellow-100 text-yellow-700 text-xs" style={{ borderRadius: '12px' }}>Faltante</Badge>
-            )}
+          {appointment.status === 'realizado' && (
+            <Badge 
+              className={`bg-green-100 text-green-700 text-xs ${isShortAppointment ? 'px-1 py-0' : 'px-2 py-0.5'} flex-shrink-0`}
+              style={{ borderRadius: '4px' }}
+            >
+              {isShortAppointment ? '✅' : 'Realizada'}
+            </Badge>
+          )}
 
-            {appointment.status === 'cancelado' && (
-              <Badge className="bg-red-100 text-red-700 text-xs" style={{ borderRadius: '12px' }}>Cancelado</Badge>
-            )}
-          </div>
+          {appointment.status === 'faltante' && (
+            <Badge 
+              className={`bg-yellow-100 text-yellow-700 text-xs ${isShortAppointment ? 'px-1 py-0' : 'px-2 py-0.5'} flex-shrink-0`}
+              style={{ borderRadius: '4px' }}
+            >
+              {isShortAppointment ? '❌' : 'Faltante'}
+            </Badge>
+          )}
+
+          {appointment.status === 'cancelado' && (
+            <Badge 
+              className={`bg-red-100 text-red-700 text-xs ${isShortAppointment ? 'px-1 py-0' : 'px-2 py-0.5'} flex-shrink-0`}
+              style={{ borderRadius: '4px' }}
+            >
+              {isShortAppointment ? '🚫' : 'Cancelado'}
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -33,7 +33,7 @@ export function AppointmentFormWithRecurrence({
     roomId: "",
     date: initialDate ? format(initialDate, 'yyyy-MM-dd') : "",
     time: initialTime || "",
-    duration: 60,
+    duration: 45, // Mudança: padrão de 45 minutos
     type: "consulta",
     customPrice: "",
     isRecurring: false,
@@ -41,6 +41,19 @@ export function AppointmentFormWithRecurrence({
   });
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Opções de duração em minutos (de 30 em 30, subindo de 15 em 15)
+  const durationOptions = [
+    { value: 30, label: "30 minutos" },
+    { value: 45, label: "45 minutos" },
+    { value: 60, label: "1 hora" },
+    { value: 75, label: "1 hora e 15 minutos" },
+    { value: 90, label: "1 hora e 30 minutos" },
+    { value: 105, label: "1 hora e 45 minutos" },
+    { value: 120, label: "2 horas" },
+    { value: 135, label: "2 horas e 15 minutos" },
+    { value: 150, label: "2 horas e 30 minutos" }
+  ];
 
   // Atualizar formData quando initialDate ou initialTime mudarem
   useEffect(() => {
@@ -73,12 +86,38 @@ export function AppointmentFormWithRecurrence({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    
     try {
+      // Log para debug
+      console.log('Dados do formulário antes de salvar:', formData);
+      
+      // Validação básica
+      if (!formData.patientId || !formData.professionalId || !formData.date || !formData.time) {
+        toast.error("Preencha todos os campos obrigatórios");
+        setSubmitting(false);
+        return;
+      }
+
       if (onSave) {
         await onSave(formData);
+        toast.success("Agendamento salvo com sucesso!");
+        
+        // Reset do formulário após salvar
+        setFormData({
+          patientId: "",
+          professionalId: "",
+          roomId: "",
+          date: "",
+          time: "",
+          duration: 45,
+          type: "consulta",
+          customPrice: "",
+          isRecurring: false,
+          notes: ""
+        });
       }
-      toast.success("Agendamento salvo com sucesso!");
     } catch (error) {
+      console.error('Erro ao salvar agendamento:', error);
       toast.error("Erro ao salvar agendamento");
     } finally {
       setSubmitting(false);
@@ -92,19 +131,22 @@ export function AppointmentFormWithRecurrence({
   };
 
   if (loading || !clinicId) {
-    return <div>Carregando...</div>;
+    return <div className="flex items-center justify-center p-8">Carregando...</div>;
   }
 
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
-      <h1 className="text-2xl font-bold mb-2">Novo Agendamento</h1>
+      <h1 className="text-2xl font-bold mb-6">Novo Agendamento</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <Label>Paciente *</Label>
           <Select
             value={formData.patientId}
-            onValueChange={(value) => setFormData({ ...formData, patientId: value })}
+            onValueChange={(value) => {
+              console.log('Paciente selecionado:', value);
+              setFormData({ ...formData, patientId: value });
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="Selecione o paciente" />
@@ -152,7 +194,10 @@ export function AppointmentFormWithRecurrence({
             <Label>Fisioterapeuta *</Label>
             <Select
               value={formData.professionalId}
-              onValueChange={(value) => setFormData({ ...formData, professionalId: value })}
+              onValueChange={(value) => {
+                console.log('Profissional selecionado:', value);
+                setFormData({ ...formData, professionalId: value });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o profissional" />
@@ -170,10 +215,13 @@ export function AppointmentFormWithRecurrence({
             <Label>Sala</Label>
             <Select
               value={formData.roomId}
-              onValueChange={(value) => setFormData({ ...formData, roomId: value })}
+              onValueChange={(value) => {
+                console.log('Sala selecionada:', value);
+                setFormData({ ...formData, roomId: value });
+              }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione a sala" />
+                <SelectValue placeholder="Selecione a sala (opcional)" />
               </SelectTrigger>
               <SelectContent>
                 {rooms?.map((room) => (
@@ -192,7 +240,10 @@ export function AppointmentFormWithRecurrence({
             <Input
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              onChange={(e) => {
+                console.log('Data selecionada:', e.target.value);
+                setFormData({ ...formData, date: e.target.value });
+              }}
               className={initialDate ? "bg-blue-50 border-blue-200" : ""}
             />
           </div>
@@ -201,24 +252,49 @@ export function AppointmentFormWithRecurrence({
             <Input
               type="time"
               value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              onChange={(e) => {
+                console.log('Horário selecionado:', e.target.value);
+                setFormData({ ...formData, time: e.target.value });
+              }}
               className={initialTime ? "bg-blue-50 border-blue-200" : ""}
             />
           </div>
         </div>
 
         <div>
-          <Label>Duração</Label>
-          <Select value={formData.duration.toString()} onValueChange={(value) => setFormData({ ...formData, duration: Number(value) })}>
+          <Label>Duração *</Label>
+          <Select 
+            value={formData.duration.toString()} 
+            onValueChange={(value) => {
+              console.log('Duração selecionada:', value);
+              setFormData({ ...formData, duration: Number(value) });
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Selecione a duração" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="60">1 hora</SelectItem>
-              <SelectItem value="30">30 minutos</SelectItem>
+              {durationOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value.toString()}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
+
+        {formData.type === "outro" && (
+          <div>
+            <Label>Valor Personalizado (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.customPrice}
+              onChange={(e) => setFormData({ ...formData, customPrice: e.target.value })}
+              placeholder="0,00"
+            />
+          </div>
+        )}
 
         <div>
           <label className="flex items-center gap-2">
@@ -249,6 +325,11 @@ export function AppointmentFormWithRecurrence({
           </Button>
         </div>
       </form>
+
+      {/* Debug info */}
+      <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+        <strong>Debug:</strong> {JSON.stringify(formData, null, 2)}
+      </div>
     </div>
   );
 }

@@ -60,15 +60,22 @@ export function DragDropAgendaDayView({
   };
 
   const handleEmptySlotClick = (time: string) => {
-    if (onCreateAppointment) {
-      setSelectedTime(time);
-      setShowNewAppointmentModal(true);
-    }
+    console.log('Slot clicado:', time, 'onCreateAppointment:', onCreateAppointment ? 'existe' : 'não existe');
+    setSelectedTime(time);
+    setShowNewAppointmentModal(true);
   };
 
   const handleSaveNewAppointment = async (appointmentData: any) => {
+    console.log('Salvando novo agendamento:', appointmentData);
     if (onCreateAppointment) {
-      await onCreateAppointment(appointmentData);
+      // Adicionar a data e horário selecionados aos dados do agendamento
+      const appointmentWithDateTime = {
+        ...appointmentData,
+        date: selectedDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
+        time: selectedTime
+      };
+      console.log('Dados finais do agendamento:', appointmentWithDateTime);
+      await onCreateAppointment(appointmentWithDateTime);
     }
     setShowNewAppointmentModal(false);
     setSelectedTime('');
@@ -104,6 +111,12 @@ export function DragDropAgendaDayView({
   const endHour = 20;
   const totalMinutes = (endHour - startHour) * 60;
   const dayHeight = (totalMinutes / 60) * hourHeight;
+
+  console.log('Estado do modal:', {
+    showNewAppointmentModal,
+    selectedTime,
+    onCreateAppointment: !!onCreateAppointment
+  });
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -195,8 +208,8 @@ export function DragDropAgendaDayView({
                   }
 
                   const top = (minutesFromStart / 60) * hourHeight;
-                  // Reduzir a altura em 20px para dar ainda mais margem na parte de baixo
-                  const height = Math.max(((appointment.duration || 60) / 60) * hourHeight - 42, 40);
+                  // Altura totalmente proporcional à duração, sem subtração fixa
+                  const height = Math.max(((appointment.duration || 60) / 60) * hourHeight, 30);
 
                   let backgroundColor = "#f6fff6";
                   switch (appointment.status) {
@@ -247,7 +260,7 @@ export function DragDropAgendaDayView({
                         rooms={rooms || []}
                         onUpdateStatus={onUpdateStatus}
                         onSendWhatsApp={onSendWhatsApp}
-                        variant={height > 80 ? "detailed" : "compact"} // Volta ao comportamento original
+                        variant="detailed" // Sempre usar detailed na day view
                         onClick={() => handleAppointmentClick(appointment)}
                       />
                     </div>
@@ -284,9 +297,11 @@ export function DragDropAgendaDayView({
         />
       )}
 
+      {/* Modal para novo agendamento - com log adicional */}
       {showNewAppointmentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        
             <AppointmentFormWithRecurrence
               initialDate={selectedDate}
               initialTime={selectedTime}

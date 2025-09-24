@@ -9,6 +9,8 @@ import { DragDropAgendaWeekView } from "./agenda/DragDropAgendaWeekView";
 import { AppointmentFormWithRecurrence } from "./AppointmentFormWithRecurrence";
 import { useAgendaLogic } from "@/hooks/useAgendaLogic";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export function AgendaPageWithRecurrence() {
   const {
@@ -32,7 +34,50 @@ export function AgendaPageWithRecurrence() {
     navigateDate
   } = useAgendaLogic();
 
-  const { patients, professionals, rooms, fetchAppointments } = useClinic();
+  const { patients, professionals, rooms, fetchAppointments, addAppointment } = useClinic();
+  const { clinicId, user } = useAuth();
+
+  // Função para criar novo agendamento usando o useClinic
+  const handleCreateAppointment = async (appointmentData: any) => {
+    try {
+      console.log('Criando agendamento:', appointmentData);
+      
+      if (!clinicId) {
+        toast.error('ID da clínica não encontrado');
+        return;
+      }
+
+      // Preparar dados no formato esperado pelo ClinicContext
+      const appointmentToCreate = {
+        patientId: appointmentData.patientId,
+        professionalId: appointmentData.professionalId,
+        roomId: appointmentData.roomId && appointmentData.roomId.trim() !== '' ? appointmentData.roomId : null, // Corrigir aqui
+        date: appointmentData.date,
+        time: appointmentData.time,
+        duration: appointmentData.duration,
+        treatmentType: appointmentData.type || 'consulta',
+        status: 'marcado' as const,
+        notes: appointmentData.notes || '',
+        whatsappConfirmed: false,
+        whatsappSentAt: undefined
+      };
+
+      console.log('Dados preparados para ClinicContext:', appointmentToCreate);
+
+      // Usar a função addAppointment do ClinicContext
+      await addAppointment(appointmentToCreate);
+      
+      console.log('Agendamento criado com sucesso');
+      
+      toast.success('Agendamento criado com sucesso!');
+      
+      return appointmentToCreate;
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error);
+      toast.error('Erro ao criar agendamento: ' + (error.message || 'Erro desconhecido'));
+      throw error;
+    }
+  };
 
   // Escutar eventos de atualização de agendamentos
   useEffect(() => {
@@ -44,7 +89,10 @@ export function AgendaPageWithRecurrence() {
     return () => window.removeEventListener('appointmentsUpdated', handleAppointmentsUpdate);
   }, [fetchAppointments]);
 
-  const handleSave = () => {
+  const handleSave = async (appointmentData?: any) => {
+    if (appointmentData) {
+      await handleCreateAppointment(appointmentData);
+    }
     setShowForm(false);
     // Trigger update event to refresh agenda
     window.dispatchEvent(new CustomEvent('appointmentsUpdated'));
@@ -109,6 +157,7 @@ export function AgendaPageWithRecurrence() {
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onCreateAppointment={handleCreateAppointment}
         />
       ) : (
         <DragDropAgendaDayView
@@ -120,6 +169,7 @@ export function AgendaPageWithRecurrence() {
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onCreateAppointment={handleCreateAppointment}
         />
       )}
     </div>
