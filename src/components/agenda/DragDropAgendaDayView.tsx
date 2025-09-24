@@ -1,7 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { timeSlots } from "@/utils/agendaUtils";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { AppointmentCard } from "./AppointmentCard";
 import { AppointmentDetailsModal } from "./AppointmentDetailsModal";
@@ -9,8 +8,8 @@ import { AppointmentFormWithRecurrence } from "./AppointmentFormWithRecurrence";
 
 interface DragDropAgendaDayViewProps {
   selectedDate: Date;
-  // Mudança: ao invés de receber appointments, receber a função do useAgendaLogic
   getAppointmentForSlot: (date: Date, time: string) => any;
+  appointments?: any[]; // Adicionar prop para todos os agendamentos
   patients: any[];
   professionals: any[];
   rooms: any[];
@@ -23,6 +22,7 @@ interface DragDropAgendaDayViewProps {
 export function DragDropAgendaDayView({
   selectedDate,
   getAppointmentForSlot,
+  appointments = [], // Usar prop diretamente se disponível
   patients,
   professionals,
   rooms,
@@ -35,12 +35,46 @@ export function DragDropAgendaDayView({
   const [showModal, setShowModal] = useState(false);
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Gerar todos os slots de horário de 7:00 às 20:00 (30 em 30 minutos)
+  const generateTimeSlots = () => {
+    const slots = [];
+    const startHour = 7;
+    const endHour = 20;
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      slots.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
+    
+    // Adicionar 20:00 como último slot
+    slots.push('20:00');
+    
+    return slots;
+  };
+
+  const timeSlots = generateTimeSlots();
+
+  // Detectar se é mobile de forma segura
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
 
   console.log('DragDropAgendaDayView - Props recebidas:', {
     selectedDate,
+    appointments: appointments?.length || 0,
     patients: patients?.length || 0,
     professionals: professionals?.length || 0,
-    rooms: rooms?.length || 0
+    rooms: rooms?.length || 0,
+    timeSlots: timeSlots.length
   });
 
   const handleDragEnd = (result: any) => {
@@ -68,10 +102,9 @@ export function DragDropAgendaDayView({
   const handleSaveNewAppointment = async (appointmentData: any) => {
     console.log('Salvando novo agendamento:', appointmentData);
     if (onCreateAppointment) {
-      // Adicionar a data e horário selecionados aos dados do agendamento
       const appointmentWithDateTime = {
         ...appointmentData,
-        date: selectedDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
+        date: selectedDate.toISOString().split('T')[0],
         time: selectedTime
       };
       console.log('Dados finais do agendamento:', appointmentWithDateTime);
@@ -90,32 +123,64 @@ export function DragDropAgendaDayView({
   const getProfessional = (physioId: string) => professionals?.find(p => p.id === physioId);
   const getRoom = (roomId: string) => rooms?.find(r => r.id === roomId);
 
-  // Coletar todos os agendamentos do dia usando a função getAppointmentForSlot
-  const dayAppointments = timeSlots
-    .map(time => getAppointmentForSlot(selectedDate, time))
-    .filter(appointment => appointment !== undefined);
+  // Buscar TODOS os agendamentos do dia
+  const dayAppointments = appointments && appointments.length > 0 
+    ? appointments.filter(apt => {
+        const dayString = selectedDate.toISOString().split('T')[0];
+        return apt.date === dayString;
+      })
+    : // Fallback: buscar usando a função original para todos os slots
+      timeSlots
+        .map(time => getAppointmentForSlot(selectedDate, time))
+        .filter(appointment => appointment !== undefined);
 
-  console.log('Debug - Day appointments found:', dayAppointments.length);
-  dayAppointments.forEach(apt => {
-    console.log('Agendamento do dia:', {
-      id: apt.id,
-      date: apt.date,
-      time: apt.time,
-      patientId: apt.patientId,
-      status: apt.status
-    });
+  console.log('Debug - Agendamentos do dia:', {
+    selectedDateString: selectedDate.toISOString().split('T')[0],
+    totalAppointments: appointments?.length || 0,
+    dayAppointmentsFound: dayAppointments.length,
+    usingAppointmentsProp: appointments && appointments.length > 0,
+    dayAppointments: dayAppointments.map(apt => ({ 
+      id: apt.id, 
+      time: apt.time, 
+      patient: apt.patientId,
+      status: apt.status 
+    }))
   });
 
-  const hourHeight = 128;
-  const startHour = 7;
-  const endHour = 20;
-  const totalMinutes = (endHour - startHour) * 60;
-  const dayHeight = (totalMinutes / 60) * hourHeight;
+  // Definir alturas consistentes para alinhamento
+  const slotHeight = isMobile ? 120 : 160;
+  const headerHeight = isMobile ? 96 : 128;
+
+  // Função para calcular posição do agendamento baseado no horário
+  const getAppointmentPosition = (timeString: string) => {
+    const [hours, minutes] = timeString.slice(0, 5).split(':').map(Number);
+    const totalMinutes = (hours - 7) * 60 + minutes; // Relativo às 7:00
+    const position = (totalMinutes / 30) * slotHeight; // Cada slot é 30min
+    return Math.max(0, position);
+  };
+
+  // Função para verificar se há agendamento em um slot específico
+  const hasAppointmentInSlot = (time: string) => {
+    // Se temos appointments prop, usar ela
+    if (appointments && appointments.length > 0) {
+      const dayString = selectedDate.toISOString().split('T')[0];
+      return appointments.some(apt => {
+        const aptDate = apt.date;
+        const aptTime = apt.time.slice(0, 5);
+        return aptDate === dayString && aptTime === time;
+      });
+    }
+    
+    // Fallback: usar a função original
+    return !!getAppointmentForSlot(selectedDate, time);
+  };
 
   console.log('Estado do modal:', {
     showNewAppointmentModal,
     selectedTime,
-    onCreateAppointment: !!onCreateAppointment
+    onCreateAppointment: !!onCreateAppointment,
+    totalTimeSlots: timeSlots.length,
+    isMobile
   });
 
   return (
@@ -123,60 +188,101 @@ export function DragDropAgendaDayView({
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="flex">
-            {/* Coluna de horários */}
-            <div className="w-20 border-r bg-gray-50">
-              <div className="h-16 border-b flex items-center justify-center font-semibold text-sm bg-gray-100">
-                Horário
+            {/* Coluna de horários - TODOS os horários */}
+            <div className="w-14 sm:w-16 md:w-20 border-r bg-gray-50 flex-shrink-0">
+              {/* Header alinhado */}
+              <div 
+                className="border-b flex items-center justify-center font-semibold text-xs sm:text-sm bg-gray-100"
+                style={{ height: `${headerHeight}px` }}
+              >
+                <span className="hidden sm:inline">Horário</span>
+                <span className="sm:hidden">Hora</span>
               </div>
-              {timeSlots.map((time) => (
-                <div key={time} className="h-16 border-b flex items-center justify-center text-sm text-gray-600 bg-gray-50">
-                  {time}
+              
+              {/* TODOS os slots de horário */}
+              {timeSlots.map((time, index) => (
+                <div 
+                  key={`time-${time}`}
+                  className="border-b flex items-center justify-center text-xs sm:text-sm text-gray-600 bg-gray-50"
+                  style={{ height: `${slotHeight}px` }}
+                >
+                  {/* Mobile: mostra HH:MM completo */}
+                  <span className="block sm:hidden text-xs font-medium">{time}</span>
+                  {/* Desktop: mostra horário completo */}
+                  <span className="hidden sm:inline">{time}</span>
                 </div>
               ))}
             </div>
 
             {/* Área dos agendamentos */}
-            <div className="flex-1 relative" style={{ height: dayHeight + 64 }}>
+            <div className="flex-1 relative overflow-x-auto overflow-y-auto min-w-0">
               {/* Header do dia */}
-              <div className="h-16 border-b flex items-center justify-center bg-gray-100 font-semibold">
-                {selectedDate.toLocaleDateString('pt-BR', { 
-                  weekday: 'long', 
-                  day: '2-digit', 
-                  month: 'long' 
-                })}
-                <span className="ml-4 text-xs text-gray-500">
-                  ({dayAppointments.length} agendamentos)
-                </span>
+              <div 
+                className="border-b flex items-center justify-center bg-gray-100 font-semibold text-xs sm:text-sm md:text-base px-2 sticky top-0 z-20"
+                style={{ height: `${headerHeight}px` }}
+              >
+                <div className="text-center truncate">
+                  {/* Mobile: formato curto */}
+                  <span className="block sm:hidden">
+                    {selectedDate.toLocaleDateString('pt-BR', { 
+                      weekday: 'short', 
+                      day: '2-digit', 
+                      month: 'short' 
+                    })}
+                  </span>
+                  {/* Desktop: formato completo */}
+                  <span className="hidden sm:block">
+                    {selectedDate.toLocaleDateString('pt-BR', { 
+                      weekday: 'long', 
+                      day: '2-digit', 
+                      month: 'long' 
+                    })}
+                  </span>
+                  <span className="ml-1 sm:ml-4 text-xs text-gray-500">
+                    ({dayAppointments.length} agendamentos)
+                  </span>
+                </div>
               </div>
 
-              {/* Container da grade */}
-              <div style={{ position: "relative", height: dayHeight }}>
-                {/* Linhas de grade com slots clicáveis */}
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: dayHeight, zIndex: 1 }}>
+              {/* Container da grade - TODOS os slots */}
+              <div 
+                style={{ 
+                  position: "relative", 
+                  height: `${timeSlots.length * slotHeight}px`, 
+                  minWidth: '280px' 
+                }}
+              >
+                {/* Linhas de grade - TODAS as linhas */}
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
                   {timeSlots.map((time, idx) => {
-                    const appointment = getAppointmentForSlot(selectedDate, time);
+                    const hasAppointment = hasAppointmentInSlot(time);
                     
                     return (
                       <div
-                        key={time}
+                        key={`slot-${time}`}
                         style={{
                           position: "absolute",
-                          top: idx * (hourHeight / 2),
+                          top: idx * slotHeight,
                           left: 0,
                           right: 0,
-                          height: hourHeight / 2,
-                          borderTop: "1px solid #e5e7eb",
+                          height: slotHeight,
+                          borderTop: idx === 0 ? "none" : "1px solid #e5e7eb",
                         }}
                         className={`${
-                          !appointment 
+                          !hasAppointment 
                             ? 'hover:bg-gray-100 cursor-pointer group transition-colors duration-200' 
                             : ''
                         }`}
-                        onClick={() => !appointment && handleEmptySlotClick(time)}
+                        onClick={() => !hasAppointment && handleEmptySlotClick(time)}
                       >
-                        {!appointment && (
+                        {/* Label do horário para debug */}
+                        <div className="absolute top-1 left-2 text-xs text-gray-400 pointer-events-none">
+                          {time}
+                        </div>
+                        
+                        {!hasAppointment && (
                           <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-30 transition-opacity duration-200">
-                            <Plus className="h-6 w-6 text-gray-500" />
+                            <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-500" />
                           </div>
                         )}
                       </div>
@@ -184,7 +290,7 @@ export function DragDropAgendaDayView({
                   })}
                 </div>
 
-                {/* Cards de agendamento */}
+                {/* Cards de agendamento - renderizar TODOS */}
                 {dayAppointments.map((appointment) => {
                   if (!appointment?.time) {
                     console.log('Agendamento sem horário:', appointment);
@@ -192,24 +298,37 @@ export function DragDropAgendaDayView({
                   }
 
                   const timeWithoutSeconds = appointment.time.slice(0, 5);
-                  const [h, m] = timeWithoutSeconds.split(':').map(Number);
                   
-                  if (isNaN(h) || isNaN(m)) {
-                    console.log('Horário inválido:', appointment.time, appointment);
-                    return null;
+                  // Se temos appointments prop, usar posição calculada
+                  // Se não, usar busca por slot (compatibilidade com função original)
+                  let top;
+                  if (appointments && appointments.length > 0) {
+                    // Calcular posição baseada no horário exato
+                    top = getAppointmentPosition(appointment.time);
+                    
+                    // Verificar se está dentro do range visível (7:00-20:00)
+                    const [hours] = timeWithoutSeconds.split(':').map(Number);
+                    if (hours < 7 || hours > 20) {
+                      console.log('Agendamento fora do range:', timeWithoutSeconds);
+                      return null;
+                    }
+                  } else {
+                    // Usar busca por slot para compatibilidade
+                    const slotIndex = timeSlots.findIndex(slot => slot === timeWithoutSeconds);
+                    if (slotIndex === -1) {
+                      // Se não encontrar slot exato, tentar calcular posição
+                      top = getAppointmentPosition(appointment.time);
+                      const [hours] = timeWithoutSeconds.split(':').map(Number);
+                      if (hours < 7 || hours > 20) {
+                        return null;
+                      }
+                    } else {
+                      top = slotIndex * slotHeight;
+                    }
                   }
 
-                  const startMinutes = h * 60 + m;
-                  const minutesFromStart = startMinutes - startHour * 60;
-                  
-                  if (minutesFromStart < 0 || minutesFromStart >= totalMinutes) {
-                    console.log('Horário fora do range:', appointment.time, 'Range:', startHour, '-', endHour);
-                    return null;
-                  }
-
-                  const top = (minutesFromStart / 60) * hourHeight;
-                  // Altura totalmente proporcional à duração, sem subtração fixa
-                  const height = Math.max(((appointment.duration || 60) / 60) * hourHeight, 30);
+                  const duration = appointment.duration || 60;
+                  const height = Math.max((duration / 30) * slotHeight - 8, 80);
 
                   let backgroundColor = "#f6fff6";
                   switch (appointment.status) {
@@ -230,10 +349,11 @@ export function DragDropAgendaDayView({
                   console.log('Renderizando agendamento:', {
                     id: appointment.id,
                     time: timeWithoutSeconds,
-                    top,
+                    calculatedTop: top,
                     height,
-                    minutesFromStart,
-                    backgroundColor
+                    duration,
+                    backgroundColor,
+                    usingAppointmentsProp: appointments && appointments.length > 0
                   });
 
                   return (
@@ -241,14 +361,14 @@ export function DragDropAgendaDayView({
                       key={appointment.id}
                       style={{
                         position: "absolute",
-                        top: top + 2, // Pequena margem superior
+                        top: top + 4,
                         height,
-                        left: 8,
-                        right: 8,
+                        left: isMobile ? 8 : 12,
+                        right: isMobile ? 8 : 12,
                         zIndex: 10,
                         background: backgroundColor,
                         boxShadow: "0 2px 5px 0 rgba(0,0,0,0.1)",
-                        borderRadius: '16px',
+                        borderRadius: isMobile ? '12px' : '16px',
                       }}
                       className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => handleAppointmentClick(appointment)}
@@ -260,7 +380,7 @@ export function DragDropAgendaDayView({
                         rooms={rooms || []}
                         onUpdateStatus={onUpdateStatus}
                         onSendWhatsApp={onSendWhatsApp}
-                        variant="detailed" // Sempre usar detailed na day view
+                        variant="detailed"
                         onClick={() => handleAppointmentClick(appointment)}
                       />
                     </div>
@@ -269,8 +389,12 @@ export function DragDropAgendaDayView({
 
                 {/* Mensagem quando não há agendamentos */}
                 {dayAppointments.length === 0 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
-                    Nenhum agendamento para este dia
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm sm:text-base p-4">
+                    <span className="text-center">
+                      <span className="block sm:hidden">Nenhum agendamento</span>
+                      <span className="hidden sm:block">Nenhum agendamento para este dia</span>
+                      <div className="text-xs mt-1">({timeSlots.length} slots disponíveis: 7:00 - 20:00)</div>
+                    </span>
                   </div>
                 )}
               </div>
@@ -297,11 +421,10 @@ export function DragDropAgendaDayView({
         />
       )}
 
-      {/* Modal para novo agendamento - com log adicional */}
+      {/* Modal para novo agendamento - responsivo */}
       {showNewAppointmentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
             <AppointmentFormWithRecurrence
               initialDate={selectedDate}
               initialTime={selectedTime}
