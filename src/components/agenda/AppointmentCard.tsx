@@ -13,7 +13,7 @@ interface AppointmentCardProps {
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
-  variant?: 'compact' | 'detailed';
+  variant?: 'compact' | 'detailed' | 'mini';
   onClick?: () => void;
 }
 
@@ -49,6 +49,65 @@ export function AppointmentCard({
 
   const startTime = appointment.time.slice(0, 5);
   const endTime = getEndTime(startTime, appointment.duration || 60);
+
+  // Função para obter o texto do status com confirmação do paciente
+  const getStatusText = (status: string, whatsappConfirmed: boolean) => {
+    const statusTexts = {
+      marcado: "Marcado",
+      confirmado: "Confirmado",
+      realizado: "Realizado",
+      faltante: "Faltante",
+      cancelado: "Cancelado"
+    };
+    
+    const baseStatus = statusTexts[status] || status;
+    
+    // Se foi confirmado pelo WhatsApp, adicionar o ícone
+    if (whatsappConfirmed && (status === 'confirmado' || status === 'marcado')) {
+      return `${baseStatus} ✅`;
+    }
+    
+    return baseStatus;
+  };
+
+  // Nova variante mini para agenda diária
+  if (variant === 'mini') {
+    return (
+      <div
+        className="h-full cursor-pointer hover:shadow-md transition-all duration-200 flex flex-col justify-center"
+        style={{ 
+          borderRadius: '12px', 
+          overflow: 'hidden'
+        }}
+        onClick={onClick}
+      >
+        <div className="space-y-0.5 p-1" style={{ borderRadius: '12px' }}>
+          {/* Nome do paciente - compacto */}
+          <div className="text-center">
+            <Badge 
+              className={`${getStatusColor(appointment.status)} text-xs px-1.5 py-0 border-none font-medium`} 
+              style={{ borderRadius: '8px', fontSize: '10px' }} 
+              title={patient?.fullName || 'Paciente'}
+            >
+              {getTwoFirstNames(patient?.fullName || 'Paciente')}
+            </Badge>
+          </div>
+
+          {/* Horário - super compacto */}
+          <div className="text-center">
+            <div className="text-xs font-bold text-gray-700 leading-tight">
+              <div style={{ fontSize: '11px' }}>{startTime}</div>
+            </div>
+          </div>
+
+          {/* Profissional - só primeiro nome */}
+          <div className="text-xs text-gray-600 text-center font-medium truncate" style={{ fontSize: '10px' }}>
+            {professional?.name?.split(' ')[0] || 'N/A'}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === 'compact') {
     return (
@@ -103,21 +162,15 @@ export function AppointmentCard({
         borderRadius: '20px'
       }}
     >
-      <CardContent className="p-4" style={{ borderRadius: '20px' }}>
-        <div className="space-y-3">
+      <CardContent className="p-3" style={{ borderRadius: '20px' }}> {/* Mudei de p-2 para p-3 */}
+        <div className="space-y-1.5">
           <div className="flex items-start justify-between">
             <Badge 
               className={`${getStatusColor(appointment.status)} text-sm px-3 py-1.5 border-none font-medium`} 
               style={{ borderRadius: '16px' }} 
-              title={patient?.fullName || 'Paciente'}
+              title={`${patient?.fullName || 'Paciente'}${appointment.whatsappConfirmed ? ' - Confirmado pelo paciente' : ''}`}
             >
-              {{
-                marcado: "Marcado",
-                confirmado: "Confirmado",
-                realizado: "Realizado",
-                faltante: "Faltante",
-                cancelado: "Cancelado"
-              }[appointment.status] || appointment.status}
+              {getStatusText(appointment.status, appointment.whatsappConfirmed)}
             </Badge>
             
             {/* Horário */}
@@ -130,7 +183,7 @@ export function AppointmentCard({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-4"> {/* Mudei de space-y-1 para space-y-1.5 */}
             <div className="flex items-center space-x-2 text-sm">
               <User className="h-4 w-4 text-gray-500" />
               <span className="font-semibold text-gray-700 truncate">{patient?.fullName || 'Paciente não encontrado'}</span>
@@ -151,24 +204,15 @@ export function AppointmentCard({
             )}
           </div>
 
-          {/* Status WhatsApp */}
-          {(appointment.whatsappConfirmed || appointment.confirmationSentAt) && (
-            <div className="text-xs space-y-1">
-              {appointment.confirmationSentAt && (
-                <div className="text-blue-600 font-medium">
-                  📱 Confirmação enviada: {format(new Date(appointment.confirmationSentAt), 'dd/MM HH:mm', { locale: ptBR })}
-                </div>
-              )}
-              {appointment.whatsappConfirmed && (
-                <div className="text-green-600 font-medium">
-                  ✅ Confirmado pelo paciente
-                </div>
-              )}
+          {/* Apenas mostrar quando confirmação foi enviada (sem ocupar muito espaço) */}
+          {appointment.confirmationSentAt && (
+            <div className="text-xs text-blue-600 font-medium leading-tight truncate">
+              📱 {format(new Date(appointment.confirmationSentAt), 'dd/MM HH:mm', { locale: ptBR })}
             </div>
           )}
 
           {/* Ações rápidas */}
-          <div className="flex flex-wrap gap-1 pt-2 border-t">
+          <div className="flex flex-wrap gap-1 pt-1.5 border-t"> {/* Mudei de pt-1 para pt-1.5 */}
             {appointment.status === 'marcado' && (
               <>
                 <Button
