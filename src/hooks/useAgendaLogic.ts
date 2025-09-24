@@ -63,19 +63,28 @@ export const useAgendaLogic = () => {
     return dateMatch && physioMatch && roomMatch;
   });
 
-  const getAppointmentForSlot = (date: Date, time: string) => {
-    const appointment = filteredAppointments.find(apt => {
-      // CORREÇÃO: Constrói a data a partir das partes.
-      const parts = apt.date.split('-').map(Number);
-      const appointmentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+  const getAppointmentForSlot = (date: Date, slotStart: string) => {
+    // slotStart: "08:00", "08:30", etc
+    const [slotHour, slotMinute] = slotStart.split(':').map(Number);
+    const slotStartDate = new Date(date);
+    slotStartDate.setHours(slotHour, slotMinute, 0, 0);
 
-      const timeMatches = apt.time === time || apt.time === time + ':00';
-      const dateMatches = isSameDay(appointmentDate, date);
-      
-      return timeMatches && dateMatches;
+    // Slot dura 30 minutos
+    const slotEndDate = new Date(slotStartDate);
+    slotEndDate.setMinutes(slotEndDate.getMinutes() + 30);
+
+    return filteredAppointments.find(apt => {
+      // Constrói a data da consulta
+      const [year, month, day] = apt.date.split('-').map(Number);
+      const [aptHour, aptMinute] = apt.time.split(':').map(Number);
+      const aptDate = new Date(year, month - 1, day, aptHour, aptMinute, 0, 0);
+
+      // Consulta começa dentro do slot?
+      const sameDay = aptDate.toDateString() === slotStartDate.toDateString();
+      const inSlot = aptDate >= slotStartDate && aptDate < slotEndDate;
+
+      return sameDay && inSlot;
     });
-    
-    return appointment;
   };
 
   const updateAppointmentStatus = (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => {
