@@ -147,9 +147,9 @@ export function DragDropAgendaDayView({
     }))
   });
 
-  // Definir alturas consistentes para alinhamento
-  const slotHeight = isMobile ? 120 : 160;
-  const headerHeight = isMobile ? 96 : 128;
+  // Definir alturas consistentes para alinhamento - reduzidas em 20%
+  const slotHeight = isMobile ? 96 : 128; // Era 120 : 160, agora 96 : 128 (20% menor)
+  const headerHeight = isMobile ? 77 : 102; // Era 96 : 128, agora 77 : 102 (20% menor)
 
   // Função para calcular posição do agendamento baseado no horário
   const getAppointmentPosition = (timeString: string) => {
@@ -188,9 +188,9 @@ export function DragDropAgendaDayView({
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="flex">
-            {/* Coluna de horários - mais estreita */}
-            <div className="w-12 sm:w-16 md:w-20 border-r bg-gray-50 flex-shrink-0"> {/* Reduzido w-14 para w-12 */}
-              {/* Header alinhado */}
+            {/* Coluna de horários - alturas reduzidas */}
+            <div className="w-12 sm:w-16 md:w-20 border-r bg-gray-50 flex-shrink-0">
+              {/* Header alinhado - altura reduzida */}
               <div 
                 className="border-b flex items-center justify-center font-semibold text-xs sm:text-sm bg-gray-100"
                 style={{ height: `${headerHeight}px` }}
@@ -199,7 +199,7 @@ export function DragDropAgendaDayView({
                 <span className="sm:hidden">Hora</span>
               </div>
               
-              {/* TODOS os slots de horário */}
+              {/* TODOS os slots de horário - alturas reduzidas */}
               {timeSlots.map((time, index) => (
                 <div 
                   key={`time-${time}`}
@@ -215,8 +215,8 @@ export function DragDropAgendaDayView({
             </div>
 
             {/* Área dos agendamentos */}
-            <div className="flex-1 relative overflow-hidden"> {/* Removido overflow-x-auto e overflow-y-auto */}
-              {/* Header do dia */}
+            <div className="flex-1 relative overflow-hidden">
+              {/* Header do dia - altura reduzida */}
               <div 
                 className="border-b flex items-center justify-center bg-gray-100 font-semibold text-xs sm:text-sm md:text-base px-2 sticky top-0 z-20"
                 style={{ height: `${headerHeight}px` }}
@@ -244,15 +244,15 @@ export function DragDropAgendaDayView({
                 </div>
               </div>
 
-              {/* Container da grade - sem min-width */}
+              {/* Container da grade - altura total reduzida */}
               <div 
                 style={{ 
                   position: "relative", 
                   height: `${timeSlots.length * slotHeight}px`, 
-                  width: "100%" // Mudado de minWidth para width 100%
+                  width: "100%"
                 }}
               >
-                {/* Linhas de grade - TODAS as linhas */}
+                {/* Linhas de grade - alturas reduzidas */}
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
                   {timeSlots.map((time, idx) => {
                     const hasAppointment = hasAppointmentInSlot(time);
@@ -275,11 +275,9 @@ export function DragDropAgendaDayView({
                         }`}
                         onClick={() => !hasAppointment && handleEmptySlotClick(time)}
                       >
-                        {/* Removido label do horário para debug - economiza espaço */}
-                        
                         {!hasAppointment && (
                           <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-30 transition-opacity duration-200">
-                            <Plus className="h-4 w-4 sm:h-6 sm:w-6 text-gray-500" /> {/* Ícone menor */}
+                            <Plus className="h-3 w-3 sm:h-5 sm:w-5 text-gray-500" /> {/* Ícone ainda menor para se adequar à nova altura */}
                           </div>
                         )}
                       </div>
@@ -287,7 +285,7 @@ export function DragDropAgendaDayView({
                   })}
                 </div>
 
-                {/* Cards de agendamento - renderizar TODOS */}
+                {/* Cards de agendamento - altura mínima ajustada */}
                 {dayAppointments.map((appointment) => {
                   if (!appointment?.time) {
                     console.log('Agendamento sem horário:', appointment);
@@ -296,24 +294,18 @@ export function DragDropAgendaDayView({
 
                   const timeWithoutSeconds = appointment.time.slice(0, 5);
                   
-                  // Se temos appointments prop, usar posição calculada
-                  // Se não, usar busca por slot (compatibilidade com função original)
                   let top;
                   if (appointments && appointments.length > 0) {
-                    // Calcular posição baseada no horário exato
                     top = getAppointmentPosition(appointment.time);
                     
-                    // Verificar se está dentro do range visível (7:00-20:00)
                     const [hours] = timeWithoutSeconds.split(':').map(Number);
                     if (hours < 7 || hours > 20) {
                       console.log('Agendamento fora do range:', timeWithoutSeconds);
                       return null;
                     }
                   } else {
-                    // Usar busca por slot para compatibilidade
                     const slotIndex = timeSlots.findIndex(slot => slot === timeWithoutSeconds);
                     if (slotIndex === -1) {
-                      // Se não encontrar slot exato, tentar calcular posição
                       top = getAppointmentPosition(appointment.time);
                       const [hours] = timeWithoutSeconds.split(':').map(Number);
                       if (hours < 7 || hours > 20) {
@@ -325,7 +317,7 @@ export function DragDropAgendaDayView({
                   }
 
                   const duration = appointment.duration || 60;
-                  const height = Math.max((duration / 30) * slotHeight - 8, 80);
+                  const height = Math.max((duration / 30) * slotHeight - 8, 64); // Altura mínima reduzida de 80 para 64
 
                   let backgroundColor = "#f6fff6";
                   switch (appointment.status) {
@@ -360,12 +352,12 @@ export function DragDropAgendaDayView({
                         position: "absolute",
                         top: top + 4,
                         height,
-                        left: 4, // Fixo para todas as telas
-                        right: 4, // Fixo para todas as telas
+                        left: 4,
+                        right: 4,
                         zIndex: 10,
                         background: backgroundColor,
                         boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1)",
-                        borderRadius: '6px', // Fixo para todas as telas
+                        borderRadius: '6px',
                       }}
                       className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => handleAppointmentClick(appointment)}
@@ -400,7 +392,7 @@ export function DragDropAgendaDayView({
         </CardContent>
       </Card>
 
-      {/* Modals */}
+      {/* Modals permanecem iguais */}
       {selectedAppointment && (
         <AppointmentDetailsModal
           appointment={selectedAppointment}
@@ -418,7 +410,6 @@ export function DragDropAgendaDayView({
         />
       )}
 
-      {/* Modal para novo agendamento - responsivo */}
       {showNewAppointmentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
