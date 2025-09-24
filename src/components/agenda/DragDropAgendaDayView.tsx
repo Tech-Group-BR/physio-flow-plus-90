@@ -188,8 +188,8 @@ export function DragDropAgendaDayView({
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="flex">
-            {/* Coluna de horários - TODOS os horários */}
-            <div className="w-14 sm:w-16 md:w-20 border-r bg-gray-50 flex-shrink-0">
+            {/* Coluna de horários - mais estreita */}
+            <div className="w-12 sm:w-16 md:w-20 border-r bg-gray-50 flex-shrink-0"> {/* Reduzido w-14 para w-12 */}
               {/* Header alinhado */}
               <div 
                 className="border-b flex items-center justify-center font-semibold text-xs sm:text-sm bg-gray-100"
@@ -206,7 +206,7 @@ export function DragDropAgendaDayView({
                   className="border-b flex items-center justify-center text-xs sm:text-sm text-gray-600 bg-gray-50"
                   style={{ height: `${slotHeight}px` }}
                 >
-                  {/* Mobile: mostra HH:MM completo */}
+                  {/* Mobile: mostra HH:MM mais compacto */}
                   <span className="block sm:hidden text-xs font-medium">{time}</span>
                   {/* Desktop: mostra horário completo */}
                   <span className="hidden sm:inline">{time}</span>
@@ -215,7 +215,7 @@ export function DragDropAgendaDayView({
             </div>
 
             {/* Área dos agendamentos */}
-            <div className="flex-1 relative overflow-x-auto overflow-y-auto min-w-0">
+            <div className="flex-1 relative overflow-hidden"> {/* Removido overflow-x-auto e overflow-y-auto */}
               {/* Header do dia */}
               <div 
                 className="border-b flex items-center justify-center bg-gray-100 font-semibold text-xs sm:text-sm md:text-base px-2 sticky top-0 z-20"
@@ -244,12 +244,12 @@ export function DragDropAgendaDayView({
                 </div>
               </div>
 
-              {/* Container da grade - TODOS os slots */}
+              {/* Container da grade - sem min-width */}
               <div 
                 style={{ 
                   position: "relative", 
                   height: `${timeSlots.length * slotHeight}px`, 
-                  minWidth: '280px' 
+                  width: "100%" // Mudado de minWidth para width 100%
                 }}
               >
                 {/* Linhas de grade - TODAS as linhas */}
@@ -275,14 +275,11 @@ export function DragDropAgendaDayView({
                         }`}
                         onClick={() => !hasAppointment && handleEmptySlotClick(time)}
                       >
-                        {/* Label do horário para debug */}
-                        <div className="absolute top-1 left-2 text-xs text-gray-400 pointer-events-none">
-                          {time}
-                        </div>
+                        {/* Removido label do horário para debug - economiza espaço */}
                         
                         {!hasAppointment && (
                           <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-30 transition-opacity duration-200">
-                            <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-gray-500" />
+                            <Plus className="h-4 w-4 sm:h-6 sm:w-6 text-gray-500" /> {/* Ícone menor */}
                           </div>
                         )}
                       </div>
@@ -363,12 +360,12 @@ export function DragDropAgendaDayView({
                         position: "absolute",
                         top: top + 4,
                         height,
-                        left: isMobile ? 8 : 12,
-                        right: isMobile ? 8 : 12,
+                        left: 4, // Fixo para todas as telas
+                        right: 4, // Fixo para todas as telas
                         zIndex: 10,
                         background: backgroundColor,
-                        boxShadow: "0 2px 5px 0 rgba(0,0,0,0.1)",
-                        borderRadius: isMobile ? '12px' : '16px',
+                        boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1)",
+                        borderRadius: '6px', // Fixo para todas as telas
                       }}
                       className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => handleAppointmentClick(appointment)}
