@@ -102,7 +102,7 @@ export function AgendaPageWithRecurrence() {
       {viewMode === "week" ? (
         <DragDropAgendaWeekView
           weekDays={getWeekDays()}
-          getAppointmentForSlot={getAppointmentForSlot}
+          appointments={appointments}
           patients={patients}
           professionals={professionals}
           rooms={rooms}

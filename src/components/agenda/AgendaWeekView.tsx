@@ -3,6 +3,7 @@ import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { timeSlots } from "@/utils/agendaUtils";
 import { AppointmentCard } from "./AppointmentCard";
+import { Plus } from "lucide-react";
 
 interface AgendaWeekViewProps {
   weekDays: Date[];
@@ -12,6 +13,7 @@ interface AgendaWeekViewProps {
   rooms: any[];
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
+  onCreateAppointment?: (date: Date, time: string) => void; // Nova prop para criar agendamento
 }
 
 export function AgendaWeekView({
@@ -21,8 +23,16 @@ export function AgendaWeekView({
   professionals,
   rooms,
   onUpdateStatus,
-  onSendWhatsApp
+  onSendWhatsApp,
+  onCreateAppointment
 }: AgendaWeekViewProps) {
+  
+  const handleEmptySlotClick = (date: Date, time: string) => {
+    if (onCreateAppointment) {
+      onCreateAppointment(date, time);
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -55,17 +65,32 @@ export function AgendaWeekView({
                 {timeSlots.map((time) => {
                   const appointment = getAppointmentForSlot(day, time);
                   return (
-                    <div key={`${day.toISOString()}-${time}`} className="h-16 border-b p-1 relative bg-white hover:bg-gray-50">
-                      {appointment && (
-                        <AppointmentCard
-                          appointment={appointment}
-                          patients={patients}
-                          professionals={professionals}
-                          rooms={rooms}
-                          onUpdateStatus={onUpdateStatus}
-                          onSendWhatsApp={onSendWhatsApp}
-                          variant="compact"
-                        />
+                    <div 
+                      key={`${day.toISOString()}-${time}`} 
+                      className={`h-16 border-b p-1 relative transition-all duration-200 ${
+                        appointment 
+                          ? 'bg-white' 
+                          : 'bg-white hover:bg-gray-100 cursor-pointer group'
+                      }`}
+                      onClick={() => !appointment && handleEmptySlotClick(day, time)}
+                    >
+                      {appointment ? (
+                        <div style={{ borderRadius: '24px', overflow: 'hidden' }}>
+                          <AppointmentCard
+                            appointment={appointment}
+                            patients={patients}
+                            professionals={professionals}
+                            rooms={rooms}
+                            onUpdateStatus={onUpdateStatus}
+                            onSendWhatsApp={onSendWhatsApp}
+                            variant="compact"
+                          />
+                        </div>
+                      ) : (
+                        /* Slot vazio - mostra ícone + ao hover */
+                        <div className="w-full h-full flex items-center justify-center opacity-0 group-hover:opacity-50 transition-opacity duration-200">
+                          <Plus className="h-6 w-6 text-gray-400" />
+                        </div>
                       )}
                     </div>
                   );

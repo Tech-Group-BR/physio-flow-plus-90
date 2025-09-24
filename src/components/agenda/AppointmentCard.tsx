@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getStatusColor } from "@/utils/agendaUtils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, MapPin, User } from "lucide-react";
+import { MapPin, User } from "lucide-react";
 
 interface AppointmentCardProps {
   appointment: any;
@@ -28,25 +28,67 @@ export function AppointmentCard({
   onClick
 }: AppointmentCardProps) {
   const patient = patients.find(p => p.id === appointment.patientId);
-  const Professional = professionals.find(p => p.id === appointment.professionalId);
+  const professional = professionals.find(p => p.id === appointment.professionalId);
   const room = rooms.find(r => r.id === appointment.roomId);
+
+  // Calcular horário de fim (sem segundos)
+  const getEndTime = (startTime: string, duration: number = 60) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + duration;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+  };
+
+  // Função para pegar os dois primeiros nomes
+  const getTwoFirstNames = (fullName: string) => {
+    if (!fullName) return '';
+    const names = fullName.split(' ');
+    return names.slice(0, 2).join(' ');
+  };
+
+  const startTime = appointment.time.slice(0, 5);
+  const endTime = getEndTime(startTime, appointment.duration || 60);
 
   if (variant === 'compact') {
     return (
       <div
-        className="h-full bg-white border rounded p-1 cursor-pointer hover:shadow-sm transition-shadow"
+        className="h-full cursor-pointer hover:shadow-md transition-all duration-200"
+        style={{ 
+          borderRadius: '16px', 
+          overflow: 'hidden'
+        }}
         onClick={onClick}
       >
-        <div className="space-y-1">
-          <Badge className={`${getStatusColor(appointment.status)} text-xs px-1 py-0`} title={patient?.fullName || 'Paciente'}>
-            {patient?.fullName || 'Paciente'}
-          </Badge>
-          <div className="text-xs text-gray-600 truncate">
-            {Professional?.name}
+        <div className="space-y-1 p-1.5" style={{ borderRadius: '16px' }}>
+          {/* Nome do paciente - dois primeiros nomes */}
+          <div className="text-center">
+            <Badge 
+              className={`${getStatusColor(appointment.status)} text-xs px-2 py-0.5 border-none font-medium`} 
+              style={{ borderRadius: '12px' }} 
+              title={patient?.fullName || 'Paciente'}
+            >
+              {getTwoFirstNames(patient?.fullName || 'Paciente')}
+            </Badge>
           </div>
+
+          {/* Horário compacto */}
+          <div className="text-center">
+            <div className="text-xs font-bold text-gray-700 py-1 px-2">
+              <div>{startTime}</div>
+              <div>{endTime}</div>
+            </div>
+          </div>
+
+          {/* Profissional - dois primeiros nomes */}
+          <div className="text-xs text-gray-600 text-center font-medium truncate px-1">
+            {getTwoFirstNames(professional?.name || 'N/A')}
+          </div>
+
+          {/* Sala (opcional, só se tiver espaço) */}
           {room && (
-            <div className="text-xs text-gray-500 truncate">
-              📍 {room.name}
+            <div className="text-xs text-gray-500 text-center truncate px-1">
+              {room.name}
             </div>
           )}
         </div>
@@ -55,12 +97,20 @@ export function AppointmentCard({
   }
 
   return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
+    <Card 
+      className="cursor-pointer hover:shadow-xl transition-all duration-300 border-none" 
+      style={{ 
+        borderRadius: '20px'
+      }}
+    >
+      <CardContent className="p-4" style={{ borderRadius: '20px' }}>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Badge className={getStatusColor(appointment.status)} title={patient?.fullName || 'Paciente'}>
-              {/* Exibe o status em português */}
+          <div className="flex items-start justify-between">
+            <Badge 
+              className={`${getStatusColor(appointment.status)} text-sm px-3 py-1.5 border-none font-medium`} 
+              style={{ borderRadius: '16px' }} 
+              title={patient?.fullName || 'Paciente'}
+            >
               {{
                 marcado: "Marcado",
                 confirmado: "Confirmado",
@@ -69,26 +119,34 @@ export function AppointmentCard({
                 cancelado: "Cancelado"
               }[appointment.status] || appointment.status}
             </Badge>
-            <span className="text-sm text-gray-500">
-              {appointment.time}
-            </span>
+            
+            {/* Horário */}
+            <div className="text-right">
+              <div className="text-sm font-bold text-gray-700 py-1 px-2">
+                <div>{startTime}</div>
+                <div className="text-xs text-gray-500 font-normal">até</div>
+                <div>{endTime}</div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center space-x-2 text-sm">
-              <User className="h-4 w-4 text-gray-400" />
-              <span className="font-medium">{patient?.fullName || 'Paciente não encontrado'}</span>
+              <User className="h-4 w-4 text-gray-500" />
+              <span className="font-semibold text-gray-700 truncate">{patient?.fullName || 'Paciente não encontrado'}</span>
             </div>
 
             <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Clock className="h-4 w-4 text-gray-400" />
-              <span>{Professional?.name || 'Fisioterapeuta não encontrado'}</span>
+              <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
+                <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>
+              </div>
+              <span className="font-medium truncate">{professional?.name || 'Fisioterapeuta não encontrado'}</span>
             </div>
 
             {room && (
               <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4 text-gray-400" />
-                <span>{room.name}</span>
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <span className="font-medium truncate">{room.name}</span>
               </div>
             )}
           </div>
@@ -97,12 +155,12 @@ export function AppointmentCard({
           {(appointment.whatsappConfirmed || appointment.confirmationSentAt) && (
             <div className="text-xs space-y-1">
               {appointment.confirmationSentAt && (
-                <div className="text-blue-600">
+                <div className="text-blue-600 font-medium">
                   📱 Confirmação enviada: {format(new Date(appointment.confirmationSentAt), 'dd/MM HH:mm', { locale: ptBR })}
                 </div>
               )}
               {appointment.whatsappConfirmed && (
-                <div className="text-green-600">
+                <div className="text-green-600 font-medium">
                   ✅ Confirmado pelo paciente
                 </div>
               )}
@@ -121,6 +179,7 @@ export function AppointmentCard({
                     onUpdateStatus(appointment.id, 'confirmado');
                   }}
                   className="text-xs h-6"
+                  style={{ borderRadius: '12px' }}
                 >
                   ✅ Confirmar
                 </Button>
@@ -133,6 +192,7 @@ export function AppointmentCard({
                       onSendWhatsApp(appointment.id);
                     }}
                     className="text-xs h-6"
+                    style={{ borderRadius: '12px' }}
                   >
                     📱 WhatsApp
                   </Button>
@@ -149,21 +209,22 @@ export function AppointmentCard({
                   onUpdateStatus(appointment.id, 'realizado');
                 }}
                 className="text-xs h-6"
+                style={{ borderRadius: '12px' }}
               >
                 ✅ Realizado
               </Button>
             )}
 
             {appointment.status === 'realizado' && (
-              <Badge className="bg-green-100 text-green-700">Consulta realizada</Badge>
+              <Badge className="bg-green-100 text-green-700 text-xs" style={{ borderRadius: '12px' }}>Realizada</Badge>
             )}
 
             {appointment.status === 'faltante' && (
-              <Badge className="bg-yellow-100 text-yellow-700">Faltante</Badge>
+              <Badge className="bg-yellow-100 text-yellow-700 text-xs" style={{ borderRadius: '12px' }}>Faltante</Badge>
             )}
 
             {appointment.status === 'cancelado' && (
-              <Badge className="bg-red-100 text-red-700">Cancelado</Badge>
+              <Badge className="bg-red-100 text-red-700 text-xs" style={{ borderRadius: '12px' }}>Cancelado</Badge>
             )}
           </div>
         </div>
