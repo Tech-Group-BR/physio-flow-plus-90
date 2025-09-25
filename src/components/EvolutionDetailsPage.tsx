@@ -89,25 +89,15 @@ export function EvolutionDetailsPage() {
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Mídias da Evolução</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {evolution.files.map((file) =>
-                  file.type === 'photo' || file.type === 'image' ? (
-                    <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
-                      <img
-                        src={file.url}
-                        alt="Foto da evolução"
-                        className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
-                      />
-                    </a>
-                  ) : (
-                    <div key={file.id} className="relative">
-                      <video
-                        src={file.url}
-                        controls
-                        className="w-full h-32 object-cover rounded-lg border"
-                      />
-                    </div>
-                  )
-                )}
+                {evolution.files.map((fileUrl, index) => (
+                  <a key={index} href={fileUrl} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
+                    <img
+                      src={fileUrl}
+                      alt="Foto da evolução"
+                      className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
+                    />
+                  </a>
+                ))}
               </div>
             </div>
           )}

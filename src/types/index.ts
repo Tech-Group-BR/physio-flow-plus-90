@@ -35,7 +35,7 @@ export interface Patient {
   phone: string;
   cpf: string;
   birth_date: string;
-  gender: 'male' | 'female';
+  gender: 'male' | 'female' | 'other';
   address: Address;
   emergencyContact: EmergencyContact;
   emergencyPhone: string;
@@ -221,14 +221,7 @@ export interface Evolution {
   mobilityScale: number;
   treatmentPerformed: string;
   nextSession: string;
-  files?: {
-    id: string;
-    url: string;
-    type: 'photo' | 'video' | 'image';
-    description?: string;
-    uploadedAt?: string;
-  }[];
-  // media: EvolutionMedia[]; // (remova se não usar mais)
+  files?: string[];
   visibleToGuardian: boolean;
   createdAt: string;
 }

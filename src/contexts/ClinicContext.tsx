@@ -4,6 +4,7 @@ import { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import PersistentCache from '../lib/persistentCache';
 
 // Use the types from the main types file
 import { 
@@ -256,8 +257,6 @@ const dbToMainRoom = (dbRoom: DbRoom): MainRoom => ({
   capacity: dbRoom.capacity || 1,
   equipment: dbRoom.equipment || [],
   is_active: dbRoom.is_active, // <-- nome correto
-  createdAt: dbRoom.created_at,
-  updatedAt: dbRoom.updated_at
 });
 
 const dbToMainAppointment = (dbAppt: DbAppointment): MainAppointment => ({
@@ -372,8 +371,26 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
  const { user, loading: authLoading } = useAuth();
 const clinicId = user?.profile?.clinic_id;
 
+// ✅ FUNÇÃO ROBUSTA: Obter clinic_id com fallback do cache
+const getClinicId = (): string | null => {
+  // 1. Primeiro tenta do user atual
+  if (user?.profile?.clinic_id) {
+    return user.profile.clinic_id;
+  }
+  
+  // 2. Se não tem, tenta do cache
+  const cachedClinicId = PersistentCache.getClinicId();
+  if (cachedClinicId) {
+    console.log('⚡ Usando clinic_id do cache:', cachedClinicId);
+    return cachedClinicId;
+  }
+  
+  console.warn('⚠️ Nenhum clinic_id disponível (nem do user nem do cache)');
+  return null;
+};
+
 // ✅ ESTABILIZAR: Memorizar valores para evitar loops e adicionar timestamp
-const hasValidUser = Boolean(user && user.profile && clinicId);
+const hasValidUser = Boolean(user && user.profile && (clinicId || PersistentCache.getClinicId()));
 const isAuthReady = !authLoading;
 const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 const [isLoadingData, setIsLoadingData] = useState(false);
@@ -469,6 +486,86 @@ const [isLoadingData, setIsLoadingData] = useState(false);
       console.log('⏳ ClinicContext: Aguardando autenticação terminar...');
     }
   }, [hasValidUser, isAuthReady, clinicId]); // ✅ Dependências simplificadas
+
+  // useEffect para recarregar dados quando a aba volta ao foco
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && hasValidUser && isAuthReady && !isLoadingData) {
+        const now = Date.now();
+        const timeSinceLastLoad = now - lastLoadTime;
+        
+        // Só recarregar se passou pelo menos 30 segundos desde o último carregamento
+        if (timeSinceLastLoad > 30000) {
+          console.log('👁️ ClinicContext: Aba voltou ao foco, recarregando dados...');
+          
+          const reloadCriticalData = async () => {
+            try {
+              setIsLoadingData(true);
+              setLastLoadTime(now);
+              
+              // Recarregar apenas dados críticos
+              await Promise.all([
+                fetchAppointments(clinicId),
+                fetchDashboardStatsWrapper()
+              ]);
+              
+              console.log('✅ ClinicContext: Dados críticos recarregados após mudança de aba');
+            } catch (error) {
+              console.error('❌ Erro ao recarregar dados após mudança de aba:', error);
+            } finally {
+              setIsLoadingData(false);
+            }
+          };
+          
+          reloadCriticalData();
+        } else {
+          console.log('⏭️ ClinicContext: Mudança de aba muito recente, aguardando...');
+        }
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (hasValidUser && isAuthReady && !isLoadingData) {
+        const now = Date.now();
+        const timeSinceLastLoad = now - lastLoadTime;
+        
+        // Só recarregar se passou pelo menos 15 segundos
+        if (timeSinceLastLoad > 15000) {
+          console.log('🎯 ClinicContext: Janela voltou ao foco, atualizando dados...');
+          
+          const refreshData = async () => {
+            try {
+              setIsLoadingData(true);
+              setLastLoadTime(now);
+              
+              // Atualizar apenas compromissos e stats
+              await Promise.all([
+                fetchAppointments(clinicId),
+                fetchDashboardStatsWrapper()
+              ]);
+              
+              console.log('✅ ClinicContext: Dados atualizados após foco da janela');
+            } catch (error) {
+              console.error('❌ Erro ao atualizar dados após foco da janela:', error);
+            } finally {
+              setIsLoadingData(false);
+            }
+          };
+          
+          refreshData();
+        }
+      }
+    };
+
+    // Adiciona listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [hasValidUser, isAuthReady, isLoadingData, clinicId, lastLoadTime]);
 const fetchPatients = async (clinicId: string) => { // clinicId deve ser passado ou acessível
   try {
     const { data, error } = await supabase
@@ -678,13 +775,30 @@ const fetchRooms = async (clinicId: string) => { // <<< clinicId deve ser passad
 
   const addRoom = async (room: Omit<MainRoom, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      const currentClinicId = getClinicId();
+      if (!currentClinicId) {
+        throw new Error('❌ Não foi possível identificar a clínica. Faça login novamente.');
+      }
+      
+      const roomWithClinicId = {
+        ...room,
+        id: uuidv4(),
+        clinic_id: currentClinicId // ✅ GARANTIR clinic_id
+      };
+      
       const { error } = await supabase
         .from('rooms')
-        .insert({ ...room, id: uuidv4() });
+        .insert(roomWithClinicId);
+        
       if (error) throw error;
-      await fetchRooms(clinicId);
+      
+      await fetchRooms(currentClinicId);
+      console.log('✅ Sala adicionada com sucesso');
     } catch (error) {
-      console.error('Erro ao adicionar sala:', error);
+      console.error('❌ Erro ao adicionar sala:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
       throw error;
     }
   };
@@ -747,6 +861,13 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
 };
   const addAppointment = async (appointment: Omit<MainAppointment, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      const currentClinicId = getClinicId();
+      if (!currentClinicId) {
+        throw new Error('❌ Não foi possível identificar a clínica. Faça login novamente.');
+      }
+      
+      console.log('📅 Adicionando agendamento para clínica:', currentClinicId);
+      
       const { error } = await supabase
         .from('appointments')
         .insert({ 
@@ -762,13 +883,19 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
           notes: appointment.notes,
           whatsapp_confirmed: appointment.whatsappConfirmed,
           whatsapp_sent_at: appointment.whatsappSentAt,
-          clinic_id: clinicId // <-- sempre envia
+          clinic_id: currentClinicId // ✅ GARANTIR clinic_id
         });
+        
       if (error) throw error;
-      await fetchAppointments(clinicId);
-      await fetchAccountsReceivable(clinicId);
+      
+      await fetchAppointments(currentClinicId);
+      await fetchAccountsReceivable(currentClinicId);
+      console.log('✅ Agendamento adicionado com sucesso');
     } catch (error) {
-      console.error('Erro ao adicionar agendamento:', error);
+      console.error('❌ Erro ao adicionar agendamento:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
       throw error;
     }
   };
@@ -1082,7 +1209,6 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
 
   const addEvolution = async (evolution: Omit<MainEvolution, 'id' | 'createdAt'>) => {
     try {
-      const mediaStrings = evolution.media?.map(item => item.url) || [];
       const { error } = await supabase
         .from('evolutions')
         .insert({
@@ -1108,8 +1234,6 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
 
   const updateEvolution = async (evolution: MainEvolution) => {
     try {
-      const mediaStrings = evolution.media?.map(item => item.url) || [];
-      
       const { error } = await supabase
         .from('evolutions')
         .update({

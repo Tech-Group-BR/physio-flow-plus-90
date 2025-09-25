@@ -2,6 +2,8 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import PersistentCache from '../lib/persistentCache';
+import type { CachedUserData } from '../lib/persistentCache';
 
 // Importa os tipos da sua database para o 'Profile'
 import { Database } from '@/integrations/supabase/types';
@@ -27,6 +29,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   forceReauth: () => void;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,14 +77,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Função para carregar dados do PERFIL do usuário
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string): Promise<Profile | null> => {
     try {
       console.log('👤 Carregando perfil do usuário:', userId);
-      const { data: profileData, error } = await supabase
+      
+      // ✅ TIMEOUT: Adicionar timeout de 10 segundos na query
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+        
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout ao carregar perfil')), 10000);
+      });
+      
+      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+      
+      const { data: profileData, error } = result;
       
       if (error) {
         console.error('❌ Erro ao buscar perfil:', error);
@@ -112,9 +125,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast.warning('Perfil com dados incompletos. Alguns recursos podem não funcionar.');
       }
       
+      // ✅ CACHE: Salvar dados críticos no cache local
+      if (profileData.clinic_id && profileData.clinic_code) {
+        const cacheData: CachedUserData = {
+          userId: profileData.id,
+          email: profileData.email,
+          clinic_id: profileData.clinic_id,
+          clinic_code: profileData.clinic_code,
+          role: profileData.role,
+          name: profileData.full_name,
+          cachedAt: Date.now()
+        };
+        PersistentCache.cacheUserData(cacheData);
+      }
+      
       return profileData;
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar perfil:', error);
+      if (error instanceof Error && error.message.includes('Timeout')) {
+        console.error('❌ TIMEOUT na consulta do perfil - pode ser problema de conexão');
+        toast.error('Timeout ao carregar dados do usuário. Tente novamente.');
+      }
       return null;
     }
   };
@@ -130,17 +161,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     toast.warning('Sessão expirada. Faça login novamente.');
   };
 
+  // Função para refresh sem limpar o estado (para mudança de aba)
+  const refreshAuth = async () => {
+    console.log('🔄 Refresh auth - validando sessão atual...');
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        console.log('✅ Sessão válida encontrada, mantendo usuário logado');
+        // Não limpa o estado, apenas revalida
+        setLoading(false);
+      } else {
+        console.log('❌ Nenhuma sessão válida, executando logout');
+        forceReauth();
+      }
+    } catch (error) {
+      console.error('❌ Erro ao validar sessão:', error);
+      setLoading(false);
+    }
+  };
+
   // Monitorar mudanças de autenticação
   useEffect(() => {
     console.log('🔄 Inicializando monitoramento de autenticação...');
     let mounted = true;
     let initialSessionProcessed = false; // ✅ Flag para evitar reprocessamento
 
+    // ✅ PROTEÇÃO DE EMERGÊNCIA: Timeout absoluto para evitar loading infinito
+    const emergencyTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.error('🚨 TIMEOUT DE EMERGÊNCIA - Forçando parada do loading após 15 segundos');
+        setLoading(false);
+      }
+    }, 15000); // 15 segundos timeout absoluto
+
     // Verificar sessão inicial
     const checkInitialSession = async () => {
       try {
         console.log('🔍 Verificando sessão inicial...');
         
+        // ✅ PRIMEIRO: Tentar carregar do cache
+        const cachedUserData = PersistentCache.getCachedUserData();
+        if (cachedUserData && PersistentCache.hasValidUserCache()) {
+          console.log('⚡ Carregando dados do usuário do cache...');
+          
+          // Validar se a sessão ainda é válida no Supabase
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (session?.user && session.user.id === cachedUserData.userId) {
+            console.log('✅ Sessão válida - usando dados do cache');
+            
+            setUser({
+              ...session.user,
+              profile: {
+                id: cachedUserData.userId,
+                email: cachedUserData.email,
+                clinic_id: cachedUserData.clinic_id,
+                clinic_code: cachedUserData.clinic_code,
+                role: cachedUserData.role as 'admin' | 'professional' | 'receptionist' | 'guardian',
+                full_name: cachedUserData.name || '',
+                phone: '',
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            });
+            setSession(session);
+            setProfile({
+              id: cachedUserData.userId,
+              email: cachedUserData.email,
+              clinic_id: cachedUserData.clinic_id,
+              clinic_code: cachedUserData.clinic_code,
+              role: cachedUserData.role as 'admin' | 'professional' | 'receptionist' | 'guardian',
+              full_name: cachedUserData.name || '',
+              phone: '',
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+            if (mounted) {
+              setLoading(false);
+              initialSessionProcessed = true;
+            }
+            return; // Retorna cedo - dados do cache são válidos
+          } else {
+            console.log('⚠️ Sessão no cache inválida, limpando cache...');
+            PersistentCache.clearUserCache();
+          }
+        }
+        
+        // ✅ SEGUNDO: Buscar do servidor
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -276,6 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(emergencyTimeout); // ✅ Limpar timeout de emergência
       subscription.unsubscribe();
     };
   }, []);
@@ -473,6 +586,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       cleanupAuthState();
+      
+      // ✅ CACHE: Limpar todos os caches
+      PersistentCache.clearAllCache();
+      
       await forceSignOutSupabase();
       
       console.log('✅ Logout realizado');
@@ -520,7 +637,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
-    forceReauth
+    forceReauth,
+    refreshAuth
   };
 
   return (

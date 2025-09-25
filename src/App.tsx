@@ -16,25 +16,10 @@ const queryClient = new QueryClient();
 // Componente para proteção de rotas
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // ✅ PROTEÇÃO: Timeout para loading infinito
-  useEffect(() => {
-    if (loading) {
-      const timeout = setTimeout(() => {
-        console.warn('⚠️ Loading timeout atingido, forçando parada');
-        setLoadingTimeout(true);
-      }, 10000); // 10 segundos
-      
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [loading]);
+  console.log(' ProtectedRoute:', { user: user?.email, loading });
 
-  console.log('🔐 ProtectedRoute:', { user: user?.email, loading, loadingTimeout });
-
-  if (loading && !loadingTimeout) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -45,12 +30,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user || loadingTimeout) {
-    if (loadingTimeout) {
-      console.error('❌ Loading timeout - redirecionando para login');
-    } else {
-      console.log('❌ Usuário não autenticado, redirecionando para /auth');
-    }
+  if (!user) {
+    console.log('❌ Usuário não autenticado, redirecionando para /auth');
     return <Navigate to="/auth" replace />;
   }
 
