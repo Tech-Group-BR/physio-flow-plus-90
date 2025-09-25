@@ -19,7 +19,7 @@ import {
 } from "./sidebar/SidebarMenuItems";
 
 export function AppSidebar() {
-  const [userName, setUserName] = useState<string>('LUISA HELENA');
+  const [userName, setUserName] = useState<string>('Usuário');
   const { signOut, user } = useAuth();
   
   // FIXO: Sempre usar menu do fisioterapeuta
