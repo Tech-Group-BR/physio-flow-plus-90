@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useAuth } from "@/hooks/useAuth"; // ✅ MUDANÇA: Import correto
 import { format, isToday, isThisWeek, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -58,10 +59,13 @@ export function Dashboard() {
     appointments,
     patients,
     professionals,
-    accountsReceivable, // CORRIGIDO: Usando accountsReceivable
+    accountsReceivable,
     leads,
     loading,
   } = useClinic();
+
+  // ✅ CORREÇÃO: Usar useAuth correto e acessar user como AppUser
+  const { user, clinicId, clinicCode } = useAuth();
 
   // --- 1. Cálculos e Lógica com useMemo para Performance e Segurança ---
 
@@ -94,14 +98,13 @@ export function Dashboard() {
     [appointments],
   );
 
-  // CORRIGIDO: Mostra recebimentos recentes, não "pagamentos"
   const recentPaidReceivables = useMemo(
     () =>
       (accountsReceivable || [])
         .filter(
           (r) =>
             r.status === "recebido" &&
-            r.receivedDate && // Garante que a data de recebimento exista
+            r.receivedDate &&
             isThisWeek(parseISO(r.receivedDate), { weekStartsOn: 1 })
         )
         .slice(0, 3),
@@ -121,6 +124,18 @@ export function Dashboard() {
       [professionals]
   );
 
+  // ✅ CORREÇÃO: Informações da clínica usando user do tipo AppUser
+  const clinicInfo = useMemo(() => {
+    if (!user?.profile) return null;
+    
+    return {
+      clinicCode: user.profile.clinic_code,
+      userRole: user.profile.role,
+      userName: user.profile.full_name,
+      userEmail: user.profile.email
+    };
+  }, [user]);
+
   // --- 2. Renderização ---
 
   if (loading) {
@@ -130,13 +145,45 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          {/* ✅ CORREÇÃO: Mostrar informações da clínica */}
+          {clinicInfo && (
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">
+                Clínica: <span className="font-medium text-foreground">{clinicInfo.userName}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {clinicInfo.userName} ({clinicInfo.userRole})
+              </p>
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground">
           {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", {
             locale: ptBR,
           })}
         </p>
       </div>
+
+      {/* ✅ Card de boas-vindas específico da clínica */}
+      {clinicInfo && (
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-4">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Activity className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Bem-vindo, {clinicInfo.userName}!</h3>
+                <p className="text-muted-foreground">
+                  Você está gerenciando a clínica <span className="font-medium">{clinicInfo.clinicCode}</span>
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Grid Principal de Estatísticas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -223,7 +270,6 @@ export function Dashboard() {
           <CardHeader><CardTitle className="flex items-center space-x-2"><Activity className="h-5 w-5" /><span>Atividades Recentes</span></CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {/* CORRIGIDO: Mapeando os recebimentos recentes */}
               {recentPaidReceivables.map((receivable) => {
                   const patient = (patients || []).find(p => p.id === receivable.patientId);
                   return (

@@ -8,7 +8,6 @@ import { Dashboard } from "@/components/Dashboard";
 
 // Componentes das Páginas
 import { PatientsPage } from "@/components/PatientsPage";
-import { AgendaPage } from "@/components/AgendaPage";
 import { AgendaPageWithRecurrence } from "@/components/AgendaPageWithRecurrence";
 import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
 import { FinancialPage } from "@/components/FinancialPage";

@@ -233,7 +233,7 @@ export function AuthPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            PhysioFlow Plus
+            PhisioTech
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Sistema de gestão para clínicas de fisioterapia

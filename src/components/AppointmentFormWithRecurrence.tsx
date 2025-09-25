@@ -14,6 +14,7 @@ import { durationOptions } from "@/utils/agendaUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { fetchClinicSettings } from "@/services/settingsService";
 import { useAuth } from "@/hooks/useAuth";
+import { useClinic } from "@/contexts/ClinicContext";
 
 interface Patient {
   id: string;
@@ -50,10 +51,9 @@ export function AppointmentFormWithRecurrence({
   selectedTime 
 }: AppointmentFormWithRecurrenceProps) {
   const { clinicId } = useAuth();
+  const { patients, professionals, rooms, loading: clinicLoading } = useClinic();
 
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
+  // Remover estados locais e usar dados do ClinicContext
   const [patientPackages, setPatientPackages] = useState<PatientPackageInfo[]>([]);
   const [clinicSettings, setClinicSettings] = useState<{ price: number | null; id: string | null }>({ price: null, id: null });
   const [saving, setSaving] = useState(false);
@@ -74,11 +74,27 @@ export function AppointmentFormWithRecurrence({
 
   const [isRecurrent, setIsRecurrent] = useState(false);
   const [recurrenceCount, setRecurrenceCount] = useState(1);
-  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
 
   useEffect(() => {
-    fetchInitialData();
+    // Carregar apenas as configurações da clínica
+    fetchInitialClinicSettings();
   }, []);
+
+  const fetchInitialClinicSettings = async () => {
+    if (!clinicId) return;
+    
+    try {
+      const settings = await fetchClinicSettings(clinicId);
+      if (settings) {
+        setClinicSettings({
+          price: settings.consultation_price,
+          id: settings.id
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configurações da clínica:', error);
+    }
+  };
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -88,35 +104,6 @@ export function AppointmentFormWithRecurrence({
       setAppointmentType('standard');
     }
   }, [selectedPatientId]);
-
-  const fetchInitialData = async () => {
-    setIsLoadingInitialData(true);
-    try {
-      const [patientsRes, professionalsRes, roomsRes] = await Promise.all([
-        supabase.from('patients').select('id, full_name').eq('is_active', true).order('full_name'),
-        supabase.from('professionals').select('id, full_name').eq('is_active', true).order('full_name'),
-        supabase.from('rooms').select('id, name').eq('is_active', true).order('name')
-      ]);
-
-      const settings = await fetchClinicSettings(clinicId);
-
-      if (patientsRes.data) setPatients(patientsRes.data);
-      if (professionalsRes.data) setProfessionals(professionalsRes.data);
-      if (roomsRes.data) setRooms(roomsRes.data);
-      if (settings) {
-        setClinicSettings({
-          price: settings.consultation_price,
-          id: settings.id
-        });
-      }
-
-    } catch (error) {
-      console.error('Erro ao buscar dados iniciais:', error);
-      toast.error('Erro ao carregar dados');
-    } finally {
-      setIsLoadingInitialData(false);
-    }
-  };
 
   const fetchPatientPackages = async () => {
     const { data, error } = await supabase
@@ -251,7 +238,7 @@ export function AppointmentFormWithRecurrence({
         <CardTitle>Novo Agendamento</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isLoadingInitialData ? (
+        {clinicLoading ? (
           <div className="text-center text-gray-500">Carregando dados...</div>
         ) : (
           <>
@@ -264,7 +251,7 @@ export function AppointmentFormWithRecurrence({
                 <SelectContent>
                   {patients.map((patient) => (
                     <SelectItem key={patient.id} value={patient.id}>
-                      {patient.full_name}
+                      {patient.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -336,7 +323,7 @@ export function AppointmentFormWithRecurrence({
                       <SelectContent>
                         {professionals.map((professional) => (
                           <SelectItem key={professional.id} value={professional.id}>
-                            {professional.full_name}
+                            {professional.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

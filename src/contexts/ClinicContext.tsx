@@ -32,7 +32,7 @@ interface DbPatient {
   email?: string;
   cpf?: string;
   birth_date?: string;
-  gender?: 'male' | 'female';
+  gender?: 'male' | 'female' | 'other'; // ✅ Incluir 'other'
   address?: any; // <-- alterado de 'string | object' para 'any'
   emergency_contact?: any; // <-- alterado de 'string | object' para 'any'
   emergency_phone?: string;
@@ -198,7 +198,6 @@ interface ClinicContextType {
   addEvolution: (evolution: Omit<MainEvolution, 'id' | 'createdAt'>) => Promise<void>;
   updateEvolution: (evolution: MainEvolution) => Promise<void>;
   deleteEvolution: (id: string) => Promise<void>;
-
   fetchLeads: () => Promise<void>;
   addLead: (lead: Omit<MainLead, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateLead: (lead: MainLead) => Promise<void>;
@@ -370,61 +369,128 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [dashboardStats, setDashboardStats] = useState<MainDashboardStats | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const { session, clinicId } = useAuth();
+ const { user, loading: authLoading } = useAuth();
+const clinicId = user?.profile?.clinic_id;
 
-  useEffect(() => {
-    if (session) {
+// ✅ ESTABILIZAR: Memorizar valores para evitar loops e adicionar timestamp
+const hasValidUser = Boolean(user && user.profile && clinicId);
+const isAuthReady = !authLoading;
+const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+const [isLoadingData, setIsLoadingData] = useState(false);
+ 
+ 
+ useEffect(() => {
+    console.log('🔄 ClinicContext useEffect - Estado atual:', {
+      hasUser: !!user,
+      hasProfile: !!user?.profile,
+      clinicId,
+      authLoading,
+      hasValidUser,
+      isAuthReady,
+      isLoadingData,
+      timeSinceLastLoad: Date.now() - lastLoadTime
+    });
+
+    // ✅ PROTEÇÃO: Evitar carregamento duplo
+    if (isLoadingData) {
+      console.log('⏭️ ClinicContext: Já está carregando dados, ignorando...');
+      return;
+    }
+
+    // ✅ PROTEÇÃO: Evitar recarregamento muito frequente (mínimo 5 segundos)
+    const now = Date.now();
+    if (hasValidUser && isAuthReady && (now - lastLoadTime) < 5000) {
+      console.log('⏭️ ClinicContext: Carregamento muito recente, aguardando...');
+      return;
+    }
+
+    // 1. Condição para iniciar o carregamento de dados da clínica
+    if (hasValidUser && isAuthReady) { 
+      console.log('🏥 ClinicContext: Iniciando carregamento de dados para clínica:', clinicId);
       setLoading(true);
-      setCurrentUser(session.user);
-      
-      const loadEssentialData = async () => {
+      setIsLoadingData(true);
+      setLastLoadTime(now);
+
+      const loadAllClinicData = async () => {
         try {
+          console.log('📊 Carregando dados essenciais...');
           await Promise.all([
-            fetchDashboardStats(),
-            fetchAppointments(),
-            fetchPatients()
+            fetchPatients(clinicId),
+            fetchAppointments(clinicId)
           ]);
+          console.log('✅ Dados essenciais carregados');
+
+          console.log('📋 Carregando dados secundários...');
+          await Promise.all([
+            fetchProfessionals(clinicId),
+            fetchRooms(clinicId),
+            fetchMedicalRecords(clinicId),
+            fetchEvolutions(clinicId),
+            fetchAccountsReceivable(clinicId),
+            fetchAccountsPayable(clinicId),
+            fetchLeads(clinicId)
+          ]);
+          console.log('✅ Dados secundários carregados');
+          
+          await fetchDashboardStatsWrapper();
         } catch (error) {
-          console.error('Erro ao carregar dados essenciais:', error);
+          console.error("❌ Erro ao carregar dados da clínica:", error);
+          toast.error("Não foi possível carregar os dados da sua clínica.");
         } finally {
+          console.log('✅ ClinicContext: Carregamento de dados finalizado.');
           setLoading(false);
+          setIsLoadingData(false);
         }
       };
 
-      const loadSecondaryData = async () => {
-        try {
-          await Promise.all([
-            fetchProfessionals(),
-            fetchRooms(),
-            fetchMedicalRecords(),
-            fetchEvolutions(),
-            fetchAccountsReceivable(),
-            fetchLeads()
-          ]);
-        } catch (error) {
-          console.error('Erro ao carregar dados secundários:', error);
-        }
-      };
+      loadAllClinicData();
 
-      loadEssentialData();
-      setTimeout(loadSecondaryData, 100);
+    } else if (!user && isAuthReady) {
+      console.warn('⚠️ ClinicContext: Usuário deslogado. Limpando dados.');
+      setLoading(false);
+      setIsLoadingData(false);
+      // Limpar todos os dados quando usuário sair
+      setPatients([]);
+      setProfessionals([]);
+      setRooms([]);
+      setAppointments([]);
+      setMedicalRecords([]);
+      setAccountsPayable([]);
+      setAccountsReceivable([]);
+      setEvolutions([]);
+      setLeads([]);
+      setDashboardStats(null);
+      setCurrentUser(null);
+    } else if (!hasValidUser && user && isAuthReady) {
+      console.warn('⚠️ ClinicContext: Usuário sem perfil válido ou clinic_id.');
+      setLoading(false);
+      setIsLoadingData(false);
+    } else if (!isAuthReady) {
+      console.log('⏳ ClinicContext: Aguardando autenticação terminar...');
     }
-  }, [session]);
+  }, [hasValidUser, isAuthReady, clinicId]); // ✅ Dependências simplificadas
+const fetchPatients = async (clinicId: string) => { // clinicId deve ser passado ou acessível
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*') // Removido o '.' extra aqui
+      .eq('clinic_id', clinicId) // <-- CORRIGIDO: Usar .eq()
+      .order('full_name', { ascending: true });
 
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('full_name', { ascending: true });
-      if (error) throw error;
-      const mappedPatients = (data || []).map(dbToMainPatient);
-      setPatients(mappedPatients);
-    } catch (error) {
-      console.error('Erro ao buscar pacientes:', error);
+    if (error) {
+      console.error('Erro ao buscar pacientes:', error.message);
+      throw error; // Lançar o erro para ser pego pelo catch
     }
-  };
 
+    const mappedPatients = (data || []).map(dbToMainPatient);
+    setPatients(mappedPatients);
+    return mappedPatients; // Pode ser útil retornar os pacientes
+  } catch (error) {
+    console.error('Erro inesperado ao buscar pacientes:', error);
+    // Pode querer limpar os pacientes em caso de erro
+    // setPatients([]);
+  }
+};
   const addPatient = async (patient: Omit<MainPatient, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const { error } = await supabase
@@ -450,7 +516,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchPatients();
+      await fetchPatients(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar paciente:', error);
       throw error;
@@ -484,7 +550,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .update(updateData)
         .eq('id', id);
       if (error) throw error;
-      await fetchPatients();
+      await fetchPatients(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar paciente:', error);
       throw error;
@@ -498,28 +564,34 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchPatients();
+      await fetchPatients(clinicId);
     } catch (error) {
       console.error('Erro ao deletar paciente:', error);
       throw error;
     }
   };
 
-  const fetchProfessionals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('professionals')
-        .select('*')
-        .order('full_name', { ascending: true }); 
+ const fetchProfessionals = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('professionals')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('full_name', { ascending: true }); 
 
-      if (error) throw error;
-
-      const mappedPhysios = (data || []).map(item => dbToMainProfessional(item as DbProfessional));
-      setProfessionals(mappedPhysios);
-    } catch (error) {
-      console.error('Erro ao buscar profissionais:', error);
+    if (error) {
+      console.error('Erro ao buscar profissionais:', error.message);
+      throw error; // Lançar o erro para ser pego pelo catch
     }
-  };
+
+    const mappedPhysios = (data || []).map(item => dbToMainProfessional(item as DbProfessional));
+    setProfessionals(mappedPhysios);
+    return mappedPhysios; // Pode ser útil retornar os profissionais
+  } catch (error) {
+    console.error('Erro inesperado ao buscar profissionais:', error);
+    // setProfessionals([]); // Opcional: limpar profissionais em caso de erro
+  }
+};
 
   const addProfessional = async (Professional: Omit<MainProfessional, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -538,7 +610,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchProfessionals();
+      await fetchProfessionals(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar fisioterapeuta:', error);
       throw error;
@@ -561,7 +633,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .update(updateData)
         .eq('id', id);
       if (error) throw error;
-      await fetchProfessionals();
+      await fetchProfessionals(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar fisioterapeuta:', error);
       throw error;
@@ -575,26 +647,34 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchProfessionals();
+      await fetchProfessionals(clinicId);
     } catch (error) {
       console.error('Erro ao deletar fisioterapeuta:', error);
       throw error;
     }
   };
 
-  const fetchRooms = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .order('name', { ascending: true });
-      if (error) throw error;
-      const mappedRooms = (data || []).map(dbToMainRoom);
-      setRooms(mappedRooms);
-    } catch (error) {
-      console.error('Erro ao buscar salas:', error);
+const fetchRooms = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('name', { ascending: true });
+    
+    if (error) {
+      console.error('Erro ao buscar salas:', error.message);
+      throw error;
     }
-  };
+    
+    const mappedRooms = (data || []).map(dbToMainRoom);
+    setRooms(mappedRooms);
+    return mappedRooms;
+  } catch (error) {
+    console.error('Erro inesperado ao buscar salas:', error);
+    // setRooms([]); // Opcional: limpar salas em caso de erro
+  }
+};
 
   const addRoom = async (room: Omit<MainRoom, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -602,7 +682,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .from('rooms')
         .insert({ ...room, id: uuidv4() });
       if (error) throw error;
-      await fetchRooms();
+      await fetchRooms(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar sala:', error);
       throw error;
@@ -623,7 +703,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .update(updateData)
         .eq('id', room.id);
       if (error) throw error;
-      await fetchRooms();
+      await fetchRooms(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar sala:', error);
       throw error;
@@ -637,28 +717,34 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchRooms();
+      await fetchRooms(clinicId);
     } catch (error) {
       console.error('Erro ao deletar sala:', error);
       throw error;
     }
   };
+const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('date', { ascending: true })
+      .order('time', { ascending: true });
 
-  const fetchAppointments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
-      if (error) throw error;
-      const mappedAppointments = (data || []).map(dbToMainAppointment);
-      setAppointments(mappedAppointments);
-    } catch (error) {
-      console.error('Erro ao buscar agendamentos:', error);
+    if (error) {
+      console.error('Erro ao buscar agendamentos:', error.message);
+      throw error; // Lançar o erro para ser pego pelo catch
     }
-  };
 
+    const mappedAppointments = (data || []).map(dbToMainAppointment);
+    setAppointments(mappedAppointments);
+    return mappedAppointments; // Pode ser útil retornar os agendamentos
+  } catch (error) {
+    console.error('Erro inesperado ao buscar agendamentos:', error);
+    // setAppointments([]); // Opcional: limpar agendamentos em caso de erro
+  }
+};
   const addAppointment = async (appointment: Omit<MainAppointment, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const { error } = await supabase
@@ -679,8 +765,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchAppointments();
-      await fetchAccountsReceivable();
+      await fetchAppointments(clinicId);
+      await fetchAccountsReceivable(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar agendamento:', error);
       throw error;
@@ -708,8 +794,8 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .update(updateData)
         .eq('id', id);
       if (error) throw error;
-      await fetchAppointments();
-      await fetchAccountsReceivable();
+      await fetchAppointments(clinicId);
+      await fetchAccountsReceivable(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error);
       throw error;
@@ -723,27 +809,34 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchAppointments();
+      await fetchAppointments(clinicId);
     } catch (error) {
       console.error('Erro ao deletar agendamento:', error);
       throw error;
     }
   };
 
-  const fetchMedicalRecords = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('medical_records')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      const mappedRecords = (data || []).map(dbToMainMedicalRecord);
-      setMedicalRecords(mappedRecords);
-    } catch (error) {
-      console.error('Erro ao buscar prontuários:', error);
-    }
-  };
+const fetchMedicalRecords = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('medical_records')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('created_at', { ascending: false });
 
+    if (error) {
+      console.error('Erro ao buscar prontuários:', error.message);
+      throw error; // Lançar o erro para ser pego pelo catch
+    }
+
+    const mappedRecords = (data || []).map(dbToMainMedicalRecord);
+    setMedicalRecords(mappedRecords);
+    return mappedRecords; // Pode ser útil retornar os prontuários
+  } catch (error) {
+    console.error('Erro inesperado ao buscar prontuários:', error);
+    // setMedicalRecords([]); // Opcional: limpar prontuários em caso de erro
+  }
+};
   const addMedicalRecord = async (medicalRecord: Omit<MainMedicalRecord, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const { error } = await supabase
@@ -756,7 +849,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchMedicalRecords();
+      await fetchMedicalRecords(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar prontuário:', error);
       throw error;
@@ -773,7 +866,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         })
         .eq('id', medicalRecord.id);
       if (error) throw error;
-      await fetchMedicalRecords();
+      await fetchMedicalRecords(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar prontuário:', error);
       throw error;
@@ -787,26 +880,33 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchMedicalRecords();
+      await fetchMedicalRecords(clinicId);
     } catch (error) {
       console.error('Erro ao deletar prontuário:', error);
       throw error;
     }
   };
 
-  const fetchAccountsPayable = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('accounts_payable')
-        .select('*')
-        .order('due_date', { ascending: true });
-      if (error) throw error;
-      const mappedData = (data || []).map(dbToMainAccountsPayable);
-      setAccountsPayable(mappedData);
-    } catch (error) {
-      console.error('Erro ao buscar contas a pagar:', error);
+const fetchAccountsPayable = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('accounts_payable')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      console.error('Erro ao buscar contas a pagar:', error.message);
+      throw error;
     }
-  };
+
+    const mappedData = (data || []).map(dbToMainAccountsPayable);
+    setAccountsPayable(mappedData);
+    return mappedData; // Opcional: retornar os dados
+  } catch (error) {
+    console.error('Erro inesperado ao buscar contas a pagar:', error);
+  }
+};
 
   const addAccountsPayable = async (accountsPayable: Omit<MainAccountsPayable, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -820,10 +920,11 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           status: accountsPayable.status,
           category: accountsPayable.category,
           notes: accountsPayable.notes,
-          paid_date: accountsPayable.paidDate
+          paid_date: accountsPayable.paidDate,
+          clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchAccountsPayable();
+      await fetchAccountsPayable(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar conta a pagar:', error);
       throw error;
@@ -841,11 +942,12 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           status: accountsPayable.status,
           category: accountsPayable.category,
           notes: accountsPayable.notes,
-          paid_date: accountsPayable.paidDate
+          paid_date: accountsPayable.paidDate,
+          clinic_id: clinicId // <-- sempre envia
         })
         .eq('id', accountsPayable.id);
       if (error) throw error;
-      await fetchAccountsPayable();
+      await fetchAccountsPayable(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar conta a pagar:', error);
       throw error;
@@ -873,19 +975,26 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchAccountsReceivable = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('accounts_receivable')
-        .select('*')
-        .order('due_date', { ascending: true });
-      if (error) throw error;
-      const mappedData = (data || []).map(dbToMainAccountsReceivable);
-      setAccountsReceivable(mappedData);
-    } catch (error) {
-      console.error('Erro ao buscar contas a receber:', error);
+const fetchAccountsReceivable = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('accounts_receivable')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('due_date', { ascending: true });
+
+    if (error) {
+      console.error('Erro ao buscar contas a receber:', error.message);
+      throw error;
     }
-  };
+
+    const mappedData = (data || []).map(dbToMainAccountsReceivable);
+    setAccountsReceivable(mappedData);
+    return mappedData; // Opcional: retornar os dados
+  } catch (error) {
+    console.error('Erro inesperado ao buscar contas a receber:', error);
+  }
+};
 
   const addAccountsReceivable = async (accountsReceivable: Omit<MainAccountsReceivable, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -901,7 +1010,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId // <-- sempre envia
         });
       if (error) throw error;
-      await fetchAccountsReceivable();
+      await fetchAccountsReceivable(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar conta a receber:', error);
       throw error;
@@ -922,7 +1031,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         })
         .eq('id', accountsReceivable.id);
       if (error) throw error;
-      await fetchAccountsReceivable();
+      await fetchAccountsReceivable(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar conta a receber:', error);
       throw error;
@@ -950,19 +1059,26 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchEvolutions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('evolutions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      const mappedEvolutions = (data || []).map(dbToMainEvolution);
-      setEvolutions(mappedEvolutions);
-    } catch (error) {
-      console.error('Erro ao buscar evoluções:', error);
+const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser passado
+  try {
+    const { data, error } = await supabase
+      .from('evolutions')
+      .select('*')
+      .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar evoluções:', error.message);
+      throw error;
     }
-  };
+
+    const mappedEvolutions = (data || []).map(dbToMainEvolution);
+    setEvolutions(mappedEvolutions);
+    return mappedEvolutions; // Opcional: retornar os dados
+  } catch (error) {
+    console.error('Erro inesperado ao buscar evoluções:', error);
+  }
+};
 
   const addEvolution = async (evolution: Omit<MainEvolution, 'id' | 'createdAt'>) => {
     try {
@@ -983,7 +1099,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           clinic_id: clinicId
         });
       if (error) throw error;
-      await fetchEvolutions();
+      await fetchEvolutions(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar evolução:', error);
       throw error;
@@ -1007,7 +1123,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         })
         .eq('id', evolution.id);
       if (error) throw error;
-      await fetchEvolutions();
+      await fetchEvolutions(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar evolução:', error);
       throw error;
@@ -1021,27 +1137,35 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchEvolutions();
+      await fetchEvolutions(clinicId);
     } catch (error) {
       console.error('Erro ao deletar evolução:', error);
       throw error;
     }
   };
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (clinicId: string) => { // ✅ CORRIGIDO: Adicionar parâmetro
     try {
+      console.log('🎯 Buscando leads para clínica:', clinicId);
       const { data, error } = await supabase
         .from('leads')
         .select('*')
+        .eq('clinic_id', clinicId) // ✅ CORRIGIDO: Filtrar por clinic_id
         .order('created_at', { ascending: false });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ Erro ao buscar leads:', error.message);
+        throw error;
+      }
+      
       const mappedLeads = (data || []).map(item => dbToMainLead(item as DbLead));
       setLeads(mappedLeads);
+      console.log(`✅ ${mappedLeads.length} leads carregados`);
     } catch (error) {
-      console.error('Erro ao buscar leads:', error);
+      console.error('💥 Erro inesperado ao buscar leads:', error);
+      toast.error('Erro ao carregar leads');
     }
   };
-
   const addLead = async (lead: Omit<MainLead, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       let dbStatus: DbLead['status'];
@@ -1067,7 +1191,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
           notes: lead.notes
         });
       if (error) throw error;
-      await fetchLeads();
+      await fetchLeads(clinicId);
     } catch (error) {
       console.error('Erro ao adicionar lead:', error);
       throw error;
@@ -1099,7 +1223,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         })
         .eq('id', lead.id);
       if (error) throw error;
-      await fetchLeads();
+      await fetchLeads(clinicId);
     } catch (error) {
       console.error('Erro ao atualizar lead:', error);
       throw error;
@@ -1113,7 +1237,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
         .delete()
         .eq('id', id);
       if (error) throw error;
-      await fetchLeads();
+      await fetchLeadsWrapper();
     } catch (error) {
       console.error('Erro ao deletar lead:', error);
       throw error;
@@ -1269,11 +1393,55 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
       console.log('Pagamento adicionado com sucesso:', data);
       toast.success('Pagamento adicionado com sucesso!');
       
-      await fetchAccountsReceivable();
+      await fetchAccountsReceivableWrapper();
     } catch (error) {
       console.error('Erro ao adicionar pagamento:', error);
       toast.error('Erro ao adicionar pagamento');
       throw error;
+    }
+  };
+
+  // ✅ Wrappers para as funções que usam clinicId automaticamente
+  const fetchPatientsWrapper = async () => {
+    if (clinicId) await fetchPatients(clinicId);
+  };
+  
+  const fetchProfessionalsWrapper = async () => {
+    if (clinicId) await fetchProfessionals(clinicId);
+  };
+  
+  const fetchRoomsWrapper = async () => {
+    if (clinicId) await fetchRooms(clinicId);
+  };
+  
+  const fetchAppointmentsWrapper = async () => {
+    if (clinicId) await fetchAppointments(clinicId);
+  };
+  
+  const fetchMedicalRecordsWrapper = async () => {
+    if (clinicId) await fetchMedicalRecords(clinicId);
+  };
+  
+  const fetchAccountsPayableWrapper = async () => {
+    if (clinicId) await fetchAccountsPayable(clinicId);
+  };
+  
+  const fetchAccountsReceivableWrapper = async () => {
+    if (clinicId) await fetchAccountsReceivable(clinicId);
+  };
+  
+  const fetchEvolutionsWrapper = async () => {
+    if (clinicId) await fetchEvolutions(clinicId);
+  };
+  
+  const fetchLeadsWrapper = async () => {
+    if (clinicId) await fetchLeads(clinicId);
+  };
+  
+  const fetchDashboardStatsWrapper = async () => {
+    if (clinicId) {
+      // Lógica para buscar stats do dashboard seria implementada aqui
+      console.log('📊 Calculando stats do dashboard para clinic:', clinicId);
     }
   };
 
@@ -1290,43 +1458,43 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
     dashboardStats,
     currentUser,
     loading,
-    fetchPatients,
+    fetchPatients: fetchPatientsWrapper,
     addPatient,
     updatePatient,
     deletePatient,
-    fetchProfessionals,
+    fetchProfessionals: fetchProfessionalsWrapper,
     addProfessional,
     updateProfessional,
     deleteProfessional,
-    fetchRooms,
+    fetchRooms: fetchRoomsWrapper,
     addRoom,
     updateRoom,
     deleteRoom,
-    fetchAppointments,
+    fetchAppointments: fetchAppointmentsWrapper,
     addAppointment,
     updateAppointment,
     deleteAppointment,
-    fetchMedicalRecords,
+    fetchMedicalRecords: fetchMedicalRecordsWrapper,
     addMedicalRecord,
     updateMedicalRecord,
     deleteMedicalRecord,
-    fetchAccountsPayable,
+    fetchAccountsPayable: fetchAccountsPayableWrapper,
     addAccountsPayable,
     updateAccountsPayable,
     deleteAccountsPayable,
-    fetchAccountsReceivable,
+    fetchAccountsReceivable: fetchAccountsReceivableWrapper,
     addAccountsReceivable,
     updateAccountsReceivable,
     deleteAccountsReceivable,
-    fetchEvolutions,
+    fetchEvolutions: fetchEvolutionsWrapper,
     addEvolution,
     updateEvolution,
     deleteEvolution,
-    fetchLeads,
+    fetchLeads: fetchLeadsWrapper,
     addLead,
     updateLead,
     deleteLead,
-    fetchDashboardStats,
+    fetchDashboardStats: fetchDashboardStatsWrapper,
     markReceivableAsPaid,
     markPayableAsPaid,
     addPayment,
