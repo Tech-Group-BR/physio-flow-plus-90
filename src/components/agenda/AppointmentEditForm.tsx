@@ -65,12 +65,7 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
             <div className="p-6">
                 <h2 className="text-xl font-semibold mb-6">Editar Agendamento</h2>
 
-                {/* Debug info */}
-                <div className="mb-4 p-3 bg-gray-100 rounded text-xs">
-                    <p><strong>Debug:</strong> Pacientes: {patients?.length || 0} | Fisioterapeutas: {professionals?.length || 0} | Salas: {rooms?.length || 0}</p>
-                    <p><strong>Appointment ID:</strong> {appointment.id}</p>
-                    <p><strong>FormData:</strong> {JSON.stringify(formData, null, 2)}</p>
-                </div>
+
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
