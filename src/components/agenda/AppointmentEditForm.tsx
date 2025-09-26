@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClinic } from "@/contexts/ClinicContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Appointment } from "@/types";
@@ -15,96 +16,153 @@ interface AppointmentEditFormProps {
 }
 
 export function AppointmentEditForm({ appointment, onSave, onCancel }: AppointmentEditFormProps) {
-    console.log('AppointmentEditForm iniciando renderização...');
+    const { patients, professionals, rooms } = useClinic();
+    const { clinicId } = useAuth();
+    
+    const [submitting, setSubmitting] = useState(false);
+    const [formData, setFormData] = useState({
+        patientId: appointment.patientId || '',
+        professionalId: appointment.professionalId || '',
+        roomId: appointment.roomId || '',
+        date: appointment.date || '',
+        time: appointment.time || '',
+        duration: appointment.duration || 60,
+        treatmentType: appointment.treatmentType || '',
+        notes: appointment.notes || '',
+        status: appointment.status || 'marcado'
+    });
 
-    try {
-        const { patients, professionals, rooms } = useClinic();
-        const { clinicId } = useAuth();
-        console.log('useClinic executado com sucesso:', {
-            patients: patients?.length,
-            professionals: professionals?.length,
-            rooms: rooms?.length
-        });
+    // Debug para verificar os dados
+    console.log('AppointmentEditForm - Dados do agendamento:', appointment);
+    console.log('AppointmentEditForm - FormData inicializado:', formData);
 
-        const [submitting, setSubmitting] = useState(false);
-        const [formData, setFormData] = useState({
-            patientId: appointment.patientId || '',
-            professionalId: appointment.professionalId || '',
-            roomId: appointment.roomId || '',
-            date: appointment.date || '',
-            time: appointment.time || '',
-            duration: appointment.duration || 60,
-            treatmentType: appointment.treatmentType || '',
-            notes: appointment.notes || '',
-            status: appointment.status || 'marcado'
-        });
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
 
-        console.log('Estado inicializado:', formData);
+        try {
+            // Validação básica
+            if (!formData.patientId || !formData.professionalId || !formData.date || !formData.time) {
+                toast.error("Preencha todos os campos obrigatórios");
+                return;
+            }
 
-        const handleSubmit = async (e: React.FormEvent) => {
-            e.preventDefault();
-
-            // Certifique-se que formData.date está no formato 'YYYY-MM-DD'
-            // Se estiver usando Date objects, converta para string local:
-            // const localDate = new Date(formData.date).toISOString().slice(0, 10);
-
-            try {
-                await onSave({
-                    ...formData,
-                    date: formData.date,
-                    clinicId // envie o clinicId se necessário no backend
-                });
-            } catch (error: any) {
-                console.error('Erro ao salvar:', error);
+            await onSave({
+                ...formData,
+                clinicId
+            });
+            
+        } catch (error: any) {
+            console.error('Erro ao salvar:', error);
+            // Mostrar mensagem específica do erro se disponível
+            if (error?.message) {
+                toast.error(error.message);
+            } else {
                 toast.error('Erro ao salvar agendamento');
             }
-        };
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-        // Renderização simples para debug
-        return (
-            <div className="p-6">
-                <h2 className="text-xl font-semibold mb-6">Editar Agendamento</h2>
+    return (
+        <div className="p-6">
+            <h2 className="text-xl font-semibold mb-6">Editar Agendamento</h2>
 
-
-
+            {/* Só renderizar o formulário se temos dados válidos */}
+            {!patients.length || !professionals.length ? (
+                <div className="text-center py-8">
+                    <p>Carregando dados...</p>
+                </div>
+            ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <Label htmlFor="patientId">Paciente ID</Label>
-                        <Input
-                            id="patientId"
-                            value={formData.patientId}
-                            onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
-                            placeholder="ID do paciente"
-                        />
+                        <Label htmlFor="patientId">Paciente *</Label>
+                        <Select
+                            value={formData.patientId || undefined}
+                            onValueChange={(value) => setFormData({ ...formData, patientId: value })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o paciente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {patients.map((patient) => (
+                                    <SelectItem key={patient.id} value={patient.id}>
+                                        {patient.fullName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div>
-                        <Label htmlFor="professionalId">Fisioterapeuta ID</Label>
-                        <Input
-                            id="professionalId"
-                            value={formData.professionalId}
-                            onChange={(e) => setFormData({ ...formData, professionalId: e.target.value })}
-                            placeholder="ID do fisioterapeuta"
-                        />
+                        <Label htmlFor="professionalId">Fisioterapeuta *</Label>
+                        <Select
+                            value={formData.professionalId || undefined}
+                            onValueChange={(value) => setFormData({ ...formData, professionalId: value })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o fisioterapeuta" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {professionals.map((professional) => (
+                                    <SelectItem key={professional.id} value={professional.id}>
+                                        {professional.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div>
-                        <Label htmlFor="date">Data</Label>
-                        <Input
-                            id="date"
-                            type="date"
-                            value={formData.date}
-                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                        />
+                        <Label htmlFor="roomId">Sala</Label>
+                        <Select
+                            value={formData.roomId || "none"}
+                            onValueChange={(value) => setFormData({ ...formData, roomId: value === "none" ? "" : value })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione a sala (opcional)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Nenhuma sala</SelectItem>
+                                {rooms.map((room) => (
+                                    <SelectItem key={room.id} value={room.id}>
+                                        {room.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="date">Data *</Label>
+                            <Input
+                                id="date"
+                                type="date"
+                                value={formData.date}
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor="time">Horário *</Label>
+                            <Input
+                                id="time"
+                                type="time"
+                                value={formData.time}
+                                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                            />
+                        </div>
                     </div>
 
                     <div>
-                        <Label htmlFor="time">Horário</Label>
+                        <Label htmlFor="treatmentType">Tipo de Tratamento</Label>
                         <Input
-                            id="time"
-                            value={formData.time}
-                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                            placeholder="HH:MM"
+                            id="treatmentType"
+                            value={formData.treatmentType}
+                            onChange={(e) => setFormData({ ...formData, treatmentType: e.target.value })}
+                            placeholder="Ex: Fisioterapia, Avaliação..."
                         />
                     </div>
 
@@ -128,21 +186,7 @@ export function AppointmentEditForm({ appointment, onSave, onCancel }: Appointme
                         </Button>
                     </div>
                 </form>
-            </div>
-        );
-    } catch (error) {
-        console.error('Erro no AppointmentEditForm:', error);
-        return (
-            <div className="p-8 text-center">
-                <h3 className="text-lg font-semibold mb-4 text-red-600">Erro ao renderizar formulário</h3>
-                <p className="text-gray-600 mb-4">Ocorreu um erro inesperado.</p>
-                <pre className="text-xs bg-gray-100 p-2 rounded mb-4 text-left overflow-auto">
-                    {error instanceof Error ? error.message : String(error)}
-                </pre>
-                <Button onClick={onCancel} variant="outline">
-                    Voltar
-                </Button>
-            </div>
-        );
-    }
+            )}
+        </div>
+    );
 }

@@ -63,7 +63,7 @@ export const useAgendaLogic = () => {
     return dateMatch && physioMatch && roomMatch;
   });
 
-  const getAppointmentForSlot = (date: Date, slotStart: string) => {
+  const getAppointmentForSlot = (date: Date, slotStart: string, excludeAppointmentId?: string) => {
     // slotStart: "08:00", "08:30", etc
     const [slotHour, slotMinute] = slotStart.split(':').map(Number);
     const slotStartDate = new Date(date);
@@ -74,6 +74,11 @@ export const useAgendaLogic = () => {
     slotEndDate.setMinutes(slotEndDate.getMinutes() + 30);
 
     return filteredAppointments.find(apt => {
+      // Excluir o próprio agendamento que está sendo editado
+      if (excludeAppointmentId && apt.id === excludeAppointmentId) {
+        return false;
+      }
+
       // Constrói a data da consulta
       const [year, month, day] = apt.date.split('-').map(Number);
       const [aptHour, aptMinute] = apt.time.split(':').map(Number);
@@ -95,19 +100,21 @@ export const useAgendaLogic = () => {
     try {
       console.log('📝 Atualizando agendamento:', appointmentId, updates);
       
-      const { error } = await supabase
-        .from('appointments')
-        .update(updates)
-        .eq('id', appointmentId);
-
-      if (error) {
-        console.error('❌ Erro ao atualizar agendamento:', error);
-        throw error;
+      // Verificar conflitos de horário se data/hora foram alterados
+      if (updates.date && updates.time) {
+        const appointmentDate = new Date(updates.date);
+        const conflictingAppointment = getAppointmentForSlot(appointmentDate, updates.time, appointmentId);
+        
+        if (conflictingAppointment) {
+          const patient = patients.find(p => p.id === conflictingAppointment.patientId);
+          throw new Error(`Conflito de horário: já existe um agendamento para ${patient?.fullName || 'um paciente'} neste horário`);
+        }
       }
-
-      console.log('✅ Agendamento atualizado com sucesso');
       
-      updateAppointment(appointmentId, updates);
+      // Usar a função do contexto que já faz a transformação correta
+      await updateAppointment(appointmentId, updates);
+      
+      console.log('✅ Agendamento atualizado com sucesso');
       
     } catch (error) {
       console.error('❌ Erro ao atualizar agendamento:', error);
