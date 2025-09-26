@@ -24,6 +24,8 @@ import { PatientFinancialReport } from "@/components/PatientFinancialReport";
 import { PatientDetailsPage } from "@/components/PatientDetailsPage";
 import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
 import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
+import { FinancialReports } from "@/components/FinancialReports";
+import { RoomsManager } from "@/components/RoomsManager";
 
 const Index = () => {
   const location = useLocation();
@@ -39,16 +41,15 @@ const Index = () => {
             <div className="flex h-14 items-center px-4 gap-4">
               <SidebarTrigger />
               <div className="flex items-center space-x-2">
-                <h1 className="font-semibold">FisioTech</h1>
+                <h1 className="font-semibold">GoPhysioTech</h1>
                 <span className="text-muted-foreground hidden sm:inline">Sistema de Gestão</span>
               </div>
             </div>
           </header>
           <main className="flex-1 overflow-auto">
             <div className="p-4 md:p-6">
-              {/* CORREÇÃO: Coloque as rotas aqui dentro do componente de layout */}
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/agenda" element={<AgendaPageWithRecurrence />} />
                 <Route path="/pacientes" element={<PatientsPage />} />
                 <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
@@ -59,12 +60,14 @@ const Index = () => {
                 <Route path="/pacotes" element={<PackagesPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
+                <Route path="/relatorios/financeiro" element={<FinancialReports />} />
+                <Route path="/relatorios/pacientes" element={<PatientFinancialReport />} />
+                <Route path="/salas" element={<RoomsManager />} />
                 <Route path="/fisioterapeutas" element={<ProfessionalsPage />} />
                 <Route path="/configuracoes" element={<ConfigurationsPage />} />
                 <Route path="/vendas" element={<SalesPage />} />
                 <Route path="/crm" element={<CRMPage />} />
                 <Route path="/portal-responsavel" element={<GuardianPortal />} />
-                <Route path="/relatorios/pacientes" element={<PatientFinancialReport />} />
                 <Route path="*" element={<Dashboard />} />
               </Routes>
             </div>

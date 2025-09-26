@@ -20,7 +20,7 @@ export function AuthPage() {
   useEffect(() => {
     if (user && !authLoading) {
       console.log('✅ Usuário já logado, redirecionando...', user.email);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
@@ -433,7 +433,7 @@ export function AuthPage() {
 
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            © 2024 PhysioFlow Plus - Sistema seguro com isolamento por clínica
+            © 2024 GoPhysioTech - Sistema seguro com isolamento por clínica
           </p>
         </div>
       </div>

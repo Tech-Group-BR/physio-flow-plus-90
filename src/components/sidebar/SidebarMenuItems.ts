@@ -25,7 +25,7 @@ export interface MenuItem {
 export const professionalItems: MenuItem[] = [
   {
     title: "Dashboard",
-    url: "/",
+    url: "/dashboard",
     icon: Home,
     description: "Visão geral do sistema"
   },

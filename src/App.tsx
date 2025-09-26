@@ -8,6 +8,11 @@ import { ClinicProvider } from "@/contexts/ClinicContext";
 import Index from "@/pages/Index";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
+import { LandingPage } from "@/components/LandingPage";
+import { LoginPage } from "@/components/LoginPage";
+import { RegisterPage } from "@/components/RegisterPage";
+import { SignUpPage } from "@/components/SignUpPage";
+import { RootRoute } from "@/components/RootRoute";
 import { useState, useEffect } from "react";
 import "./App.css";
 
@@ -31,8 +36,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    console.log('❌ Usuário não autenticado, redirecionando para /auth');
-    return <Navigate to="/auth" replace />;
+    console.log('❌ Usuário não autenticado, redirecionando para /login');
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -56,8 +61,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
-    console.log('✅ Usuário já logado, redirecionando para /');
-    return <Navigate to="/" replace />;
+    console.log('✅ Usuário já logado, redirecionando para /dashboard');
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -70,6 +75,11 @@ function App() {
         <ClinicProvider>
           <Router>
             <Routes>
+              {/* <Route path="/" element={<RootRoute />} /> */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/cadastro" element={<SignUpPage />} />
               <Route 
                 path="/auth" 
                 element={

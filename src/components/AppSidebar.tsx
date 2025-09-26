@@ -69,7 +69,7 @@ export function AppSidebar() {
   const managementItems: any[] = [];
 
   // Labels fixos
-  const mainMenuLabel = 'Sistema FisioTech';
+  const mainMenuLabel = 'Sistema GoPhysioTech';
   const roleLabel = 'Fisioterapeuta';
 
   return (
@@ -80,7 +80,7 @@ export function AppSidebar() {
             <span className="text-sm font-bold">F</span>
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">FisioTech</span>
+            <span className="truncate font-semibold">GoPhysioTech</span>
             <span className="truncate text-xs text-muted-foreground">Sistema SAAS</span>
           </div>
         </div>
