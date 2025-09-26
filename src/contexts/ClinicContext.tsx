@@ -19,6 +19,7 @@ import {
   Payment as MainPayment, 
   Lead as MainLead, 
   DashboardStats as MainDashboardStats,
+  MainClinicSettings,
   Address,
   EmergencyContact
 } from '@/types';
@@ -159,6 +160,21 @@ interface DbLead {
   updated_at: string;
 }
 
+interface DbClinicSettings {
+  id: string;
+  name: string;
+  clinic_code: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  working_hours?: any;
+  consultation_price?: number;
+  timezone?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ClinicContextType {
   patients: MainPatient[];
   professionals: MainProfessional[];
@@ -170,6 +186,7 @@ interface ClinicContextType {
   evolutions: MainEvolution[];
   leads: MainLead[];
   dashboardStats: MainDashboardStats | null;
+  clinicSettings: MainClinicSettings | null;
   currentUser: any;
   loading: boolean;
   fetchPatients: () => Promise<void>;
@@ -209,6 +226,7 @@ interface ClinicContextType {
   updateLead: (lead: MainLead) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
+  fetchClinicSettings: () => Promise<void>;
   markReceivableAsPaid: (id: string, method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
   markPayableAsPaid: (id: string, paidDate?: string) => Promise<void>;
   addPayment: (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => Promise<void>;
@@ -363,6 +381,21 @@ const dbToMainLead = (dbLead: DbLead): MainLead => {
     updatedAt: dbLead.updated_at
   };
 };
+
+const dbToMainClinicSettings = (dbClinic: DbClinicSettings): MainClinicSettings => ({
+  id: dbClinic.id,
+  name: dbClinic.name,
+  clinicCode: dbClinic.clinic_code,
+  email: dbClinic.email,
+  phone: dbClinic.phone,
+  address: dbClinic.address,
+  workingHours: dbClinic.working_hours,
+  consultationPrice: dbClinic.consultation_price,
+  timezone: dbClinic.timezone,
+  isActive: dbClinic.is_active,
+  createdAt: dbClinic.created_at,
+  updatedAt: dbClinic.updated_at
+});
 // --- End Mappers ---
 
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
@@ -376,6 +409,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   const [evolutions, setEvolutions] = useState<MainEvolution[]>([]);
   const [leads, setLeads] = useState<MainLead[]>([]);
   const [dashboardStats, setDashboardStats] = useState<MainDashboardStats | null>(null);
+  const [clinicSettings, setClinicSettings] = useState<MainClinicSettings | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
  const { user, loading: authLoading } = useAuth();
@@ -1425,6 +1459,29 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     }
   };
 
+  const fetchClinicSettings = async () => {
+    if (!clinicId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('clinic_settings')
+        .select('*')
+        .eq('id', clinicId)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar configurações da clínica:', error);
+        return;
+      }
+
+      if (data) {
+        setClinicSettings(dbToMainClinicSettings(data));
+      }
+    } catch (error) {
+      console.error('Erro inesperado ao buscar configurações da clínica:', error);
+    }
+  };
+
   const markReceivableAsPaid = async (id: string, method: Database['public']['Enums']['payment_method_enum']) => {
     const originalState = [...accountsReceivable];
     const receivedDate = new Date().toISOString();
@@ -1579,6 +1636,10 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     }
   };
 
+  const fetchClinicSettingsWrapper = async () => {
+    if (clinicId) await fetchClinicSettings();
+  };
+
   const value: ClinicContextType = {
     patients,
     professionals,
@@ -1590,6 +1651,7 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     evolutions,
     leads,
     dashboardStats,
+    clinicSettings,
     currentUser,
     loading,
     fetchPatients: fetchPatientsWrapper,
@@ -1629,6 +1691,7 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     updateLead,
     deleteLead,
     fetchDashboardStats: fetchDashboardStatsWrapper,
+    fetchClinicSettings: fetchClinicSettingsWrapper,
     markReceivableAsPaid,
     markPayableAsPaid,
     addPayment,

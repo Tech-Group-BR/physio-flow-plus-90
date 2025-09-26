@@ -346,3 +346,23 @@ export interface SystemConfig {
   };
   updatedAt: string;
 }
+
+export interface MainClinicSettings {
+  id: string;
+  name: string;
+  clinicCode: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  workingHours?: {
+    start: string;
+    end: string;
+    lunchStart: string;
+    lunchEnd: string;
+  };
+  consultationPrice?: number;
+  timezone?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

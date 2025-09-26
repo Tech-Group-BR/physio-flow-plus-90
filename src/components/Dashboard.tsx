@@ -15,7 +15,7 @@ import {
   Users,
   UserX,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 
 // Componente para o estado de Carregamento (Loading)
 function DashboardLoading() {
@@ -62,10 +62,17 @@ export function Dashboard() {
     accountsReceivable,
     leads,
     loading,
+    clinicSettings,
+    fetchClinicSettings,
   } = useClinic();
 
   // ✅ CORREÇÃO: Usar useAuth correto e acessar user como AppUser
   const { user, clinicId, clinicCode } = useAuth();
+
+  // Buscar configurações da clínica ao montar o componente
+  useEffect(() => {
+    fetchClinicSettings();
+  }, [fetchClinicSettings]);
 
   // --- 1. Cálculos e Lógica com useMemo para Performance e Segurança ---
 
@@ -124,17 +131,18 @@ export function Dashboard() {
       [professionals]
   );
 
-  // ✅ CORREÇÃO: Informações da clínica usando user do tipo AppUser
+  // ✅ CORREÇÃO: Informações da clínica usando clinicSettings
   const clinicInfo = useMemo(() => {
-    if (!user?.profile) return null;
+    if (!clinicSettings || !user?.profile) return null;
     
     return {
-      clinicCode: user.profile.clinic_code,
+      clinicCode: clinicSettings.clinicCode,
+      clinicName: clinicSettings.name,
       userRole: user.profile.role,
       userName: user.profile.full_name,
       userEmail: user.profile.email
     };
-  }, [user]);
+  }, [clinicSettings, user]);
 
   // --- 2. Renderização ---
 
@@ -151,10 +159,10 @@ export function Dashboard() {
           {clinicInfo && (
             <div className="text-right">
               <p className="text-sm text-muted-foreground">
-                Clínica: <span className="font-medium text-foreground">{clinicInfo.userName}</span>
+                Clínica: <span className="font-medium text-foreground">{clinicInfo.clinicName}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {clinicInfo.userName} ({clinicInfo.userRole})
+                Código: {clinicInfo.clinicCode} | {clinicInfo.userName} ({clinicInfo.userRole})
               </p>
             </div>
           )}
@@ -176,9 +184,7 @@ export function Dashboard() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Bem-vindo, {clinicInfo.userName}!</h3>
-                <p className="text-muted-foreground">
-                  Você está gerenciando a clínica <span className="font-medium">{clinicInfo.clinicCode}</span>
-                </p>
+               
               </div>
             </div>
           </CardContent>
