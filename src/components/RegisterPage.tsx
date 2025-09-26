@@ -7,12 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, Hash, User, Phone } from 'lucide-react';
 
 export function RegisterPage() {
   const { signUp, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -154,183 +157,275 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4 relative">
+      {/* Subtle background decoration */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-100/20 via-transparent to-indigo-100/20"></div>
+      
+      <div className="w-full max-w-md relative z-10">
         {/* Header */}
-        <header className="p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <img src="/favicon.ico" alt="GoPhysioTech" className="w-8 h-8" />
-              <span className="text-xl font-bold text-gray-900">GoPhysioTech</span>
+        <div className="text-center mb-8 relative pt-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="absolute top-0 left-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200 z-10"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Voltar</span>
+          </Button>
+          
+          <div className="flex items-center justify-center space-x-3 mb-6 mt-8 sm:mt-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg p-1">
+              <img src="/favicon.ico" alt="GoPhysioTech Logo" className="w-8 h-8 object-contain" />
             </div>
-            <Link 
-              to="/" 
-              className="pt-4 mt-8 sm:mt-4 text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              Voltar
-            </Link>
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              GoPhysioTech
+            </h1>
           </div>
-        </header>
+          <p className="text-gray-600 text-lg">Cadastrar na clínica</p>
+        </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl text-gray-900">Cadastrar na Clínica</CardTitle>
-              <p className="text-gray-600 text-sm">
-                Crie sua conta para acessar uma clínica existente
-              </p>
-            </CardHeader>
-            
-            <CardContent>
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div>
-                  <Label htmlFor="signup-clinic-code">Código da Clínica</Label>
+        {/* Register Card */}
+        <Card className="bg-white border-0 shadow-xl shadow-blue-500/10 hover:shadow-2xl transition-shadow duration-300">
+          <CardHeader className="space-y-1 pb-6">
+            <CardTitle className="text-2xl font-bold text-center text-gray-800 flex items-center justify-center">
+              <UserPlus className="w-6 h-6 mr-2 text-blue-600" />
+              Criar Conta
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSignup} className="space-y-6">
+              {/* Clinic Code Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-clinic-code" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Hash className="w-4 h-4 mr-2 text-blue-600" />
+                  Código da Clínica
+                </Label>
+                <Input
+                  id="signup-clinic-code"
+                  type="text"
+                  value={signupForm.clinicCode}
+                  onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                  required
+                  disabled={loading}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+                />
+                <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
+              </div>
+
+              {/* Name Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-name" className="text-sm font-medium text-gray-700 flex items-center">
+                  <User className="w-4 h-4 mr-2 text-blue-600" />
+                  Nome Completo
+                </Label>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  value={signupForm.fullName}
+                  onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                  required
+                  disabled={loading}
+                  placeholder="Seu nome completo"
+                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+                />
+              </div>
+
+              {/* Email Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-email" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Mail className="w-4 h-4 mr-2 text-blue-600" />
+                  E-mail
+                </Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  value={signupForm.email}
+                  onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                  required
+                  disabled={loading}
+                  placeholder="seu@email.com"
+                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+                />
+              </div>
+
+              {/* Phone Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-phone" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Phone className="w-4 h-4 mr-2 text-blue-600" />
+                  Telefone
+                </Label>
+                <Input
+                  id="signup-phone"
+                  type="tel"
+                  value={signupForm.phone}
+                  onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                  disabled={loading}
+                  placeholder="(11) 99999-9999"
+                  className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+                />
+              </div>
+
+              {/* User Type Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-role" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Building2 className="w-4 h-4 mr-2 text-blue-600" />
+                  Tipo de Usuário
+                </Label>
+                <Select 
+                  value={signupForm.role} 
+                  onValueChange={(value: string) => setSignupForm({ ...signupForm, role: value })}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guardian">Responsável/Paciente</SelectItem>
+                    <SelectItem value="professional">Fisioterapeuta</SelectItem>
+                    <SelectItem value="receptionist">Recepcionista</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {signupForm.role === 'professional' && (
+                <div className="space-y-2">
+                  <Label htmlFor="signup-crefito" className="text-sm font-medium text-gray-700 flex items-center">
+                    <Hash className="w-4 h-4 mr-2 text-blue-600" />
+                    CREFITO
+                  </Label>
                   <Input
-                    id="signup-clinic-code"
+                    id="signup-crefito"
                     type="text"
-                    value={signupForm.clinicCode}
-                    onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                    required
+                    value={signupForm.crefito}
+                    onChange={(e) => setSignupForm({ ...signupForm, crefito: e.target.value })}
                     disabled={loading}
-                    placeholder="000000"
-                    maxLength={6}
+                    placeholder="CREFITO-3/12345"
+                    required={signupForm.role === 'professional'}
+                    className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                   />
-                  <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
+                  <p className="text-xs text-gray-500">Obrigatório para fisioterapeutas</p>
                 </div>
+              )}
 
-                <div>
-                  <Label htmlFor="signup-name">Nome Completo</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    value={signupForm.fullName}
-                    onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                    required
-                    disabled={loading}
-                    placeholder="Seu nome completo"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="signup-email">E-mail</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    value={signupForm.email}
-                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                    required
-                    disabled={loading}
-                    placeholder="seu@email.com"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="signup-phone">Telefone</Label>
-                  <Input
-                    id="signup-phone"
-                    type="tel"
-                    value={signupForm.phone}
-                    onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
-                    disabled={loading}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="signup-role">Tipo de Usuário</Label>
-                  <Select 
-                    value={signupForm.role} 
-                    onValueChange={(value: string) => setSignupForm({ ...signupForm, role: value })}
-                    disabled={loading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="guardian">Responsável/Paciente</SelectItem>
-                      <SelectItem value="professional">Fisioterapeuta</SelectItem>
-                      <SelectItem value="receptionist">Recepcionista</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {signupForm.role === 'professional' && (
-                  <div>
-                    <Label htmlFor="signup-crefito">CREFITO</Label>
-                    <Input
-                      id="signup-crefito"
-                      type="text"
-                      value={signupForm.crefito}
-                      onChange={(e) => setSignupForm({ ...signupForm, crefito: e.target.value })}
-                      disabled={loading}
-                      placeholder="CREFITO-3/12345"
-                      required={signupForm.role === 'professional'}
-                    />
-                    <p className="text-xs text-gray-500">Obrigatório para fisioterapeutas</p>
-                  </div>
-                )}
-
-                <div>
-                  <Label htmlFor="signup-password">Senha</Label>
+              {/* Password Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-password" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Lock className="w-4 h-4 mr-2 text-blue-600" />
+                  Senha
+                </Label>
+                <div className="relative">
                   <Input
                     id="signup-password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={signupForm.password}
                     onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
                     required
                     disabled={loading}
                     minLength={6}
                     placeholder="Mínimo 6 caracteres"
+                    className="h-12 pr-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <Label htmlFor="signup-confirm-password">Confirmar Senha</Label>
+              {/* Confirm Password Field */}
+              <div className="space-y-2">
+                <Label htmlFor="signup-confirm-password" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Lock className="w-4 h-4 mr-2 text-blue-600" />
+                  Confirmar Senha
+                </Label>
+                <div className="relative">
                   <Input
                     id="signup-confirm-password"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     value={signupForm.confirmPassword}
                     onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
                     required
                     disabled={loading}
                     minLength={6}
                     placeholder="Digite a senha novamente"
+                    className="h-12 pr-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
+              </div>
 
                 {error && (
-                  <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
+                  <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg border border-red-200">
                     {error}
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Criando conta...' : 'Criar Conta'}
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Criando conta...
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Criar Conta
+                    </div>
+                  )}
                 </Button>
+                
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">
+                    Já tem conta?{' '}
+                    <Link 
+                      to="/login" 
+                      className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+                    >
+                      Entrar
+                    </Link>
+                  </p>
+                </div>
               </form>
 
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600">
-                  Já tem uma conta?{' '}
-                  <Link to="/login" className="text-blue-600 hover:text-blue-800 font-medium">
-                    Fazer Login
-                  </Link>
-                </p>
-              </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Footer */}
-        <footer className="p-4 text-center">
-          <div className="flex items-center justify-center space-x-2 text-gray-600">
-            <img src="/favicon.ico" alt="GoPhysioTech" className="w-4 h-4" />
-            <span className="text-xs">© 2024 GoPhysioTech - Sistema seguro com isolamento por clínica</span>
+          {/* Footer */}
+          <div className="text-center mt-8 space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500">
+                Quer criar uma nova clínica?{' '}
+                <Link 
+                  to="/cadastro" 
+                  className="text-green-600 hover:text-green-700 font-medium hover:underline transition-colors"
+                >
+                  Começar grátis
+                </Link>
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+              <Link to="#" className="hover:text-gray-700 transition-colors">Termos de Uso</Link>
+              <span>•</span>
+              <Link to="#" className="hover:text-gray-700 transition-colors">Política de Privacidade</Link>
+            </div>
           </div>
-        </footer>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
