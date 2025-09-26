@@ -6,7 +6,7 @@ import { Plus, Calendar, Clock, Users, Settings } from "lucide-react";
 import { AgendaFilters } from "./agenda/AgendaFilters";
 import { DragDropAgendaDayView } from "./agenda/DragDropAgendaDayView";
 import { DragDropAgendaWeekView } from "./agenda/DragDropAgendaWeekView";
-import { AppointmentFormWithRecurrence } from "./AppointmentFormWithRecurrence";
+import { AppointmentFormWithRecurrence } from "./agenda/AppointmentFormWithRecurrence";
 import { useAgendaLogic } from "@/hooks/useAgendaLogic";
 import { useClinic } from "@/contexts/ClinicContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -112,6 +112,7 @@ export function AgendaPageWithRecurrence() {
           </div>
         </div>
         <AppointmentFormWithRecurrence
+          initialDate={selectedDate}
           onSave={handleSave}
           onCancel={handleCancel}
         />

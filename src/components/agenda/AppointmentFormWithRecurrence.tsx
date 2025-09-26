@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useClinic } from "@/contexts/ClinicContext";
-import { format } from "date-fns";
+import { format, addWeeks, getDay, addDays, startOfWeek } from "date-fns";
 
 interface AppointmentFormProps {
   initialDate?: Date;
@@ -37,6 +37,8 @@ export function AppointmentFormWithRecurrence({
     type: "consulta",
     customPrice: "",
     isRecurring: false,
+    recurrenceWeeks: 1,
+    weekDays: [] as number[], // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
     notes: ""
   });
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +55,17 @@ export function AppointmentFormWithRecurrence({
     { value: 120, label: "2 horas" },
     { value: 135, label: "2 horas e 15 minutos" },
     { value: 150, label: "2 horas e 30 minutos" }
+  ];
+
+  // Dias da semana para seleção
+  const weekDaysOptions = [
+    { value: 1, label: "Segunda-feira" },
+    { value: 2, label: "Terça-feira" },
+    { value: 3, label: "Quarta-feira" },
+    { value: 4, label: "Quinta-feira" },
+    { value: 5, label: "Sexta-feira" },
+    { value: 6, label: "Sábado" },
+    { value: 0, label: "Domingo" }
   ];
 
   // Atualizar formData quando initialDate ou initialTime mudarem
@@ -83,6 +96,23 @@ export function AppointmentFormWithRecurrence({
     setIsLoading(false);
   };
 
+  // Função para gerar datas de agendamentos recorrentes
+  const generateRecurringDates = (startDate: Date, weekDays: number[], weeks: number) => {
+    const dates: Date[] = [];
+    
+    for (let week = 0; week < weeks; week++) {
+      const weekStartDate = addWeeks(startDate, week);
+      const weekStart = startOfWeek(weekStartDate, { weekStartsOn: 0 }); // Domingo = 0
+      
+      for (const dayOfWeek of weekDays) {
+        const appointmentDate = addDays(weekStart, dayOfWeek);
+        dates.push(appointmentDate);
+      }
+    }
+    
+    return dates.sort((a, b) => a.getTime() - b.getTime());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -98,9 +128,40 @@ export function AppointmentFormWithRecurrence({
         return;
       }
 
+      // Validação específica para recorrência
+      if (formData.isRecurring) {
+        if (formData.weekDays.length === 0) {
+          toast.error("Selecione pelo menos um dia da semana para recorrência");
+          setSubmitting(false);
+          return;
+        }
+        if (formData.recurrenceWeeks < 1) {
+          toast.error("Número de semanas deve ser pelo menos 1");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       if (onSave) {
-        await onSave(formData);
-        toast.success("Agendamento salvo com sucesso!");
+        if (formData.isRecurring && formData.weekDays.length > 0) {
+          // Gerar múltiplos agendamentos para recorrência
+          const startDate = new Date(formData.date + 'T00:00:00');
+          const recurringDates = generateRecurringDates(startDate, formData.weekDays, formData.recurrenceWeeks);
+          
+          for (const date of recurringDates) {
+            const appointmentData = {
+              ...formData,
+              date: format(date, 'yyyy-MM-dd'),
+            };
+            await onSave(appointmentData);
+          }
+          
+          toast.success(`${recurringDates.length} agendamentos criados com sucesso!`);
+        } else {
+          // Agendamento único
+          await onSave(formData);
+          toast.success("Agendamento salvo com sucesso!");
+        }
         
         // Reset do formulário após salvar
         setFormData({
@@ -113,6 +174,8 @@ export function AppointmentFormWithRecurrence({
           type: "consulta",
           customPrice: "",
           isRecurring: false,
+          recurrenceWeeks: 1,
+          weekDays: [],
           notes: ""
         });
       }
@@ -122,6 +185,16 @@ export function AppointmentFormWithRecurrence({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Função para toggle de dias da semana
+  const toggleWeekDay = (dayValue: number) => {
+    setFormData(prev => ({
+      ...prev,
+      weekDays: prev.weekDays.includes(dayValue) 
+        ? prev.weekDays.filter(day => day !== dayValue)
+        : [...prev.weekDays, dayValue].sort()
+    }));
   };
 
   const handleCancel = () => {
@@ -305,6 +378,51 @@ export function AppointmentFormWithRecurrence({
             Agendamento recorrente
           </label>
         </div>
+
+        {formData.isRecurring && (
+          <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div>
+              <Label>Número de semanas *</Label>
+              <Input
+                type="number"
+                min="1"
+                max="52"
+                value={formData.recurrenceWeeks}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  recurrenceWeeks: Math.max(1, parseInt(e.target.value) || 1) 
+                })}
+                placeholder="Quantas semanas repetir"
+              />
+              <p className="text-sm text-gray-600 mt-1">
+                Quantas semanas o agendamento deve se repetir
+              </p>
+            </div>
+
+            <div>
+              <Label>Dias da semana *</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {weekDaysOptions.map((day) => (
+                  <label key={day.value} className="flex items-center gap-2 p-2 rounded border hover:bg-blue-25">
+                    <Checkbox
+                      checked={formData.weekDays.includes(day.value)}
+                      onCheckedChange={() => toggleWeekDay(day.value)}
+                    />
+                    {day.label}
+                  </label>
+                ))}
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Selecione os dias da semana em que o agendamento deve se repetir
+              </p>
+              {formData.weekDays.length > 0 && (
+                <p className="text-sm text-blue-600 mt-2">
+                  Serão criados {formData.weekDays.length * formData.recurrenceWeeks} agendamentos
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div>
           <Label>Observações</Label>
