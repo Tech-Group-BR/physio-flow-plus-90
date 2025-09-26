@@ -117,6 +117,7 @@ interface DbAccountsReceivable {
   created_at: string;
   updated_at?: string;
   patient_id?: string;
+  professional_id?: string;
   description: string;
   amount: number;
   due_date: string;
@@ -124,6 +125,10 @@ interface DbAccountsReceivable {
   paid_date?: string;
   received_date?: string;
   method?: string;
+  appointment_id?: string;
+  service_id?: string;
+  discount_amount?: number;
+  patient_package_id?: string;
 }
 
 interface DbEvolution {
@@ -303,6 +308,7 @@ const dbToMainAccountsPayable = (dbAp: DbAccountsPayable): MainAccountsPayable =
 const dbToMainAccountsReceivable = (dbAr: DbAccountsReceivable): MainAccountsReceivable => ({
   id: dbAr.id,
   patientId: dbAr.patient_id,
+  professional_id: dbAr.professional_id,
   description: dbAr.description,
   amount: dbAr.amount,
   dueDate: dbAr.due_date,
@@ -311,7 +317,11 @@ const dbToMainAccountsReceivable = (dbAr: DbAccountsReceivable): MainAccountsRec
   method: (dbAr.method as MainAccountsReceivable['method']) || 'cash',
   notes: '',
   createdAt: dbAr.created_at,
-  updatedAt: dbAr.updated_at
+  updatedAt: dbAr.updated_at,
+  appointment_id: dbAr.appointment_id,
+  service_id: dbAr.service_id,
+  discount_amount: dbAr.discount_amount,
+  patient_package_id: dbAr.patient_package_id
 });
 
 const dbToMainEvolution = (dbEvo: DbEvolution): MainEvolution => ({

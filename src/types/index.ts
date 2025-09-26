@@ -112,12 +112,16 @@ export interface AccountsPayable {
   notes?: string;
   createdAt: string;
   updatedAt?: string;
-
+  patient_id?: string;
+  professional_id?: string;
+  payment_method?: Database['public']['Enums']['payment_method_enum'];
+  receipt_url?: string;
 }
 
 export interface AccountsReceivable {
   id: string;
   patientId?: string;
+  professional_id?: string;
   description: string;
   amount: number;
   dueDate: string;
@@ -128,7 +132,9 @@ export interface AccountsReceivable {
   createdAt: string;
   updatedAt?: string;
   appointment_id?: string;
-
+  service_id?: string;
+  discount_amount?: number;
+  patient_package_id?: string;
 }
 
 

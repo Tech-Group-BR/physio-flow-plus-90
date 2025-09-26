@@ -22,6 +22,7 @@ import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
 import { PatientDetailsPage } from "@/components/PatientDetailsPage";
+import { ProfessionalDetailsPage } from "@/components/ProfessionalDetailsPage";
 import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
 import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
 import { FinancialReports } from "@/components/FinancialReports";
@@ -64,6 +65,7 @@ const Index = () => {
                 <Route path="/relatorios/pacientes" element={<PatientFinancialReport />} />
                 <Route path="/salas" element={<RoomsManager />} />
                 <Route path="/fisioterapeutas" element={<ProfessionalsPage />} />
+                <Route path="/profissionais/:id" element={<ProfessionalDetailsPage />} />
                 <Route path="/configuracoes" element={<ConfigurationsPage />} />
                 <Route path="/vendas" element={<SalesPage />} />
                 <Route path="/crm" element={<CRMPage />} />

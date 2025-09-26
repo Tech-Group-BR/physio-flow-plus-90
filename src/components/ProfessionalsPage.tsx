@@ -13,6 +13,7 @@ import { BadgeCheck } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export function ProfessionalsPage() {
   const { 
@@ -25,6 +26,7 @@ export function ProfessionalsPage() {
 
   // Pegue clinicId e user do contexto de autenticação
   const { clinicId, user } = useAuth();
+  const navigate = useNavigate();
 
   console.log("clinicId do contexto de autenticação:", clinicId);
 
@@ -244,7 +246,13 @@ export function ProfessionalsPage() {
   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
     
     {filteredProfessionals.map((Professional) => (
-  <Card key={Professional.id} className={!Professional.isActive ? 'opacity-60 transition-opacity' : ''}>
+  <Card 
+    key={Professional.id} 
+    className={`transition-all duration-200 hover:shadow-md cursor-pointer ${
+      !Professional.isActive ? 'opacity-60' : ''
+    }`}
+    onClick={() => navigate(`/profissionais/${Professional.id}`)}
+  >
   <CardHeader className="p-4 pb-0">
     <div className="flex justify-between items-center">
       {/* Badge de Status no Canto Superior Esquerdo */}
@@ -261,7 +269,10 @@ export function ProfessionalsPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => handleStatusToggle(Professional)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleStatusToggle(Professional);
+          }}
           title={Professional.isActive ? 'Desativar' : 'Ativar'}
           className="text-gray-500 hover:bg-gray-100"
         >
@@ -274,7 +285,10 @@ export function ProfessionalsPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => handleEdit(Professional)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleEdit(Professional);
+          }}
           title="Editar"
           className="text-gray-500 hover:bg-gray-100"
         >
@@ -283,7 +297,10 @@ export function ProfessionalsPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => handleDelete(Professional.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(Professional.id);
+          }}
           title="Excluir"
           className="text-red-500 hover:bg-red-50"
         >
