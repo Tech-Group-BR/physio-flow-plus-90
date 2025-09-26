@@ -117,12 +117,24 @@ export function EvolutionForm({ record, onSave, onCancel }: EvolutionFormProps) 
 
       if (uploadError) {
         console.error('Erro ao fazer upload da foto:', uploadError);
+        console.error('Detalhes do erro:', { 
+          message: uploadError.message, 
+          statusCode: uploadError.statusCode,
+          error: uploadError.error 
+        });
         throw uploadError;
       }
 
       const { data: { publicUrl } } = supabase.storage
         .from('evolution-photos')
         .getPublicUrl(filePath);
+
+      console.log('✅ Upload realizado com sucesso:', {
+        filePath,
+        publicUrl,
+        photoName: photo.name,
+        photoSize: photo.size
+      });
 
       const isVideo = photo.type.startsWith('video/');
       uploadedUrls.push({ url: publicUrl, type: isVideo ? 'video' : 'photo' });

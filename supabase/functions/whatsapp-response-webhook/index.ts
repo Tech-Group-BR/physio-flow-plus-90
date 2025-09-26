@@ -49,10 +49,11 @@ serve(async (req) => {
 
     // --- Início das Validações e Filtros Essenciais ---
 
-    // Filtro 1: Ignora qualquer evento que não seja uma nova mensagem (`messages.upsert`)
-    // ou qualquer mensagem que tenha sido enviada por você mesmo (`fromMe: true`)
-    if (payload.event !== 'messages.upsert' || payload.data.key.fromMe) {
-      console.log('⚠️ Evento ignorado - não é uma nova mensagem de usuário.');
+    // Filtro 1: Verifica se é um evento válido (messages.upsert ou chats.upsert) 
+    // e se não é uma mensagem enviada por nós mesmos (fromMe: true)
+    const validEvents = ['messages.upsert', 'chats.upsert'];
+    if (!validEvents.includes(payload.event) || payload.data.key?.fromMe) {
+      console.log(`⚠️ Evento ignorado - tipo: ${payload.event}, fromMe: ${payload.data.key?.fromMe}`);
       return new Response(JSON.stringify({ success: true, message: 'Evento ignorado.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -161,14 +162,20 @@ serve(async (req) => {
 
     console.log(`🔄 Atualizando agendamento [${appointmentToUpdate.id}] para status: ${newStatus}`);
 
-    // Atualiza o agendamento no banco de dados
+    // Atualiza o agendamento no banco de dados com todos os campos relevantes
+    const now = new Date().toISOString();
+    const updateData = {
+      status: newStatus,
+      whatsapp_confirmed: isConfirmation,
+      whatsapp_status: isConfirmation ? 'confirmed' : 'cancelled',
+      patient_confirmed_at: now,
+      physio_notified_at: now, // Marcar que o profissional será notificado
+      updated_at: now
+    };
+
     const { error: updateError } = await supabase
       .from('appointments')
-      .update({
-        status: newStatus,
-        whatsapp_confirmed: isConfirmation,
-        patient_confirmed_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', appointmentToUpdate.id);
 
     if (updateError) {
@@ -177,6 +184,8 @@ serve(async (req) => {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log(`✅ Agendamento atualizado com todos os campos: status=${newStatus}, whatsapp_confirmed=${isConfirmation}, physio_notified_at=${now}`);
 
     console.log('✅ Agendamento atualizado com sucesso no banco de dados.');
 
@@ -194,6 +203,8 @@ serve(async (req) => {
     // Apenas tenta enviar mensagens se houver uma configuração de API ativa
     if (settings?.api_key) {
       const appointmentDateFormatted = new Date(appointmentToUpdate.date).toLocaleDateString('pt-BR');
+      let messagesSuccessCount = 0;
+      let messagesTotalCount = 0;
 
       // 1. Envia feedback para o PACIENTE
       const patientFeedbackMessage = isConfirmation
@@ -201,31 +212,55 @@ serve(async (req) => {
         : `✅ Entendido. \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
       
       const patientPhone = '55' + cleanPhone;
+      messagesTotalCount++;
       
-      fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
-        body: JSON.stringify({ number: patientPhone, text: patientFeedbackMessage })
-      }).then(res => {
-        if (res.ok) console.log('✅ Feedback enviado para o paciente.');
-        else console.error('⚠️ Falha ao enviar feedback para o paciente.');
-      }).catch(err => console.error('❌ Erro de rede ao enviar feedback para o paciente:', err));
+      try {
+        const patientResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
+          body: JSON.stringify({ number: patientPhone, text: patientFeedbackMessage })
+        });
+        
+        if (patientResponse.ok) {
+          messagesSuccessCount++;
+          console.log('✅ Feedback enviado para o paciente com sucesso.');
+        } else {
+          console.error(`⚠️ Falha ao enviar feedback para o paciente. Status: ${patientResponse.status}`);
+        }
+      } catch (err) {
+        console.error('❌ Erro de rede ao enviar feedback para o paciente:', err);
+      }
 
       // 2. Envia notificação para o FISIOTERAPEUTA
       if (professional?.phone) {
         const statusMessage = isConfirmation ? '✅ CONFIRMADA' : '❌ CANCELADA';
         const physioMessage = `*ATUALIZAÇÃO DE CONSULTA* ${statusMessage}\n\n👤 *Paciente:* ${patientData.full_name}\n📅 *Data:* ${appointmentDateFormatted}\n🕐 *Horário:* ${appointmentToUpdate.time}\n\nO paciente respondeu via WhatsApp.`;
         const physioPhone = '55' + professional.phone.replace(/\D/g, '');
+        messagesTotalCount++;
 
-        fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
-          body: JSON.stringify({ number: physioPhone, text: physioMessage })
-        }).then(res => {
-          if (res.ok) console.log('✅ Fisioterapeuta notificado com sucesso.');
-          else console.error('⚠️ Falha ao notificar fisioterapeuta.');
-        }).catch(err => console.error('❌ Erro de rede ao notificar fisioterapeuta:', err));
+        try {
+          const physioResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': settings.api_key },
+            body: JSON.stringify({ number: physioPhone, text: physioMessage })
+          });
+          
+          if (physioResponse.ok) {
+            messagesSuccessCount++;
+            console.log('✅ Fisioterapeuta notificado com sucesso.');
+          } else {
+            console.error(`⚠️ Falha ao notificar fisioterapeuta. Status: ${physioResponse.status}`);
+          }
+        } catch (err) {
+          console.error('❌ Erro de rede ao notificar fisioterapeuta:', err);
+        }
+      } else {
+        console.log('⚠️ Telefone do profissional não encontrado - notificação não enviada.');
       }
+
+      console.log(`📊 Resumo de notificações: ${messagesSuccessCount}/${messagesTotalCount} mensagens enviadas com sucesso.`);
+    } else {
+      console.log('⚠️ Configurações do WhatsApp não encontradas - mensagens não enviadas.');
     }
 
     /* // Bloco de log que estava dando erro, desativado conforme solicitado.
@@ -248,7 +283,7 @@ serve(async (req) => {
     // --- Finalização ---
     
     console.log('🎉 Processamento do webhook concluído com sucesso!');
-    // Retorna uma resposta de sucesso para a Evolution API, finalizando a requisição.
+    // Retorna uma resposta de sucesso para a Evolution API, finalizando a requisiçao.
     return new Response(
       JSON.stringify({ success: true, message: `Agendamento ${newStatus} com sucesso.` }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -263,3 +298,34 @@ serve(async (req) => {
     );
   }
 });
+
+CREATE OR REPLACE FUNCTION public.handle_appointment_confirmation()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Só cria se status mudou para 'confirmado' e não tem pacote
+  IF NEW.status = 'confirmado'
+     AND (OLD.status IS DISTINCT FROM NEW.status)
+     AND NEW.patient_package_id IS NULL THEN
+    INSERT INTO accounts_receivable (
+      patient_id,
+      professional_id,
+      appointment_id,
+      amount,
+      due_date,
+      status,
+      clinic_id,
+      description
+    ) VALUES (
+      NEW.patient_id,
+      NEW.professional_id,
+      NEW.id,
+      NEW.price,
+      NEW.date,
+      'pendente',
+      NEW.clinic_id,
+      CONCAT('Consulta em ', TO_CHAR(NEW.date, 'DD/MM/YYYY'))
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -84,20 +84,58 @@ export function EvolutionDetailsPage() {
           
           {/* REMOVIDO: Exibição da Escala de Dor, Escala de Mobilidade e Próxima Sessão */}
           
-          {/* Seção para exibir as fotos (funcionalidade mantida) */}
+          {/* Seção para exibir as fotos/vídeos (funcionalidade melhorada) */}
           {evolution.files && evolution.files.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Mídias da Evolução</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {evolution.files.map((fileUrl, index) => (
-                  <a key={index} href={fileUrl} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
-                    <img
-                      src={fileUrl}
-                      alt="Foto da evolução"
-                      className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
-                    />
-                  </a>
-                ))}
+                {evolution.files.map((file, index) => {
+                  // Lidar com ambos os formatos: string simples ou objeto complexo
+                  const fileUrl = typeof file === 'string' ? file : (file as any)?.url || file;
+                  const fileType = typeof file === 'object' && file && (file as any)?.type ? (file as any).type : 'photo';
+                  const isVideo = fileType === 'video' || fileUrl.includes('.mp4') || fileUrl.includes('.mov') || fileUrl.includes('.avi');
+                  
+                  console.log('🎬 Renderizando arquivo:', { fileUrl, fileType, isVideo, originalFile: file });
+                  
+                  if (isVideo) {
+                    return (
+                      <div key={index} className="relative">
+                        <video
+                          src={fileUrl}
+                          controls
+                          className="w-full h-32 object-cover rounded-lg border"
+                          preload="metadata"
+                        >
+                          <p>Seu navegador não suporta vídeo.</p>
+                        </video>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div key={index} className="relative">
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" title="Clique para ampliar">
+                          <img
+                            src={fileUrl}
+                            alt="Foto da evolução"
+                            className="w-full h-32 object-cover rounded-lg border hover:opacity-80 transition-opacity"
+                            onError={(e) => {
+                              console.error('❌ Erro ao carregar imagem:', fileUrl);
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const nextElement = target.nextElementSibling as HTMLElement;
+                              if (nextElement) {
+                                nextElement.style.display = 'block';
+                              }
+                            }}
+                          />
+                          <div className="hidden w-full h-32 bg-gray-200 rounded-lg border flex items-center justify-center">
+                            <p className="text-sm text-gray-500">Imagem não encontrada</p>
+                          </div>
+                        </a>
+                      </div>
+                    );
+                  }
+                })}
               </div>
             </div>
           )}
