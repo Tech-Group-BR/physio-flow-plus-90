@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useClinic } from "@/contexts/ClinicContext";
-import { Plus, Edit, Trash2, MapPin } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { is } from "date-fns/locale";
 
 interface Room {
   id: string;
@@ -74,6 +75,16 @@ export function RoomsManager() {
         toast.error('Erro ao excluir sala');
         console.error('Erro:', error);
       }
+    }
+  };
+
+  const handleToggleActive = async (room: Room) => {
+    try {
+      await updateRoom({ ...room, is_active: !room.is_active });
+      toast.success(`Sala ${!room.is_active ? 'ativada' : 'desativada'} com sucesso!`);
+    } catch (error) {
+      toast.error('Erro ao alterar status da sala');
+      console.error('Erro:', error);
     }
   };
 
@@ -165,14 +176,14 @@ export function RoomsManager() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rooms.map((room) => (
-          <Card key={room.id} className="h-fit">
-            <CardHeader className="pb-3">
+          <Card key={room.id} className="min-h-[380px] flex flex-col">
+            <CardHeader className="pb-3 flex-shrink-0">
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <MapPin className="h-4 w-4" />
-                  <span>{room.name}</span>
+                  <span className="truncate">{room.name}</span>
                 </div>
-                <div className="flex space-x-1">
+                <div className="flex space-x-1 flex-shrink-0">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -191,30 +202,39 @@ export function RoomsManager() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
+            <CardContent className="flex-1 flex flex-col">
+              <div className="flex-1 space-y-2 text-sm">
                 <p><strong>Capacidade:</strong> {room.capacity} pessoa(s)</p>
                 
                 {room.equipment && room.equipment.length > 0 && (
                   <div>
-                    <p className="font-medium">Equipamentos:</p>
-                    <ul className="list-disc list-inside text-muted-foreground">
-                      {room.equipment.map((item, index) => (
-                        <li key={index}>{item}</li>
-                      ))}
-                    </ul>
+                    <p className="font-medium mb-2">Equipamentos:</p>
+                    <div className="max-h-[100px] overflow-y-auto">
+                      <div className="flex flex-wrap gap-1">
+                        {room.equipment.map((item, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
-                
-                <div className="pt-2">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    room.is_active 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+              </div>
+              
+              <div className="pt-4 mt-auto border-t flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={room.is_active}
+                    onCheckedChange={() => handleToggleActive(room)}
+                  />
+                  <span className="text-sm">
                     {room.is_active ? 'Ativa' : 'Inativa'}
                   </span>
                 </div>
+                <Badge variant={room.is_active ? "default" : "secondary"}>
+                  {room.is_active ? 'Ativa' : 'Inativa'}
+                </Badge>
               </div>
             </CardContent>
           </Card>
