@@ -8,7 +8,7 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/((?!api|_next/static|_next/image|favicon.ico|placeholder.svg|robots.txt|.*\\.(png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|ico)).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
@@ -39,5 +39,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "app/api/**/*.ts": {
+      "runtime": "@vercel/node"
+    }
+  }
 }
