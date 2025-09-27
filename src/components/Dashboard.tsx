@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useClinic } from "@/contexts/ClinicContext";
 import { useAuth } from "@/hooks/useAuth"; // ✅ MUDANÇA: Import correto
-import { format, isToday, isThisWeek, parseISO } from "date-fns";
+import { format, isToday, isThisWeek, parseISO, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Activity,
@@ -60,6 +60,7 @@ export function Dashboard() {
     patients,
     professionals,
     accountsReceivable,
+    accountsPayable,
     leads,
     loading,
     clinicSettings,
@@ -74,27 +75,80 @@ export function Dashboard() {
     fetchClinicSettings();
   }, [fetchClinicSettings]);
 
+  // 💰 Função para determinar status da conta (mesma lógica do FinancialPage)
+  const getAccountStatus = (account: {
+    dueDate: string;
+    paidDate?: string | null;
+    receivedDate?: string | null;
+  }) => {
+    if (account.paidDate || account.receivedDate) {
+      return account.paidDate ? "pago" : "recebido";
+    }
+    if (isBefore(parseISO(account.dueDate), startOfDay(new Date()))) {
+      return "vencido";
+    }
+    return "pendente";
+  };
+
   // --- 1. Cálculos e Lógica com useMemo para Performance e Segurança ---
 
   const stats = useMemo(() => {
     const safePatients = patients || [];
     const safeAppointments = appointments || [];
+    const safeReceivables = accountsReceivable || [];
+    const safePayables = accountsPayable || [];
 
-    const defaultStats = {
+    // 💰 Calcular valores financeiros reais (mesma lógica do FinancialPage)
+    let totalRevenue = 0; // Total recebido
+    let pendingRevenue = 0; // Total pendente para receber
+    let accountsReceivableTotal = 0; // Total de contas a receber
+    let accountsPayableTotal = 0; // Total de contas a pagar
+    let totalPayablesPaid = 0; // Total pago
+    let totalPayablesPending = 0; // Total pendente para pagar
+    
+    // Processar contas a receber
+    safeReceivables.forEach((ar) => {
+      const status = getAccountStatus(ar);
+      const amount = Number(ar.amount) || 0;
+      accountsReceivableTotal += amount;
+      
+      if (status === "recebido") {
+        totalRevenue += amount;
+      } else if (status === "pendente" || status === "vencido") {
+        pendingRevenue += amount;
+      }
+    });
+
+    // Processar contas a pagar
+    safePayables.forEach((ap) => {
+      const status = getAccountStatus(ap);
+      const amount = Number(ap.amount) || 0;
+      accountsPayableTotal += amount;
+      
+      if (status === "pago") {
+        totalPayablesPaid += amount;
+      } else if (status === "pendente" || status === "vencido") {
+        totalPayablesPending += amount;
+      }
+    });
+
+    const calculatedStats = {
       todayAppointments: safeAppointments.filter((apt) => isToday(parseISO(apt.date))).length,
       weekAppointments: safeAppointments.filter((apt) => isThisWeek(parseISO(apt.date), { weekStartsOn: 1 })).length,
       activePatients: safePatients.filter((p) => p.isActive).length,
       inactivePatients: safePatients.filter((p) => !p.isActive).length,
-      totalRevenue: 0,
-      pendingRevenue: 0,
+      totalRevenue, // Total já recebido
+      pendingRevenue, // Total pendente
+      accountsReceivableTotal, // Total contas a receber
+      accountsPayableTotal, // Total contas a pagar
+      totalPayablesPaid, // Total já pago
+      totalPayablesPending, // Total pendente para pagar
       missedAppointments: 0,
       newLeads: 0,
       convertedLeads: 0,
-      accountsPayableTotal: 0,
-      accountsReceivableTotal: 0,
     };
-    return { ...defaultStats, ...(dashboardStats || {}) };
-  }, [dashboardStats, appointments, patients]);
+    return { ...calculatedStats, ...(dashboardStats || {}) };
+  }, [dashboardStats, appointments, patients, accountsReceivable, accountsPayable]);
 
   const upcomingAppointments = useMemo(
     () =>
@@ -243,8 +297,8 @@ export function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Fisioterapeutas</CardTitle><Activity className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{activeProfessionalsCount}</div><p className="text-xs text-muted-foreground">ativos</p></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Faltas no Mês</CardTitle><UserX className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{stats.missedAppointments}</div><p className="text-xs text-muted-foreground">este mês</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Contas a Pagar</CardTitle><CreditCard className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">R$ {stats.accountsPayableTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div><p className="text-xs text-muted-foreground">pendentes</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Contas a Receber</CardTitle><PiggyBank className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">R$ {stats.accountsReceivableTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div><p className="text-xs text-muted-foreground">pendentes</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Contas a Pagar</CardTitle><CreditCard className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">R$ {stats.totalPayablesPending.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div><p className="text-xs text-muted-foreground">pendentes</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Contas a Receber</CardTitle><PiggyBank className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">R$ {stats.pendingRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div><p className="text-xs text-muted-foreground">pendentes</p></CardContent></Card>
       </div>
       
       {/* Agendamentos e Atividades Recentes */}

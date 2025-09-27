@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   ArrowLeft, 
   Edit, 
@@ -63,6 +65,17 @@ export function ProfessionalDetailsPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    crefito: '',
+    specialties: [] as string[],
+    bio: '',
+    isActive: true,
+    profile_picture_url: '',
+  });
   const [stats, setStats] = useState<ProfessionalStats>({
     totalAppointments: 0,
     completedAppointments: 0,
@@ -195,6 +208,36 @@ export function ProfessionalDetailsPage() {
     setIsLoading(false);
   }, [professional?.id, appointments, accountsReceivable, id]);
 
+  // 📝 Funções para edição de profissional
+  const initializeEditForm = () => {
+    if (professional) {
+      setEditFormData({
+        name: professional.name,
+        email: professional.email,
+        phone: professional.phone,
+        crefito: professional.crefito,
+        specialties: professional.specialties || [],
+        bio: professional.bio || '',
+        isActive: professional.isActive,
+        profile_picture_url: professional.profile_picture_url || '',
+      });
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!professional) return;
+
+    try {
+      await updateProfessional(professional.id, editFormData);
+      setIsEditDialogOpen(false);
+      toast.success('Profissional atualizado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao atualizar profissional');
+      console.error('Erro:', error);
+    }
+  };
+
   const handleEditProfessional = async (updatedData: Partial<Professional>) => {
     if (!professional) return;
     
@@ -300,10 +343,104 @@ export function ProfessionalDetailsPage() {
         </div>
         
         <div className="flex space-x-2">
-          <Button onClick={() => setIsEditing(true)} className="w-full sm:w-auto">
-            <Edit className="mr-2 h-4 w-4" />
-            Editar Perfil
-          </Button>
+          {/* 📝 Botão de Editar com Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                onClick={initializeEditForm}
+                className="w-full sm:w-auto"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Editar Perfil
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Editar Profissional</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-name">Nome</Label>
+                    <Input
+                      id="edit-name"
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="edit-phone">Telefone</Label>
+                    <Input
+                      id="edit-phone"
+                      value={editFormData.phone}
+                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="edit-crefito">CREFITO</Label>
+                    <Input
+                      id="edit-crefito"
+                      value={editFormData.crefito}
+                      onChange={(e) => setEditFormData({ ...editFormData, crefito: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-specialties">Especialidades (separadas por vírgula)</Label>
+                  <Input
+                    id="edit-specialties"
+                    value={editFormData.specialties?.join(', ') || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, specialties: e.target.value.split(',').map(s => s.trim()) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-bio">Biografia</Label>
+                  <Input
+                    id="edit-bio"
+                    value={editFormData.bio || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-profile-picture">URL da Foto de Perfil</Label>
+                  <Input
+                    id="edit-profile-picture"
+                    value={editFormData.profile_picture_url || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, profile_picture_url: e.target.value })}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    Atualizar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
