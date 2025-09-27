@@ -39,16 +39,16 @@ const Index = () => {
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center px-4 gap-4">
-              <SidebarTrigger />
-              <div className="flex items-center space-x-2">
-                <h1 className="font-semibold">GoPhysioTech</h1>
-                <span className="text-muted-foreground hidden sm:inline">Sistema de Gestão</span>
+            <div className="flex h-14 items-center px-3 sm:px-4 lg:px-6 gap-2 sm:gap-4">
+              <SidebarTrigger className="shrink-0" />
+              <div className="flex items-center space-x-2 min-w-0">
+                <h1 className="font-semibold text-sm sm:text-base truncate">GoPhysioTech</h1>
+                <span className="text-muted-foreground hidden sm:inline text-xs sm:text-sm truncate">Sistema de Gestão</span>
               </div>
             </div>
           </header>
           <main className="flex-1 overflow-auto">
-            <div className="p-4 md:p-6">
+            <div className="p-3 sm:p-4 md:p-6 max-w-full">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/agenda" element={<AgendaPageWithRecurrence />} />

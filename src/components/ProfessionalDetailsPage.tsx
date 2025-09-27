@@ -354,12 +354,12 @@ export function ProfessionalDetailsPage() {
                 Editar Perfil
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Editar Profissional</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-name">Nome</Label>
                     <Input
@@ -638,10 +638,12 @@ export function ProfessionalDetailsPage() {
         <TabsContent value="patients" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                Pacientes Atendidos ({getProfessionalPatients().length})
-                <span className="text-sm font-normal text-gray-500 ml-2">
+              <CardTitle className="text-lg flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-center">
+                  <Users className="mr-2 h-5 w-5" />
+                  Pacientes Atendidos ({getProfessionalPatients().length})
+                </div>
+                <span className="text-sm font-normal text-gray-500">
                   (apenas consultas realizadas)
                 </span>
               </CardTitle>
@@ -658,34 +660,34 @@ export function ProfessionalDetailsPage() {
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                     
                     return (
-                      <div key={patient.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div key={patient.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors gap-4 sm:gap-0">
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
                             <Users className="h-5 w-5 text-gray-500" />
                           </div>
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <Link 
                               to={`/pacientes/${patient.id}`}
-                              className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                              className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer block truncate"
                             >
                               {patient.fullName}
                             </Link>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">
+                            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 mt-1">
+                              <Badge variant="secondary" className="text-xs w-fit">
                                 {realizedAppointments.length} consultas realizadas
                               </Badge>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs w-fit">
                                 {patientAppointments.length} total
                               </Badge>
                               {lastAppointment && (
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 truncate">
                                   Última: {format(new Date(lastAppointment.date), 'dd/MM/yyyy')}
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end sm:justify-start space-x-2 shrink-0">
                           <Badge variant={patient.isActive ? "default" : "secondary"}>
                             {patient.isActive ? "Ativo" : "Inativo"}
                           </Badge>

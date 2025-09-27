@@ -73,36 +73,36 @@ export function AppSidebar() {
   const roleLabel = 'Fisioterapeuta';
 
   return (
-    <Sidebar className="border-r bg-background w-64 min-w-64">
-      <SidebarHeader className="border-b px-6 py-4 bg-background">
+    <Sidebar className="border-r bg-background w-64 min-w-64 lg:w-72 lg:min-w-72">
+      <SidebarHeader className="border-b px-4 lg:px-6 py-3 lg:py-4 bg-background">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span className="text-sm font-bold">F</span>
+          <div className="flex h-8 w-8 lg:h-10 lg:w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
+            <span className="text-sm lg:text-base font-bold">F</span>
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">GoPhysioTech</span>
-            <span className="truncate text-xs text-muted-foreground">Sistema SAAS</span>
+          <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+            <span className="truncate font-semibold text-sm lg:text-base">GoPhysioTech</span>
+            <span className="truncate text-xs lg:text-sm text-muted-foreground">Sistema SAAS</span>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-2 bg-background flex-1">
+      <SidebarContent className="px-1 sm:px-2 py-2 bg-background flex-1">
         <SidebarMenuSection 
           label={mainMenuLabel}
           items={mainItems}
         />
       </SidebarContent>
 
-      <SidebarFooter className="border-t px-6 py-4 bg-background">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-            <span className="text-sm font-medium">
+      <SidebarFooter className="border-t px-4 lg:px-6 py-3 lg:py-4 bg-background">
+        <div className="flex items-center gap-2 mb-3 min-w-0">
+          <div className="flex h-8 w-8 lg:h-10 lg:w-10 items-center justify-center rounded-full bg-muted shrink-0">
+            <span className="text-sm lg:text-base font-medium">
               {userName.charAt(0).toUpperCase()}
             </span>
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{userName}</span>
-            <span className="truncate text-xs text-muted-foreground">
+          <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+            <span className="truncate font-medium text-sm lg:text-base">{userName}</span>
+            <span className="truncate text-xs lg:text-sm text-muted-foreground">
               {roleLabel}
             </span>
           </div>
@@ -111,7 +111,7 @@ export function AppSidebar() {
         <Button 
           variant="outline" 
           size="sm" 
-          className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm lg:text-base h-9 lg:h-10"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />

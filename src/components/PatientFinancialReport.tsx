@@ -222,14 +222,15 @@ export function PatientFinancialReport() {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto -mx-6 px-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[200px]">Descrição</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Quantidade</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   <TableRow>
                     <TableCell>Consultas Confirmadas</TableCell>
@@ -262,6 +263,7 @@ export function PatientFinancialReport() {
                   </TableRow>
                 </TableBody>
               </Table>
+              </div>
 
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-semibold text-gray-900 mb-2">Resumo Financeiro</h4>
