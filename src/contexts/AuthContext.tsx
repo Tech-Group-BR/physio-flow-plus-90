@@ -17,9 +17,9 @@ interface AuthContextType {
   session: Session | null;
   user: AppUser | null; // Usamos nosso AppUser estendido
   loading: boolean;
-  // clinicId não precisa ser exposto separadamente aqui se já está no user
-  // Se quiser, pode deixar, mas é redundante se estiver no user
-  // clinicId: string | null; 
+  redirectTo: string | null;
+  setRedirectTo: (path: string | null) => void;
+  clearRedirectTo: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +28,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirectTo, setRedirectToState] = useState<string | null>(null);
+
+  const setRedirectTo = useCallback((path: string | null) => {
+    setRedirectToState(path);
+    if (path) {
+      localStorage.setItem('auth_redirect_to', path);
+    } else {
+      localStorage.removeItem('auth_redirect_to');
+    }
+  }, []);
+
+  const clearRedirectTo = useCallback(() => {
+    setRedirectToState(null);
+    localStorage.removeItem('auth_redirect_to');
+  }, []);
 
   // Função auxiliar para buscar o perfil e anexar ao usuário
   const getProfileAndClinicId = useCallback(async (supabaseUser: User | null): Promise<AppUser | null> => {
@@ -55,6 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Carregar redirectTo do localStorage
+    const savedRedirectTo = localStorage.getItem('auth_redirect_to');
+    if (savedRedirectTo) {
+      setRedirectToState(savedRedirectTo);
+    }
+
     // Escuta por mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
@@ -99,7 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       user,
       loading,
-      // clinicId: user?.clinicId, // clinicId já está dentro do objeto user
+      redirectTo,
+      setRedirectTo,
+      clearRedirectTo,
     }}>
       {loading ? <div>Carregando autenticação...</div> : children}
     </AuthContext.Provider>

@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ArrowLeft, Building2, Mail, Lock, Hash } from 'lucide-react';
 
 export function LoginPage() {
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

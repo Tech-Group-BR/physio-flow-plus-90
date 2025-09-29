@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { CreditCard, QrCode, FileText, Loader2, Copy, Check, LogIn } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
+import { useProducts } from "@/hooks/useProducts"
 import type { BillingType, PaymentResult } from "@/types/asaas"
 
 interface PaymentFormData {
@@ -16,13 +17,7 @@ interface PaymentFormData {
   email: string
   cpfCnpj: string
   billingType: BillingType
-  plan: 'starter' | 'professional' | 'enterprise'
-}
-
-const plans = {
-  starter: { name: 'Starter', price: 97, description: 'Ideal para clínicas pequenas' },
-  professional: { name: 'Professional', price: 197, description: 'Perfeito para clínicas em crescimento' },
-  enterprise: { name: 'Enterprise', price: 397, description: 'Solução completa para grandes clínicas' }
+  planId: string
 }
 
 export function PaymentPage() {
@@ -30,20 +25,31 @@ export function PaymentPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
+  const { products, loading: productsLoading } = useProducts()
 
   const [formData, setFormData] = useState<PaymentFormData>({
     name: '',
     email: '',
     cpfCnpj: '',
     billingType: 'PIX',
-    plan: (searchParams.get('plan') as keyof typeof plans) || 'starter'
+    planId: searchParams.get('plan') || ''
   })
 
   const [loading, setLoading] = useState(false)
   const [paymentResult, setPaymentResult] = useState<PaymentResult['payment'] | null>(null)
   const [copiedPix, setCopiedPix] = useState(false)
 
-  const selectedPlan = plans[formData.plan]
+  const selectedPlan = products.find(p => p.id === formData.planId)
+
+  // Definir plano padrão quando produtos são carregados
+  useEffect(() => {
+    if (products.length > 0 && !formData.planId) {
+      const defaultPlan = products.find(p => p.name.toLowerCase().includes('starter')) || products[0]
+      if (defaultPlan) {
+        setFormData(prev => ({ ...prev, planId: defaultPlan.id }))
+      }
+    }
+  }, [products, formData.planId])
 
   // Verificar autenticação
   useEffect(() => {
@@ -67,13 +73,15 @@ export function PaymentPage() {
     }
   }, [user, authLoading, navigate, toast])
 
-  // Mostrar loading enquanto verifica autenticação
-  if (authLoading) {
+  // Mostrar loading enquanto verifica autenticação ou carrega produtos
+  if (authLoading || productsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-sky-50 to-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-sky-600" />
-          <p className="text-gray-600">Verificando autenticação...</p>
+          <p className="text-gray-600">
+            {authLoading ? 'Verificando autenticação...' : 'Carregando planos...'}
+          </p>
         </div>
       </div>
     )
@@ -124,8 +132,8 @@ export function PaymentPage() {
               <div className="bg-sky-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-sky-800 mb-2">Plano Selecionado</h4>
                 <div className="flex justify-between items-center">
-                  <span className="text-sky-700">{selectedPlan.name}</span>
-                  <span className="font-bold text-sky-800">R$ {selectedPlan.price}/mês</span>
+                  <span className="text-sky-700">{selectedPlan?.name || 'Carregando...'}</span>
+                  <span className="font-bold text-sky-800">R$ {selectedPlan?.price || 0}/mês</span>
                 </div>
               </div>
             </CardContent>
@@ -154,9 +162,9 @@ export function PaymentPage() {
             cpfCnpj: formData.cpfCnpj.replace(/\D/g, '') // Remove formatação
           },
           billingType: formData.billingType,
-          value: selectedPlan.price,
+          value: selectedPlan?.price || 0,
           dueDate: dueDateString,
-          description: `GoPhysioTech - Plano ${selectedPlan.name}`,
+          description: `GoPhysioTech - Plano ${selectedPlan?.name || 'Selecionado'}`,
         }
       })
 
@@ -168,7 +176,7 @@ export function PaymentPage() {
         setPaymentResult(data.payment)
         toast({
           title: "Cobrança criada com sucesso!",
-          description: `Sua cobrança de R$ ${selectedPlan.price} foi gerada.`,
+          description: `Sua cobrança de R$ ${selectedPlan?.price || 0} foi gerada.`,
         })
       } else {
         throw new Error('Erro ao criar cobrança')
@@ -219,7 +227,7 @@ export function PaymentPage() {
                 Cobrança Criada com Sucesso!
               </CardTitle>
               <CardDescription>
-                Plano {selectedPlan.name} - R$ {selectedPlan.price}
+                Plano {selectedPlan?.name || 'Selecionado'} - R$ {selectedPlan?.price || 0}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -306,12 +314,12 @@ export function PaymentPage() {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Plano Selecionado: {selectedPlan.name}</CardTitle>
-            <CardDescription>{selectedPlan.description}</CardDescription>
+            <CardTitle>Plano Selecionado: {selectedPlan?.name || 'Carregando...'}</CardTitle>
+            <CardDescription>{selectedPlan?.description || 'Carregando descrição...'}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-sky-600">
-              R$ {selectedPlan.price}
+              R$ {selectedPlan?.price || 0}
               <span className="text-sm font-normal text-gray-500">/mês</span>
             </div>
           </CardContent>
@@ -409,7 +417,7 @@ export function PaymentPage() {
                     Processando...
                   </>
                 ) : (
-                  `Gerar Cobrança - R$ ${selectedPlan.price}`
+                  `Gerar Cobrança - R$ ${selectedPlan?.price || 0}`
                 )}
               </Button>
             </form>

@@ -17,9 +17,11 @@ import {
   Zap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useProducts } from "@/hooks/useProducts";
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { products, loading } = useProducts();
 
   const handleLogin = () => {
     navigate('/login');
@@ -29,8 +31,8 @@ export function LandingPage() {
     navigate('/login');
   };
 
-  const handlePayment = (plan: string) => {
-    navigate(`/pagamento?plan=${plan}`);
+  const handlePayment = (planName: string) => {
+    navigate(`/pagamento?plan=${planName.toLowerCase()}`);
   };
 
   const features = [
@@ -63,55 +65,6 @@ export function LandingPage() {
       icon: Heart,
       title: "Foco no Cuidado",
       description: "Mais tempo para seus pacientes, menos tempo com burocracia."
-    }
-  ];
-
-  const plans = [
-    {
-      name: "Starter",
-      price: "R$ 97",
-      period: "/mês",
-      description: "Ideal para clínicas pequenas",
-      features: [
-        "Até 200 pacientes",
-        "Agenda básica",
-        "WhatsApp integrado",
-        "Relatórios simples",
-        "Suporte por email"
-      ],
-      popular: false
-    },
-    {
-      name: "Professional",
-      price: "R$ 197",
-      period: "/mês",
-      description: "Para clínicas em crescimento",
-      features: [
-        "Pacientes ilimitados",
-        "Agenda avançada com recorrência",
-        "WhatsApp + automações",
-        "Relatórios completos",
-        "Portal do responsável",
-        "Suporte prioritário",
-        "Backup automático"
-      ],
-      popular: true
-    },
-    {
-      name: "Enterprise",
-      price: "R$ 397",
-      period: "/mês",
-      description: "Para redes de clínicas",
-      features: [
-        "Multi-clínicas",
-        "Usuários ilimitados",
-        "API personalizada",
-        "Integrações avançadas",
-        "Relatórios personalizados",
-        "Suporte 24/7",
-        "Treinamento incluso"
-      ],
-      popular: false
     }
   ];
 
@@ -247,24 +200,39 @@ export function LandingPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => (
-              <Card key={index} className={`relative hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 ${plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''} border-0 shadow-lg`}>
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1">
-                      Mais Popular
-                    </Badge>
-                  </div>
-                )}
-                <CardContent className="p-8">
-                  <div className="text-center mb-8">
-                    <h4 className="text-2xl font-bold text-slate-800 mb-2">{plan.name}</h4>
-                    <p className="text-gray-600 mb-4">{plan.description}</p>
-                    <div className="flex items-baseline justify-center mb-6">
-                      <span className="text-5xl font-bold text-slate-800">{plan.price}</span>
-                      <span className="text-gray-500 ml-1">{plan.period}</span>
+            {loading ? (
+              // Loading state
+              Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} className="border-0 shadow-lg animate-pulse">
+                  <CardContent className="p-8">
+                    <div className="text-center mb-8">
+                      <div className="h-8 bg-gray-200 rounded mb-4"></div>
+                      <div className="h-4 bg-gray-200 rounded mb-6"></div>
+                      <div className="h-12 bg-gray-200 rounded mb-6"></div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
                     </div>
-                    <Button 
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              products.map((plan, index) => (
+                <Card key={plan.id} className={`relative hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 ${plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''} border-0 shadow-lg`}>
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1">
+                        Mais Popular
+                      </Badge>
+                    </div>
+                  )}
+                  <CardContent className="p-8">
+                    <div className="text-center mb-8">
+                      <h4 className="text-2xl font-bold text-slate-800 mb-2">{plan.name}</h4>
+                      <p className="text-gray-600 mb-4">{plan.description}</p>
+                      <div className="flex items-baseline justify-center mb-6">
+                        <span className="text-5xl font-bold text-slate-800">R$ {plan.price}</span>
+                        <span className="text-gray-500 ml-1">{plan.period}</span>
+                      </div>
+                      <Button 
                       className={`w-full py-3 text-lg transition-all duration-200 ${
                         plan.popular 
                           ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white hover:scale-105 shadow-lg hover:shadow-xl' 
@@ -286,7 +254,8 @@ export function LandingPage() {
                   </ul>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>
