@@ -26,7 +26,11 @@ export function LandingPage() {
   };
 
   const handleSignUp = () => {
-    navigate('/cadastro');
+    navigate('/login');
+  };
+
+  const handlePayment = (plan: string) => {
+    navigate(`/pagamento?plan=${plan}`);
   };
 
   const features = [
@@ -182,10 +186,10 @@ export function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               size="lg" 
-              onClick={handleSignUp}
+              onClick={() => handlePayment('professional')}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 text-lg hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
             >
-              Começar Teste Grátis
+              Assinar Professional
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button 
@@ -267,9 +271,9 @@ export function LandingPage() {
                           : 'border-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 hover:scale-105'
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
-                      onClick={handleSignUp}
+                      onClick={() => handlePayment(plan.name.toLowerCase())}
                     >
-                      Começar Agora
+                      Assinar Agora
                     </Button>
                   </div>
                   <ul className="space-y-3">
@@ -331,10 +335,10 @@ export function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button 
               size="lg" 
-              onClick={handleSignUp}
+              onClick={() => handlePayment('professional')}
               className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-4 text-lg hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
             >
-              Começar Teste Grátis
+              Assinar Agora
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button 

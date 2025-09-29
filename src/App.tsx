@@ -12,6 +12,7 @@ import { LandingPage } from "@/components/LandingPage";
 import { LoginPage } from "@/components/LoginPage";
 import { RegisterPage } from "@/components/RegisterPage";
 import { SignUpPage } from "@/components/SignUpPage";
+import { PaymentPage } from "@/components/PaymentPage";
 import { RootRoute } from "@/components/RootRoute";
 import { useState, useEffect } from "react";
 import "./App.css";
@@ -77,6 +78,7 @@ function App() {
             <Routes>
               {/* <Route path="/" element={<RootRoute />} /> */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/pagamento" element={<PaymentPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/cadastro" element={<SignUpPage />} />
