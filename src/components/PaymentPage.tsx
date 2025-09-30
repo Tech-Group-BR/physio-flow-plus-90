@@ -11,6 +11,7 @@ import { CreditCard, QrCode, FileText, Loader2, Copy, Check, LogIn } from "lucid
 import { useAuth } from "@/hooks/useAuth"
 import { useProducts } from "@/hooks/useProducts"
 import type { BillingType, PaymentResult } from "@/types/asaas"
+import QRCode from 'qrcode'
 
 interface PaymentFormData {
   name: string
@@ -38,8 +39,29 @@ export function PaymentPage() {
   const [loading, setLoading] = useState(false)
   const [paymentResult, setPaymentResult] = useState<PaymentResult['payment'] | null>(null)
   const [copiedPix, setCopiedPix] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
 
   const selectedPlan = products.find(p => p.id === formData.planId)
+
+  // Gerar QR Code quando o pagamento PIX for criado
+  useEffect(() => {
+    if (paymentResult?.billingType === 'PIX' && paymentResult.pixCopyAndPaste && !qrCodeUrl) {
+      QRCode.toDataURL(paymentResult.pixCopyAndPaste, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+        .then(url => {
+          setQrCodeUrl(url)
+        })
+        .catch(err => {
+          console.error('Erro ao gerar QR Code:', err)
+        })
+    }
+  }, [paymentResult, qrCodeUrl])
 
   // Definir plano padrão quando produtos são carregados
   useEffect(() => {
@@ -236,9 +258,24 @@ export function PaymentPage() {
                   <div className="text-center">
                     <h3 className="font-semibold mb-2">Pague com PIX</h3>
                     <p className="text-sm text-gray-600">
-                      Use o código abaixo no seu app de pagamentos
+                      Escaneie o QR Code ou use o código abaixo no seu app de pagamentos
                     </p>
                   </div>
+                  
+                  {/* QR Code */}
+                  {qrCodeUrl && (
+                    <div className="flex justify-center">
+                      <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                        <img 
+                          src={qrCodeUrl} 
+                          alt="QR Code PIX" 
+                          className="w-48 h-48"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Código PIX */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex items-center justify-between">
                       <code className="flex-1 text-xs break-all mr-2">

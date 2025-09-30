@@ -190,26 +190,84 @@ console.log('✅ Professional found:', {
     }
 
     // Limpar e formatar número de telefone
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    let cleanPhone = phoneNumber.replace(/\D/g, '');
     console.log('📱 Phone cleaning process:', {
       original: phoneNumber,
       cleaned: cleanPhone,
       length: cleanPhone.length
     });
 
-    // Formatar número para WhatsApp (sempre 55 + DDD + número)
-    let formattedPhone = cleanPhone;
+let formattedPhone = cleanPhone; // Começa com o número limpo
 
-    // Se o número não tem código do país, adicionar 55
-    if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
-      formattedPhone = '55' + cleanPhone;
-    } else if (cleanPhone.length === 10 && !cleanPhone.startsWith('55')) {
-      formattedPhone = '55' + cleanPhone;
-    } else if (cleanPhone.length === 9 && !cleanPhone.startsWith('55')) {
-      // Assumir DDD 66 se só tiver 9 dígitos (número de celular)
-      formattedPhone = '5566' + cleanPhone;
+// 1. Remover prefixo '55' se já existir e o número for válido para isso
+//    Isso simplifica a lógica de adicionar '55' mais tarde.
+if (cleanPhone.startsWith('55') && (cleanPhone.length >= 10 && cleanPhone.length <= 13)) {
+    cleanPhone = cleanPhone.substring(2); // Remove o '55' para padronizar do DDD pra frente
+}
+
+// Agora, 'cleanPhone' deve ser algo como '66992646592', '992646592', '662646592' ou '2646592' (DDD e/ou 9 extra removidos)
+
+// 2. Adicionar o '9' extra para números de celular se estiver faltando e for um número de celular (9 ou 10 dígitos)
+//    DDD com 2 dígitos + número de 8 dígitos (fixo) = 10 dígitos
+//    DDD com 2 dígitos + número de 9 dígitos (celular) = 11 dígitos
+//    Número de celular direto sem DDD = 9 dígitos
+
+if (cleanPhone.length === 8) { // Ex: 2646592 (8 dígitos, sem DDD, sem 9 extra) -> Deve ser 9xxxx-xxxx
+    // Se for um número de celular de 8 dígitos sem DDD, adicionar '9' e assumir um DDD.
+    // Esta é a parte mais ambígua. É crucial ter certeza de que é um celular e qual DDD usar.
+    // Pela sua lógica anterior, você estava assumindo '66'. Vou manter essa premissa.
+    // Mas ATENÇÃO: Se não tiver DDD, é melhor pedir para o usuário ou deixar ele digitar o DDD.
+    formattedPhone = '55669' + cleanPhone; // Ex: 556692646592
+}
+else if (cleanPhone.length === 9) { // Ex: 992646592 (9 dígitos, sem DDD)
+    // Se começar com 9 (celular), presumir que falta DDD
+    // Se começar com 2-8 (fixo), presumir que falta DDD e '9' extra
+    // A lógica de adicionar DDD é sempre um chute se não for fornecido.
+    // Por isso, se for 9 dígitos e *não* for um '9' de celular, pode ser um fixo sem DDD.
+    // Para simplificar, se for 9 dígitos, vamos considerar um celular sem DDD, e adicionar '55' e um DDD padrão (se houver).
+    // SE for um celular começando com 9, e você quer adicionar um DDD padrão, faça:
+    if (cleanPhone.startsWith('9')) { // Ex: 992646592
+        formattedPhone = '5566' + cleanPhone; // Ex: 5566992646592
+    } else { // Ex: 26465921 (9 dígitos, provável fixo sem DDD)
+        // Se for 9 dígitos e não começar com 9, é um fixo sem DDD. Não adicionar '9'.
+        // Adicione apenas DDI e DDD.
+        formattedPhone = '5566' + cleanPhone; // Ex: 556626465921 (DDD 66 + Fixo 9 digitos)
     }
+}
+else if (cleanPhone.length === 10) { // Ex: 662646592 (10 dígitos, DDD + fixo)
+    // Se já tem 10 dígitos, provavelmente é DDD + número fixo de 8 dígitos.
+    // Não adicionar '9' extra. Adicionar apenas o DDI '55'.
+    formattedPhone = '55' + cleanPhone; // Ex: 55662646592
+}
+else if (cleanPhone.length === 11) { // Ex: 66992646592 (11 dígitos, DDD + celular)
+    // Se já tem 11 dígitos, provavelmente é DDD + celular de 9 dígitos.
+    // Adicionar apenas o DDI '55'.
+    formattedPhone = '55' + cleanPhone; // Ex: 5566992646592
+}
+// 3. Casos onde o DDI já está presente e o número está completo
+else if (cleanPhone.length === 12 && !cleanPhone.startsWith('55')) { // Ex: 55662646592 (já tem 55, mas removemos no começo)
+    // Se chegamos aqui com 12 dígitos, significa que era 55XXXXXXXXXX e removemos o 55.
+    // Agora precisamos colocar o 55 de volta. Isso é um número fixo.
+    formattedPhone = '55' + cleanPhone;
+}
+else if (cleanPhone.length === 13 && !cleanPhone.startsWith('55')) { // Ex: 5566992646592 (já tem 55, mas removemos no começo)
+    // Se chegamos aqui com 13 dígitos, significa que era 55XXXXXXXXXXX e removemos o 55.
+    // Agora precisamos colocar o 55 de volta. Isso é um número de celular.
+    formattedPhone = '55' + cleanPhone;
+}
+// Caso para números já formatados (com DDD e 9 extra) ou não reconhecidos
+else {
+    // Se o número já tem o DDI e DDD corretos, ou se é um formato que não se encaixa nas regras acima,
+    // apenas use o cleanPhone original (com o 55 se tiver sido removido e já tinha).
+    // Esta parte é crucial para evitar adicionar '55' duas vezes.
+    // A melhor forma é garantir que 'cleanPhone' não tenha '55' no início ANTES desta lógica.
+    formattedPhone = '55' + cleanPhone; // Assumindo que queremos sempre o '55' no final.
+}
 
+// Após toda a lógica, garantir que o DDI '55' está presente uma única vez.
+if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínimo DDD+8 dígitos
+    formattedPhone = '55' + formattedPhone;
+}
 
 
     let messageId = '';

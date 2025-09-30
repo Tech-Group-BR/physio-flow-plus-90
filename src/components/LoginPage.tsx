@@ -17,13 +17,17 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (only on initial load, not during login process)
   useEffect(() => {
-    if (user && !authLoading) {
-      console.log('✅ Usuário já logado, redirecionando...', user.email);
-      navigate('/dashboard', { replace: true });
+    if (user && !authLoading && !loading) { // Adicionar !loading para não interferir durante login
+      console.log('✅ Usuário já logado (página carregada), redirecionando...', user.email);
+      if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, loading]); // Adicionar loading como dependência
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -42,9 +46,30 @@ export function LoginPage() {
         clinicCode: loginForm.clinicCode 
       });
 
-      await signIn(loginForm.email, loginForm.password, loginForm.clinicCode);
+      const result = await signIn(loginForm.email, loginForm.password, loginForm.clinicCode);
+      
+      console.log('📋 Resultado do signIn recebido:', result);
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
       toast.success('Login realizado com sucesso!');
-      navigate('/dashboard', { replace: true });
+      
+      // Redirecionamento baseado no resultado do signIn
+      console.log('🎯 Verificando redirecionamento...', { 
+        isSuperAdmin: result.isSuperAdmin,
+        hasProperty: 'isSuperAdmin' in result
+      });
+      
+      if (result.isSuperAdmin) {
+        console.log('👑 Super admin detectado, redirecionando para /admin');
+        navigate('/admin', { replace: true });
+      } else {
+        console.log('👤 Usuário normal, redirecionando para /dashboard');
+        navigate('/dashboard', { replace: true });
+      }
+      
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
       const errorMessage = error?.message || 'Erro ao fazer login';
@@ -108,6 +133,18 @@ export function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-6">
+              {loginForm.clinicCode === '000000' && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
+                  <div className="flex items-center">
+                    <div className="mr-2">👑</div>
+                    <div>
+                      <p className="font-medium">Acesso de Super Admin</p>
+                     
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                   {error}
@@ -179,7 +216,12 @@ export function LoginPage() {
                   maxLength={6}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                 />
-                <p className="text-xs text-gray-500">Código de 6 dígitos fornecido pela sua clínica</p>
+                <p className="text-xs text-gray-500">
+                  Código de 6 dígitos fornecido pela sua clínica
+                  {loginForm.clinicCode === '000000' && (
+                    <span className="text-amber-600 font-medium"> • Acesso Admin detectado</span>
+                  )}
+                </p>
               </div>
 
               {/* Login Button */}

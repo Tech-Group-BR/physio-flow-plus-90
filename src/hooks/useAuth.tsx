@@ -25,7 +25,7 @@ interface AuthContextType {
   loading: boolean;
   clinicId: string | null;
   clinicCode: string | null;
-  signIn: (email: string, password: string, clinicCode: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, clinicCode: string) => Promise<{ error: any; isSuperAdmin?: boolean }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   forceReauth: () => void;
@@ -398,33 +398,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
 
-      // 1. Verificar se a clínica é válida
+      // 1. Primeiro fazer autenticação para verificar se usuário existe
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role, clinic_code')
+        .eq('email', email.trim())
+        .single();
+
+      if (profileError) {
+        console.error('❌ Usuário não encontrado:', profileError);
+        setLoading(false);
+        return { error: { message: 'Usuário não encontrado. Verifique o email.' } };
+      }
+
+      // 2. Verificar se é super admin com código especial
+      if (profile.role === 'super' && clinicCode === '000000') {
+        console.log('👑 Login de super admin detectado - tratando como clínica 000000');
+        
+        // Verificar se usuário tem acesso a "clínica" 000000
+        if (profile.clinic_code !== '000000') {
+          console.error('❌ Super admin não tem acesso ao código 000000');
+          setLoading(false);
+          return { error: { message: 'Usuário não encontrado nesta clínica. Verifique o email e código da clínica.' } };
+        }
+
+        // Para super admin, também usar email sintético como clínica normal
+        const [name, domain] = email.trim().split('@');
+        const syntheticEmail = `${name}+000000@${domain}`;
+        console.log('📧 Email sintético para super admin:', syntheticEmail);
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: syntheticEmail,
+          password,
+        });
+
+        if (error) {
+          console.error('❌ Erro no login de super admin:', error);
+          setLoading(false);
+          return { error: { message: 'Email ou senha incorretos' } };
+        }
+
+        if (!data.user) {
+          setLoading(false);
+          return { error: { message: 'Falha na autenticação' } };
+        }
+
+        console.log('✅ Login de super admin realizado com sucesso - retornando isSuperAdmin: true');
+        return { error: null, isSuperAdmin: true };
+      }
+
+      // 3. Para usuários normais, verificar se a clínica é válida
       const clinicData = await fetchClinicDataByCode(clinicCode);
       if (!clinicData) {
         setLoading(false);
         return { error: { message: 'Código da clínica inválido ou clínica não encontrada' } };
       }
 
-      // 2. Verificar se usuário existe nesta clínica específica
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.trim())
-        .eq('clinic_code', clinicCode)
-        .single();
-
-      if (profileError) {
-        console.error('❌ Usuário não encontrado nesta clínica:', profileError);
+      // 4. Verificar se usuário tem acesso a esta clínica específica
+      if (profile.clinic_code !== clinicCode) {
+        console.error('❌ Usuário não tem acesso a esta clínica');
         setLoading(false);
         return { error: { message: 'Usuário não encontrado nesta clínica. Verifique o email e código da clínica.' } };
       }
 
-      // 3. Criar email sintético para login
+      // 5. Criar email sintético para login
       const [name, domain] = email.trim().split('@');
       const syntheticEmail = `${name}+${clinicCode}@${domain}`;
       console.log('📧 Email sintético para login:', syntheticEmail);
 
-      // 4. Fazer login com email sintético
+      // 6. Fazer login com email sintético
       const { data, error } = await supabase.auth.signInWithPassword({
         email: syntheticEmail,
         password,
@@ -453,7 +495,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('✅ Login realizado com sucesso');
       // O listener onAuthStateChange vai processar o resto
-      return { error: null };
+      return { error: null, isSuperAdmin: false };
       
     } catch (error: any) {
       console.error('❌ Erro inesperado no login:', error);

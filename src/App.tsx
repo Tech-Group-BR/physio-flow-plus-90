@@ -13,6 +13,7 @@ import { LoginPage } from "@/components/LoginPage";
 import { RegisterPage } from "@/components/RegisterPage";
 import { SignUpPage } from "@/components/SignUpPage";
 import { PaymentPage } from "@/components/PaymentPage";
+import { AdminPage } from "@/components/AdminPage";
 import { RootRoute } from "@/components/RootRoute";
 import { useState, useEffect } from "react";
 import "./App.css";
@@ -23,7 +24,12 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
-  console.log(' ProtectedRoute:', { user: user?.email, loading });
+  console.log('🔐 ProtectedRoute:', { 
+    user: user?.email, 
+    loading, 
+    role: user?.profile?.role,
+    pathname: window.location.pathname 
+  });
 
   if (loading) {
     return (
@@ -39,6 +45,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     console.log('❌ Usuário não autenticado, redirecionando para /login');
     return <Navigate to="/login" replace />;
+  }
+
+  // Verificar acesso específico para página admin
+  if (window.location.pathname === '/admin') {
+    if (user.profile?.role !== 'super') {
+      console.log('❌ Usuário não é super admin, redirecionando para /dashboard');
+      return <Navigate to="/dashboard" replace />;
+    }
+    console.log('✅ Super admin acessando página admin');
   }
 
   return <>{children}</>;
@@ -82,6 +97,14 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/cadastro" element={<SignUpPage />} />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute>
+                    <AdminPage />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/auth" 
                 element={
