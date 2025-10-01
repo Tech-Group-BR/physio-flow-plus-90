@@ -25,8 +25,12 @@ interface AuthContextType {
   loading: boolean;
   clinicId: string | null;
   clinicCode: string | null;
+  redirectTo: string | null;
+  setRedirectTo: (url: string | null) => void;
+  clearRedirectTo: () => void;
   signIn: (email: string, password: string, clinicCode: string) => Promise<{ error: any; isSuperAdmin?: boolean }>;
-  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  register: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userData: any) => Promise<{ error: any; data?: any }>;
   signOut: () => Promise<void>;
   forceReauth: () => void;
   refreshAuth: () => Promise<void>;
@@ -54,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
+
+  const clearRedirectTo = () => setRedirectTo(null);
 
   // Função para buscar dados da clínica pelo código
   const fetchClinicDataByCode = async (code: string) => {
@@ -504,7 +511,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, userData: any) => {
+  const register = async (email: string, password: string, userData: any) => {
     console.log('📝 Iniciando cadastro para:', email);
     console.log('📋 Dados recebidos:', userData);
     
@@ -587,7 +594,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (error) {
-        console.error('❌ Erro no signup:', error);
+        console.error('❌ Erro no register:', error);
         setLoading(false);
         
         if (error.message?.includes('User already registered')) {
@@ -613,7 +620,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null };
       
     } catch (error: any) {
-      console.error('❌ Erro inesperado no signup:', error);
+      console.error('❌ Erro inesperado no register:', error);
+      setLoading(false);
+      return { 
+        error: { 
+          message: `Erro inesperado: ${error.message || 'Tente novamente'}`
+        }
+      };
+    }
+  };
+
+  const signUp = async (email: string, password: string, userData: any) => {
+    console.log('📝 Iniciando cadastro para:', email);
+    console.log('📋 Dados recebidos:', userData);
+
+    const {
+    fullName,
+      phone,
+      role,
+      clinicName,
+      clinicAddress,
+      clinicPhone
+    } = userData;
+
+    if (!clinicName.trim()) {
+      return { error: { message: 'Nome da clínica é obrigatório! Caso não tenha um nome - crie um nome fictício para essa etapa.' } };
+    }
+    if ( !fullName.trim()) {
+      return { error: { message: 'Nome completo é obrigatório!' } };
+    }
+    if(!email.trim()) {
+      return { error: { message: 'Email é obrigatório!' } };
+    }
+    if(!password.trim()) {
+      return { error: { message: 'Senha é obrigatória!' } };
+    }
+    if(password.length < 6) {
+      return { error: { message: 'Senha deve ter ao menos 6 caracteres!' } };
+    }
+    if (role !== 'admin') {
+      return { error: { message: 'No momento só é possível criar usuários com perfil de admin. Outros perfis devem ser criados posteriormente.' } };
+    }
+    try {
+      setLoading(true);
+      
+      // Chamar nossa edge function que cria tudo
+      console.log('🚀 Chamando edge function complete-signup...');
+      const { data, error } = await supabase.functions.invoke('complete-signup', {
+        body: {
+          email,
+          password,
+          fullName,
+          phone,
+          role,
+          clinicName,
+          clinicAddress,
+          clinicPhone
+        }
+      });
+
+      if (error) {
+        console.error('❌ Erro na edge function:', error);
+        setLoading(false);
+        return { error: { message: `Erro no cadastro: ${error.message}` } };
+      }
+
+      if (!data.success) {
+        console.error('❌ Signup falhou:', data.error);
+        setLoading(false);
+        return { error: { message: data.error || 'Erro no cadastro' } };
+      }
+
+      console.log('✅ Signup completo realizado com sucesso!');
+      console.log('📊 Dados criados:', data);
+      
+      setLoading(false);
+      return { error: null, data };
+
+    } catch (error: any) {
+      console.error('❌ Erro inesperado no signUp:', error);
       setLoading(false);
       return { 
         error: { 
@@ -676,7 +761,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // ✅ CORRIGIDO: Garantir que clinicId e clinicCode estejam sempre atualizados
     clinicId: profile?.clinic_id || user?.profile?.clinic_id || null,
     clinicCode: profile?.clinic_code || user?.profile?.clinic_code || null,
+    redirectTo,
+    setRedirectTo,
+    clearRedirectTo,
     signIn,
+    register,
     signUp,
     signOut,
     forceReauth,

@@ -67,7 +67,8 @@ serve(async (req) => {
 async function handlePaymentReceived(supabaseClient: any, payment: any) {
   console.log('Processing payment received:', payment.id)
   
-  const { error } = await supabaseClient
+  // Atualizar status na tabela payments
+  const { error: paymentError } = await supabaseClient
     .from('payments')
     .update({ 
       status: 'RECEIVED',
@@ -75,8 +76,26 @@ async function handlePaymentReceived(supabaseClient: any, payment: any) {
     })
     .eq('asaas_payment_id', payment.id)
 
-  if (error) {
-    console.error('Error updating payment to RECEIVED:', error)
+  if (paymentError) {
+    console.error('Error updating payment to RECEIVED:', paymentError)
+  } else {
+    console.log('✅ Payment updated to RECEIVED')
+  }
+
+  // Atualizar conta a receber correspondente
+  const { error: receivableError } = await supabaseClient
+    .from('accounts_receivable')
+    .update({ 
+      status: 'pago',
+      paid_date: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .ilike('notes', `%${payment.id}%`)
+
+  if (receivableError) {
+    console.error('Error updating receivable to paid:', receivableError)
+  } else {
+    console.log('✅ Accounts receivable updated to paid')
   }
 }
 

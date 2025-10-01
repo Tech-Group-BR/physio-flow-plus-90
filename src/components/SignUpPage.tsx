@@ -12,21 +12,34 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, User, Phone, MapPin, Briefcase } from 'lucide-react';
 
 export function SignUpPage() {
-  const { signUp, user, loading: authLoading } = useAuth();
+  const { signUp, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [clinicData, setClinicData] = useState<any>(null);
 
   // Redirect if already logged in
   useEffect(() => {
     if (user && !authLoading) {
-      console.log('✅ Usuário já logado, redirecionando...', user.email);
-      navigate('/dashboard', { replace: true });
+      console.log('✅ Usuário já logado, redirecionando...', {
+        email: user.email,
+        redirectTo
+      });
+      
+      // Prioridade: redirectTo > Dashboard padrão
+      if (redirectTo) {
+        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
+        navigate(redirectTo, { replace: true });
+        clearRedirectTo();
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, redirectTo, clearRedirectTo]);
 
   const [signUpForm, setSignUpForm] = useState({
     fullName: '',
@@ -67,14 +80,28 @@ export function SignUpPage() {
         fullName: signUpForm.fullName 
       });
 
-      await signUp(
+      const { error, data } = await signUp(
         signUpForm.email, 
         signUpForm.password, 
-        signUpForm.fullName
+        {
+          fullName: signUpForm.fullName,
+          phone: signUpForm.phone,
+          role: signUpForm.role || 'admin',
+          clinicName: signUpForm.clinicName,
+          clinicAddress: signUpForm.clinicAddress,
+          clinicPhone: signUpForm.clinicPhone
+        }
       );
+
+      if (error) {
+        throw error;
+      }
       
-      toast.success('Cadastro realizado com sucesso! Bem-vindo ao GoPhysioTech!');
-      navigate('/dashboard', { replace: true });
+      // Armazenar dados da clínica e mostrar tela de sucesso
+      setClinicData(data);
+      setSignupSuccess(true);
+      
+      console.log('✅ Clínica criada com sucesso:', data?.clinic?.clinic_code);
     } catch (error: any) {
       console.error('❌ Erro no cadastro:', error);
       const errorMessage = error?.message || 'Erro ao criar conta';
@@ -96,6 +123,85 @@ export function SignUpPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 text-lg">Verificando autenticação...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Tela de sucesso após cadastro
+  if (signupSuccess && clinicData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 p-4">
+        <Card className="w-full max-w-lg bg-white border-0 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <Building2 className="w-10 h-10 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-800">
+              Clínica Criada com Sucesso! 🎉
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center space-y-4">
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  Código da Clínica
+                </h3>
+                <div className="text-3xl font-bold text-green-600 tracking-wider">
+                  {clinicData?.clinic?.clinic_code}
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  Guarde este código para adicionar outros usuários à sua clínica
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-800 mb-2">
+                  {clinicData?.clinic?.name}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Administrador: {clinicData?.user?.full_name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Email: {clinicData?.user?.email}
+                </p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Importante:</strong> Anote o código da clínica em local seguro. 
+                  Você precisará dele para adicionar profissionais e recepcionistas.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => {
+                  if (redirectTo) {
+                    navigate(redirectTo, { replace: true });
+                    clearRedirectTo();
+                  } else {
+                    navigate('/dashboard', { replace: true });
+                  }
+                }}
+                className="w-full h-12 bg-green-600 hover:bg-green-700"
+              >
+                Acessar Plataforma
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  navigator.clipboard.writeText(clinicData?.clinic?.clinic_code);
+                  toast.success('Código copiado para área de transferência!');
+                }}
+                className="w-full"
+              >
+                Copiar Código da Clínica
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -390,15 +496,26 @@ export function SignUpPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 space-y-4">
-          <p className="text-gray-600">
-            Já tem uma conta?{' '}
-            <Link 
-              to="/login" 
-              className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
-            >
-              Faça login
-            </Link>
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-600">
+              Já tem uma conta?{' '}
+              <Link 
+                to="/login" 
+                className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+              >
+                Faça login
+              </Link>
+            </p>
+            <p className="text-sm text-gray-500">
+              Quer se cadastrar em uma clínica existente?{' '}
+              <Link 
+                to="/register" 
+                className="text-purple-600 hover:text-purple-700 font-medium hover:underline transition-colors"
+              >
+                Cadastrar na clínica
+              </Link>
+            </p>
+          </div>
           <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
             <Link to="#" className="hover:text-gray-700 transition-colors">Termos de Uso</Link>
             <span>•</span>

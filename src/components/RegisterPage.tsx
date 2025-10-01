@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, Hash, User, Phone } from 'lucide-react';
 
 export function RegisterPage() {
-  const { signUp, user, loading: authLoading } = useAuth();
+  const { register, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,54 +20,65 @@ export function RegisterPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !authLoading) {
-      console.log('✅ Usuário já logado, redirecionando...', user.email);
-      navigate('/dashboard', { replace: true });
+      console.log('✅ Usuário já logado, redirecionando...', {
+        email: user.email,
+        redirectTo
+      });
+      
+      // Prioridade: redirectTo > Dashboard padrão
+      if (redirectTo) {
+        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
+        navigate(redirectTo, { replace: true });
+        clearRedirectTo();
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, redirectTo, clearRedirectTo]);
 
-  const [signupForm, setSignupForm] = useState({
+  const [registerForm, setregisterForm] = useState({
     email: '',
     password: '',
     confirmPassword: '',
     fullName: '',
     phone: '',
-    role: 'guardian',
+    role: 'professional',
     crefito: '',
     clinicCode: ''
   });
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleregister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    console.log('📝 Tentando cadastrar:', signupForm.email);
+    console.log('📝 Tentando cadastrar:', registerForm.email);
 
     try {
       // Validação básica
-      if (!signupForm.email || !signupForm.password || !signupForm.confirmPassword || 
-          !signupForm.fullName || !signupForm.clinicCode) {
+      if (!registerForm.email || !registerForm.password || !registerForm.confirmPassword || 
+          !registerForm.fullName || !registerForm.clinicCode) {
         toast.error('Preencha todos os campos obrigatórios');
         setLoading(false);
         return;
       }
 
       // Validar senhas
-      if (signupForm.password !== signupForm.confirmPassword) {
+      if (registerForm.password !== registerForm.confirmPassword) {
         toast.error('As senhas não conferem');
         setLoading(false);
         return;
       }
 
       // Validar formato do código da clínica
-      if (!/^\d{6}$/.test(signupForm.clinicCode)) {
+      if (!/^\d{6}$/.test(registerForm.clinicCode)) {
         toast.error('O código da clínica deve ter exatamente 6 dígitos');
         setLoading(false);
         return;
       }
 
       // Validar CREFITO para profissionais
-      if (signupForm.role === 'professional' && !signupForm.crefito?.trim()) {
+      if (registerForm.role === 'professional' && !registerForm.crefito?.trim()) {
         toast.error('CREFITO é obrigatório para profissionais');
         setLoading(false);
         return;
@@ -75,18 +86,18 @@ export function RegisterPage() {
 
       // Preparar metadata
       const userData = {
-        full_name: signupForm.fullName.trim(),
-        phone: signupForm.phone?.trim() || '',
-        role: signupForm.role,
-        clinic_code: signupForm.clinicCode,
-        crefito: signupForm.crefito?.trim() || ''
+        full_name: registerForm.fullName.trim(),
+        phone: registerForm.phone?.trim() || '',
+        role: registerForm.role,
+        clinic_code: registerForm.clinicCode,
+        crefito: registerForm.crefito?.trim() || ''
       };
 
-      const { error } = await signUp(signupForm.email, signupForm.password, userData);
+      const { error } = await register(registerForm.email, registerForm.password, userData);
 
       // VERIFICAÇÃO EXPLÍCITA: só proceder se NÃO houver erro
       if (error) {
-        // ERRO NO SIGNUP: mantém na página de cadastro com dados preenchidos
+        // ERRO NO register: mantém na página de cadastro com dados preenchidos
         const errorMessage = typeof error === 'string' ? error : error.message || 'Erro desconhecido';
         setError(`${errorMessage}`);
         
@@ -123,7 +134,7 @@ export function RegisterPage() {
       console.log('✅ Limpando formulário e redirecionando para login');
       
       // Limpar formulário APENAS quando der tudo certo
-      setSignupForm({
+      setregisterForm({
         email: '',
         password: '',
         confirmPassword: '',
@@ -140,7 +151,7 @@ export function RegisterPage() {
       }, 2000);
       
     } catch (err: any) {
-      console.error('❌ Erro inesperado no signup:', err);
+      console.error('❌ Erro inesperado no register:', err);
       const errorMessage = err?.message || 'Erro inesperado. Tente novamente.';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -193,18 +204,18 @@ export function RegisterPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSignup} className="space-y-6">
+            <form onSubmit={handleregister} className="space-y-6">
               {/* Clinic Code Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-clinic-code" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-clinic-code" className="text-sm font-medium text-gray-700 flex items-center">
                   <Hash className="w-4 h-4 mr-2 text-blue-600" />
                   Código da Clínica
                 </Label>
                 <Input
-                  id="signup-clinic-code"
+                  id="register-clinic-code"
                   type="text"
-                  value={signupForm.clinicCode}
-                  onChange={(e) => setSignupForm({ ...signupForm, clinicCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                  value={registerForm.clinicCode}
+                  onChange={(e) => setregisterForm({ ...registerForm, clinicCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   required
                   disabled={loading}
                   placeholder="000000"
@@ -216,15 +227,15 @@ export function RegisterPage() {
 
               {/* Name Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-name" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-name" className="text-sm font-medium text-gray-700 flex items-center">
                   <User className="w-4 h-4 mr-2 text-blue-600" />
                   Nome Completo
                 </Label>
                 <Input
-                  id="signup-name"
+                  id="register-name"
                   type="text"
-                  value={signupForm.fullName}
-                  onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                  value={registerForm.fullName}
+                  onChange={(e) => setregisterForm({ ...registerForm, fullName: e.target.value })}
                   required
                   disabled={loading}
                   placeholder="Seu nome completo"
@@ -234,15 +245,15 @@ export function RegisterPage() {
 
               {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-email" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-email" className="text-sm font-medium text-gray-700 flex items-center">
                   <Mail className="w-4 h-4 mr-2 text-blue-600" />
                   E-mail
                 </Label>
                 <Input
-                  id="signup-email"
+                  id="register-email"
                   type="email"
-                  value={signupForm.email}
-                  onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                  value={registerForm.email}
+                  onChange={(e) => setregisterForm({ ...registerForm, email: e.target.value })}
                   required
                   disabled={loading}
                   placeholder="seu@email.com"
@@ -252,15 +263,15 @@ export function RegisterPage() {
 
               {/* Phone Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-phone" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-phone" className="text-sm font-medium text-gray-700 flex items-center">
                   <Phone className="w-4 h-4 mr-2 text-blue-600" />
                   Telefone
                 </Label>
                 <Input
-                  id="signup-phone"
+                  id="register-phone"
                   type="tel"
-                  value={signupForm.phone}
-                  onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                  value={registerForm.phone}
+                  onChange={(e) => setregisterForm({ ...registerForm, phone: e.target.value })}
                   disabled={loading}
                   placeholder="(11) 99999-9999"
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
@@ -269,13 +280,13 @@ export function RegisterPage() {
 
               {/* User Type Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-role" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-role" className="text-sm font-medium text-gray-700 flex items-center">
                   <Building2 className="w-4 h-4 mr-2 text-blue-600" />
                   Tipo de Usuário
                 </Label>
                 <Select 
-                  value={signupForm.role} 
-                  onValueChange={(value: string) => setSignupForm({ ...signupForm, role: value })}
+                  value={registerForm.role} 
+                  onValueChange={(value: string) => setregisterForm({ ...registerForm, role: value })}
                   disabled={loading}
                 >
                   <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200">
@@ -290,20 +301,20 @@ export function RegisterPage() {
                 </Select>
               </div>
 
-              {signupForm.role === 'professional' && (
+              {registerForm.role === 'professional' && (
                 <div className="space-y-2">
-                  <Label htmlFor="signup-crefito" className="text-sm font-medium text-gray-700 flex items-center">
+                  <Label htmlFor="register-crefito" className="text-sm font-medium text-gray-700 flex items-center">
                     <Hash className="w-4 h-4 mr-2 text-blue-600" />
                     CREFITO
                   </Label>
                   <Input
-                    id="signup-crefito"
+                    id="register-crefito"
                     type="text"
-                    value={signupForm.crefito}
-                    onChange={(e) => setSignupForm({ ...signupForm, crefito: e.target.value })}
+                    value={registerForm.crefito}
+                    onChange={(e) => setregisterForm({ ...registerForm, crefito: e.target.value })}
                     disabled={loading}
                     placeholder="CREFITO-3/12345"
-                    required={signupForm.role === 'professional'}
+                    required={registerForm.role === 'professional'}
                     className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                   />
                   <p className="text-xs text-gray-500">Obrigatório para fisioterapeutas</p>
@@ -312,16 +323,16 @@ export function RegisterPage() {
 
               {/* Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-password" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-password" className="text-sm font-medium text-gray-700 flex items-center">
                   <Lock className="w-4 h-4 mr-2 text-blue-600" />
                   Senha
                 </Label>
                 <div className="relative">
                   <Input
-                    id="signup-password"
+                    id="register-password"
                     type={showPassword ? 'text' : 'password'}
-                    value={signupForm.password}
-                    onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                    value={registerForm.password}
+                    onChange={(e) => setregisterForm({ ...registerForm, password: e.target.value })}
                     required
                     disabled={loading}
                     minLength={6}
@@ -340,16 +351,16 @@ export function RegisterPage() {
 
               {/* Confirm Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="signup-confirm-password" className="text-sm font-medium text-gray-700 flex items-center">
+                <Label htmlFor="register-confirm-password" className="text-sm font-medium text-gray-700 flex items-center">
                   <Lock className="w-4 h-4 mr-2 text-blue-600" />
                   Confirmar Senha
                 </Label>
                 <div className="relative">
                   <Input
-                    id="signup-confirm-password"
+                    id="register-confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    value={signupForm.confirmPassword}
-                    onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
+                    value={registerForm.confirmPassword}
+                    onChange={(e) => setregisterForm({ ...registerForm, confirmPassword: e.target.value })}
                     required
                     disabled={loading}
                     minLength={6}

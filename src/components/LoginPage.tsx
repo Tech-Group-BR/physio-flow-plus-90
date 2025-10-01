@@ -19,15 +19,25 @@ export function LoginPage() {
 
   // Redirect if already logged in (only on initial load, not during login process)
   useEffect(() => {
-    if (user && !authLoading && !loading) { // Adicionar !loading para não interferir durante login
-      console.log('✅ Usuário já logado (página carregada), redirecionando...', user.email);
-      if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
+    if (user && !authLoading && !loading) {
+      console.log('✅ Usuário já logado (página carregada), redirecionando...', {
+        email: user.email,
+        redirectTo,
+        role: user.profile?.role
+      });
+      
+      // Prioridade: redirectTo > Super Admin > Dashboard padrão
+      if (redirectTo) {
+        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
+        navigate(redirectTo, { replace: true });
+        clearRedirectTo();
+      } else if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, authLoading, navigate, loading]); // Adicionar loading como dependência
+  }, [user, authLoading, navigate, loading, redirectTo, clearRedirectTo]);
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -56,16 +66,26 @@ export function LoginPage() {
       
       toast.success('Login realizado com sucesso!');
       
-      // Redirecionamento baseado no resultado do signIn
+      // Redirecionamento baseado na prioridade: redirectTo > Super Admin > Dashboard
       console.log('🎯 Verificando redirecionamento...', { 
         isSuperAdmin: result.isSuperAdmin,
-        hasProperty: 'isSuperAdmin' in result
+        hasProperty: 'isSuperAdmin' in result,
+        redirectTo: redirectTo
       });
       
-      if (result.isSuperAdmin) {
+      // Prioridade 1: Se há um destino armazenado (ex: página de pagamento)
+      if (redirectTo) {
+        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
+        navigate(redirectTo, { replace: true });
+        clearRedirectTo();
+      }
+      // Prioridade 2: Super Admin
+      else if (result.isSuperAdmin) {
         console.log('👑 Super admin detectado, redirecionando para /admin');
         navigate('/admin', { replace: true });
-      } else {
+      }
+      // Prioridade 3: Dashboard padrão
+      else {
         console.log('👤 Usuário normal, redirecionando para /dashboard');
         navigate('/dashboard', { replace: true });
       }

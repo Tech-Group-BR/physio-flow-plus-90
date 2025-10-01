@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Inicializar Supabase Admin Client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -8,17 +13,29 @@ const corsHeaders = {
 }
 
 interface PaymentRequest {
-  profileId: string // Adicionar profileId obrigatório
-  customer: {
-    name: string
-    email: string
-    cpfCnpj: string
-  }
+  customerId?: string
   billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD'
   value: number
   dueDate: string
   description?: string
+  externalReference?: string
+  clinicId?: string
   productId?: string
+  creditCard?: {
+    holderName: string
+    number: string
+    expiryMonth: string
+    expiryYear: string
+    ccv: string
+  }
+  creditCardHolderInfo?: {
+    name: string
+    email: string
+    cpfCnpj: string
+    postalCode: string
+    addressNumber: string
+    phone: string
+  }
 }
 
 serve(async (req: any) => {
@@ -39,80 +56,50 @@ serve(async (req: any) => {
       throw new Error('ASAAS_API_KEY not configured')
     }
 
-    const { profileId, customer, billingType, value, dueDate, description, productId }: PaymentRequest = await req.json()
+    const requestData = await req.json()
+    const { 
+      customerId, 
+      billingType, 
+      value, 
+      dueDate, 
+      description,
+      externalReference,
+      creditCard,
+      creditCardHolderInfo,
+      clinicId,
+      productId
+    } = requestData
 
-    console.log('Creating payment for:', { profileId, customer: customer.name, value, billingType })
+    console.log('Creating payment for:', { customerId, value, billingType })
 
-    // 1. Verificar se cliente já existe na Asaas ou criar novo
-    let asaasCustomerId = null
-    let clientId = null
-
-    // Verificar se cliente já existe no nosso banco vinculado ao profile
-    const { data: existingClient } = await supabaseClient
-      .from('clients')
-      .select('asaas_customer_id, id')
-      .eq('profile_id', profileId)
-      .single()
-
-    if (existingClient) {
-      asaasCustomerId = existingClient.asaas_customer_id
-      clientId = existingClient.id
-    } else {
-      // Criar cliente na Asaas
-      const customerResponse = await fetch(`${asaasBaseUrl}/customers`, {
-        method: 'POST',
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: customer.name,
-          email: customer.email,
-          cpfCnpj: customer.cpfCnpj,
-        }),
-      })
-
-      if (!customerResponse.ok) {
-        const errorText = await customerResponse.text()
-        throw new Error(`Failed to create customer: ${errorText}`)
-      }
-
-      const customerData = await customerResponse.json()
-      asaasCustomerId = customerData.id
-
-      // Salvar cliente no nosso banco
-      const { data: newClient, error: clientError } = await supabaseClient
-        .from('clients')
-        .insert({
-          profile_id: profileId, // Vincular ao profile do usuário
-          asaas_customer_id: asaasCustomerId,
-          cpf_cnpj: customer.cpfCnpj,
-          name: customer.name,
-          email: customer.email,
-        })
-        .select('id')
-        .single()
-
-      if (clientError) {
-        console.error('Error saving client:', clientError)
-        throw new Error(`Failed to save client: ${clientError.message}`)
-      }
-
-      clientId = newClient.id
+    // Validação básica
+    if (!customerId || !billingType || !value || !dueDate) {
+      return new Response(
+        JSON.stringify({ error: 'Dados obrigatórios: customerId, billingType, value, dueDate' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
-    // 2. Criar cobrança na Asaas
+    // Preparar dados do pagamento
     const paymentData: any = {
-      customer: asaasCustomerId,
+      customer: customerId,
       billingType: billingType,
-      value: value,
+      value: Number(value),
       dueDate: dueDate,
-      description: description || 'GoPhysioTech - Assinatura do Sistema',
+      description: description || 'Pagamento PhysioFlow Plus'
     }
 
-    // Configurações específicas por tipo de pagamento
-    if (billingType === 'PIX') {
-      paymentData.pixAddressKey = Deno.env.get('ASAAS_PIX_KEY') // Chave PIX da conta
+    if (externalReference) {
+      paymentData.externalReference = externalReference
+    }
+
+    // Se for cartão de crédito, incluir dados do cartão
+    if (billingType === 'CREDIT_CARD' && creditCard && creditCardHolderInfo) {
+      paymentData.creditCard = creditCard
+      paymentData.creditCardHolderInfo = creditCardHolderInfo
     }
 
     const paymentResponse = await fetch(`${asaasBaseUrl}/payments`, {
@@ -146,43 +133,191 @@ serve(async (req: any) => {
       }
     }
 
-    // 4. Salvar pagamento no nosso banco
-    const { error: paymentError } = await supabaseClient
+    // Salvar pagamento no Supabase
+    const { error: dbError } = await supabaseClient
       .from('payments')
       .insert({
-        client_id: clientId, // Usar o ID do cliente correto
-        product_id: productId || null,
         asaas_payment_id: payment.id,
-        status: 'PENDING',
-        value: value,
-        billing_type: billingType,
+        clinic_id: clinicId,
+        product_id: productId,
+        customer_id: customerId,
+        amount: value,
+        status: payment.status,
+        billing_type: billingType.toLowerCase(),
         due_date: dueDate,
-        pix_payload: pixPayload,
+        description: description || 'Pagamento PhysioFlow Plus',
+        asaas_response: payment,
+        created_at: new Date().toISOString()
       })
 
-    if (paymentError) {
-      console.error('Error saving payment:', paymentError)
+    if (dbError) {
+      console.error('Erro ao salvar pagamento no Supabase:', dbError)
+      // Não retornar erro aqui pois o pagamento foi criado no Asaas
+      // Apenas log do erro para análise posterior
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        payment: {
-          id: payment.id,
+    // Para PIX, buscar QR Code com retry logic
+    let pixQrCodeInfo = null
+    if (billingType === 'PIX' && payment.id) {
+      const maxRetries = 3
+      const retryDelay = 2000 // 2 segundos
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔍 Tentativa ${attempt}/${maxRetries} - Buscando QR Code para payment:`, payment.id)
+          
+          // Se não for a primeira tentativa, aguardar um pouco
+          if (attempt > 1) {
+            console.log(`⏳ Aguardando ${retryDelay}ms antes da próxima tentativa...`)
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+          }
+          
+          const qrCodeResponse = await fetch(`${asaasBaseUrl}/payments/${payment.id}/pixQrCode`, {
+            headers: {
+              'access_token': asaasApiKey,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          console.log(`📡 QR Code response status (tentativa ${attempt}):`, qrCodeResponse.status)
+          
+          if (qrCodeResponse.ok) {
+            pixQrCodeInfo = await qrCodeResponse.json()
+            console.log('✅ QR Code obtido com sucesso:', pixQrCodeInfo)
+            break // Sucesso, sair do loop
+          } else {
+            const errorText = await qrCodeResponse.text()
+            console.error(`❌ Erro na resposta QR Code (tentativa ${attempt}):`, errorText)
+            
+            // Se chegou na última tentativa e ainda não conseguiu
+            if (attempt === maxRetries) {
+              console.error('🔥 Todas as tentativas falharam para obter QR Code')
+            }
+          }
+        } catch (error) {
+          console.error(`💥 Erro ao buscar QR Code do PIX (tentativa ${attempt}):`, error)
+          
+          if (attempt === maxRetries) {
+            console.error('🔥 Todas as tentativas falharam devido a erros de rede')
+          }
+        }
+      }
+    }
+
+    // Salvar pagamento na nossa base de dados
+    try {
+      console.log('💾 Salvando pagamento no banco local...')
+      
+      // Primeiro, buscar dados do cliente no Asaas
+      console.log('🔍 Buscando dados do cliente no Asaas:', customerId)
+      const customerResponse = await fetch(`${asaasBaseUrl}/customers/${customerId}`, {
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      let customerData = null
+      if (customerResponse.ok) {
+        customerData = await customerResponse.json()
+        console.log('✅ Dados do cliente obtidos:', customerData.name)
+      } else {
+        console.error('❌ Erro ao buscar cliente no Asaas')
+      }
+      
+      // Buscar ou criar o cliente na nossa base
+      let { data: existingClient } = await supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('asaas_customer_id', customerId)
+        .single()
+
+      let clientId = existingClient?.id
+
+      if (!existingClient && customerData) {
+        console.log('🔍 Cliente não encontrado, criando registro local...')
+        const { data: newClient, error: clientError } = await supabaseAdmin
+          .from('clients')
+          .insert({
+            asaas_customer_id: customerId,
+            cpf_cnpj: customerData.cpfCnpj,
+            name: customerData.name,
+            email: customerData.email,
+            phone: customerData.phone
+          })
+          .select('id')
+          .single()
+
+        if (clientError) {
+          console.error('❌ Erro ao criar cliente:', clientError)
+        } else {
+          clientId = newClient.id
+          console.log('✅ Cliente criado com ID:', clientId)
+        }
+      }
+
+      // Salvar o pagamento na nossa tabela
+      const { data: localPayment, error: paymentError } = await supabaseAdmin
+        .from('payments')
+        .insert({
+          client_id: clientId,
+          asaas_payment_id: payment.id,
           status: payment.status,
           value: payment.value,
-          dueDate: payment.dueDate,
-          billingType: payment.billingType,
-          invoiceUrl: payment.invoiceUrl,
-          bankSlipUrl: payment.bankSlipUrl,
-          pixQrCodeId: payment.pixQrCodeId,
-          pixCopyAndPaste: pixPayload,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
+          billing_type: payment.billingType,
+          due_date: payment.dueDate,
+          description: payment.description,
+          pix_payload: pixQrCodeInfo?.payload || null
+        })
+        .select()
+        .single()
+
+      if (paymentError) {
+        console.error('❌ Erro ao salvar pagamento:', paymentError)
+      } else {
+        console.log('✅ Pagamento salvo com ID:', localPayment.id)
+      }
+
+      // Se é para uma clínica específica, criar entrada em accounts_receivable
+      if (clinicId) {
+        const { error: receivableError } = await supabaseAdmin
+          .from('accounts_receivable')
+          .insert({
+            description: payment.description || 'Pagamento via Asaas',
+            amount: payment.value,
+            due_date: payment.dueDate,
+            status: 'pendente',
+            method: payment.billingType === 'PIX' ? 'pix' : 
+                   payment.billingType === 'BOLETO' ? 'boleto' : 'credit_card',
+            clinic_id: clinicId,
+            notes: `Asaas Payment ID: ${payment.id}`
+          })
+
+        if (receivableError) {
+          console.error('❌ Erro ao criar conta a receber:', receivableError)
+        } else {
+          console.log('✅ Conta a receber criada para clínica:', clinicId)
+        }
+      }
+
+    } catch (dbError) {
+      console.error('💥 Erro ao salvar no banco:', dbError)
+      // Não retornar erro aqui pois o pagamento foi criado no Asaas
+    }
+
+    const responsePayload = {
+      payment: payment,
+      pixQrCode: pixQrCodeInfo,
+      success: true
+    }
+
+    console.log('✅ Pagamento criado com sucesso:', payment.id)
+
+    return new Response(
+      JSON.stringify(responsePayload),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     )
   } catch (error: any) {
     console.error('Error in create-asaas-payment:', error)

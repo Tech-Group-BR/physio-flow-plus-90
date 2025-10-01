@@ -18,21 +18,31 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LandingPage() {
   const navigate = useNavigate();
   const { products, loading } = useProducts();
+  const { user, setRedirectTo } = useAuth();
 
   const handleLogin = () => {
     navigate('/login');
   };
 
   const handleSignUp = () => {
-    navigate('/login');
+    navigate('/cadastro');
   };
 
-  const handlePayment = (planName: string) => {
-    navigate(`/pagamento?plan=${planName.toLowerCase()}`);
+  const handlePayment = (planId: string) => {
+    // Se usuário está logado, vai direto para pagamento
+    if (user) {
+      navigate(`/pagamento?plan=${planId}`);
+    } else {
+      // Se não está logado, armazena a intenção e vai para login
+      console.log('👤 Usuário não logado, armazenando intenção de compra:', planId);
+      setRedirectTo(`/pagamento?plan=${planId}`);
+      navigate('/login');
+    }
   };
 
   const features = [
@@ -239,7 +249,7 @@ export function LandingPage() {
                           : 'border-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 hover:scale-105'
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
-                      onClick={() => handlePayment(plan.name.toLowerCase())}
+                      onClick={() => handlePayment(plan.id)}
                     >
                       Assinar Agora
                     </Button>
