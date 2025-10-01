@@ -130,10 +130,12 @@ serve(async (req) => {
     }
     console.log('✅ Clínica criada com ID:', clinic.id, 'Código:', clinicCode)
 
-    // 2. Criar usuário no Supabase Auth, já com metadados necessários para a trigger
-    console.log('� Criando usuário na autenticação...')
+    // 2. Gerar e-mail sintético e criar usuário no Supabase Auth
+    const [name, domain] = email.trim().split('@');
+    const syntheticEmail = `${name}+${clinicCode}@${domain}`;
+    console.log('🔐 Criando usuário na autenticação com email sintético:', syntheticEmail);
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
+      email: syntheticEmail,
       password: password,
       email_confirm: true, 
       user_metadata: {
@@ -144,21 +146,21 @@ serve(async (req) => {
         clinic_id: clinic.id,
         is_active: true
       }
-    })
+    });
 
     if (authError) {
-      console.error('❌ Erro ao criar usuário:', authError)
+      console.error('❌ Erro ao criar usuário:', authError);
       // Cleanup: remover clínica se criação do usuário falhou
-      await supabaseAdmin.from('clinic_settings').delete().eq('id', clinic.id)
+      await supabaseAdmin.from('clinic_settings').delete().eq('id', clinic.id);
       return new Response(
         JSON.stringify({ error: `Erro ao criar usuário: ${authError.message}` }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      )
+      );
     }
-    console.log('✅ Usuário criado com ID:', authUser.user.id)
+    console.log('✅ Usuário criado com ID:', authUser.user.id);
 
     // 3. Criar dados iniciais da clínica (opcional)
     console.log('📋 Criando configurações iniciais...')
@@ -166,23 +168,13 @@ serve(async (req) => {
     await supabaseAdmin
       .from('rooms')
       .insert({
-        name: 'Sala Principal',
+        name: 'Sala 1',
         capacity: 1,
         clinic_id: clinic.id,
         is_active: true
       })
 
-    // Criar serviço padrão
-    await supabaseAdmin
-      .from('services')
-      .insert({
-        name: 'Consulta Fisioterapia',
-        description: 'Consulta padrão de fisioterapia',
-        price: 180.00,
-        type: 'consulta',
-        clinic_id: clinic.id,
-        is_active: true
-      })
+  
 
     // Criar configurações do WhatsApp
     console.log('💬 Criando configurações WhatsApp...')
