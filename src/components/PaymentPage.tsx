@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth"
 import { useProducts } from "@/hooks/useProducts"
 import { PaymentSystem } from "@/components/PaymentSystem"
+import { PixPayment } from "@/components/PixPayment"
+import { BoletoPayment } from "@/components/BoletoPayment"
 import { LogIn, ArrowLeft, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,6 +17,7 @@ export function PaymentPage() {
   const { products, loading: productsLoading } = useProducts()
 
   const [paymentCompleted, setPaymentCompleted] = useState(false)
+  const [paymentData, setPaymentData] = useState<any>(null)
   const planId = searchParams.get('plan') || ''
   
   // Buscar por ID primeiro, depois por nome se não encontrar
@@ -38,10 +41,17 @@ export function PaymentPage() {
     }
   }, [products, planId, searchParams])
 
-  const handlePaymentSuccess = (paymentData: any) => {
-    console.log('Pagamento realizado com sucesso:', paymentData)
-    setPaymentCompleted(true)
-    toast.success('Pagamento realizado com sucesso!')
+  const handlePaymentSuccess = (paymentDataReceived: any) => {
+    console.log('Pagamento realizado com sucesso:', paymentDataReceived)
+    setPaymentData(paymentDataReceived)
+    // Para cartão de crédito, ir direto para tela de sucesso
+    if (paymentDataReceived?.payment?.billingType === 'CREDIT_CARD') {
+      setPaymentCompleted(true)
+      toast.success('Pagamento realizado com sucesso!')
+    } else {
+      // Para PIX e Boleto, apenas mostrar as instruções de pagamento
+      toast.success(paymentDataReceived?.payment?.billingType === 'PIX' ? 'PIX gerado com sucesso!' : 'Boleto gerado com sucesso!')
+    }
   }
 
   const handlePaymentError = (error: string) => {
@@ -201,7 +211,73 @@ export function PaymentPage() {
     )
   }
 
-  // Pagamento completado com sucesso
+  // Exibir PIX ou Boleto gerado (aguardando pagamento)
+  if (paymentData && !paymentCompleted) {
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
+        <div className="w-full max-w-2xl space-y-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-2">
+              {paymentData.payment?.billingType === 'PIX' ? 'PIX Gerado!' : 'Boleto Gerado!'}
+            </h1>
+            <p className="text-muted-foreground mb-4">
+              {paymentData.payment?.billingType === 'PIX' 
+                ? 'Escaneie o QR Code ou copie o código PIX para efetuar o pagamento'
+                : 'Clique no link abaixo para visualizar e pagar o boleto'
+              }
+            </p>
+          </div>
+
+          {paymentData.payment?.billingType === 'PIX' && (
+            <PixPayment 
+              paymentData={{
+                id: paymentData.payment.id,
+                invoiceUrl: paymentData.payment.invoiceUrl || '',
+                status: paymentData.payment.status || 'pending',
+                pixQrCode: paymentData.pixQrCode
+              }}
+            />
+          )}
+          
+          {paymentData.payment?.billingType === 'BOLETO' && (
+            <BoletoPayment 
+              paymentData={{
+                id: paymentData.payment.id,
+                value: paymentData.payment.value,
+                dueDate: paymentData.payment.dueDate,
+                bankSlipUrl: paymentData.payment.bankSlipUrl,
+                invoiceUrl: paymentData.payment.invoiceUrl,
+                status: paymentData.payment.status
+              }}
+            />
+          )}
+
+          <div className="text-center space-y-2">
+            <Button 
+              onClick={() => {
+                setPaymentData(null)
+                setPaymentCompleted(false)
+              }}
+              variant="outline"
+              className="mr-4"
+            >
+              Fazer Novo Pagamento
+            </Button>
+            <Button 
+              onClick={() => navigate('/')}
+              variant="ghost"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar ao Início
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Pagamento completado com sucesso (apenas cartão de crédito)
   if (paymentCompleted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
