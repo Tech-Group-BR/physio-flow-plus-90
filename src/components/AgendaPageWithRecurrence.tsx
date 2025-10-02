@@ -131,8 +131,8 @@ export function AgendaPageWithRecurrence() {
           </p>
         </div>
         <Button 
-          onClick={() => setShowForm(true)} 
-          className="w-full sm:w-auto hover:shadow-lg transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+          onClick={() => setShowForm(true)}
+          className="flex items-center space-x-2"
         >
           <Plus className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:rotate-90" />
           Novo Agendamento

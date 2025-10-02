@@ -464,14 +464,21 @@ export function AppointmentFormWithRecurrence({
 
             <div>
               <Label>Dias da semana *</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1 mt-2">
                 {weekDaysOptions.map((day) => (
-                  <label key={day.value} className="flex items-center gap-2 p-2 rounded border hover:bg-blue-25">
+                  <label
+                    key={day.value}
+                    className="flex flex-col items-center justify-center px-2 py-1 rounded border text-xs font-medium cursor-pointer transition-all select-none
+                      bg-white hover:bg-green-50 border-gray-200
+                      data-[checked=true]:bg-green-100 data-[checked=true]:border-green-500 data-[checked=true]:text-green-700 w-full min-w-0"
+                    data-checked={formData.weekDays.includes(day.value)}
+                  >
                     <Checkbox
                       checked={formData.weekDays.includes(day.value)}
                       onCheckedChange={() => toggleWeekDay(day.value)}
+                      className="mb-1 scale-90"
                     />
-                    {day.label}
+                    <span className="truncate w-full text-center whitespace-nowrap" style={{fontSize:'0.95em'}}>{day.label}</span>
                   </label>
                 ))}
               </div>
