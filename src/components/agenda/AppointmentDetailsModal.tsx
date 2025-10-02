@@ -1,14 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { getStatusColor } from "@/utils/agendaUtils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, Edit, FileText, Phone, User, X } from "lucide-react";
+import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppointmentEditForm } from "./AppointmentEditForm";
-import { Link } from "react-router-dom"; // adicione o import
+import { Link } from "react-router-dom";
 
 interface AppointmentDetailsModalProps {
   appointment: any;
@@ -34,6 +35,8 @@ export function AppointmentDetailsModal({
   onUpdateAppointment
 }: AppointmentDetailsModalProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp' | null, title: string, description: string }>({ action: null, title: '', description: '' });
 
   if (!appointment || !patient) return null;
 
@@ -58,22 +61,54 @@ export function AppointmentDetailsModal({
 
   const handleUpdateStatus = async (status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => {
     try {
+      setIsLoading(true);
       await onUpdateStatus(appointment.id, status);
       toast.success(`Status alterado para ${status} com sucesso!`);
       onClose(); // <-- fecha o modal após atualizar
     } catch (error) {
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+      setConfirmAction({ action: null, title: '', description: '' });
     }
   };
 
   const handleSendWhatsApp = async () => {
     try {
+      setIsLoading(true);
       await onSendWhatsApp(appointment.id);
       toast.success('Mensagem WhatsApp enviada com sucesso!');
     } catch (error) {
       console.error('Erro ao enviar WhatsApp:', error);
       toast.error('Erro ao enviar WhatsApp. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+      setConfirmAction({ action: null, title: '', description: '' });
+    }
+  };
+
+  const showConfirmDialog = (action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp', title: string, description: string) => {
+    setConfirmAction({ action, title, description });
+  };
+
+  const handleConfirmedAction = () => {
+    switch (confirmAction.action) {
+      case 'confirm':
+        handleUpdateStatus('confirmado');
+        break;
+      case 'realize':
+        handleUpdateStatus('realizado');
+        break;
+      case 'miss':
+        handleUpdateStatus('faltante');
+        break;
+      case 'cancel':
+        handleUpdateStatus('cancelado');
+        break;
+      case 'whatsapp':
+        handleSendWhatsApp();
+        break;
     }
   };
 
@@ -130,6 +165,7 @@ export function AppointmentDetailsModal({
   }
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -263,17 +299,35 @@ export function AppointmentDetailsModal({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => handleUpdateStatus('confirmado')}
+                  onClick={() => showConfirmDialog('confirm', 'Confirmar Agendamento', `Deseja realmente confirmar o agendamento de ${patient?.fullName} para ${format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })} às ${appointment.time}?`)}
+                  disabled={isLoading}
+                  className="hover:shadow-md transition-all duration-200"
                 >
-                  ✅ Confirmar
+                  {isLoading && confirmAction.action === 'confirm' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Confirmando...
+                    </>
+                  ) : (
+                    '✅ Confirmar'
+                  )}
                 </Button>
                 {!appointment.confirmationSentAt && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSendWhatsApp}
+                    onClick={() => showConfirmDialog('whatsapp', 'Enviar WhatsApp', `Deseja enviar uma mensagem de confirmação via WhatsApp para ${patient?.fullName}?`)}
+                    disabled={isLoading}
+                    className="hover:shadow-md transition-all duration-200"
                   >
-                    📱 Enviar WhatsApp
+                    {isLoading && confirmAction.action === 'whatsapp' ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      '📱 Enviar WhatsApp'
+                    )}
                   </Button>
                 )}
               </>
@@ -283,9 +337,18 @@ export function AppointmentDetailsModal({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handleUpdateStatus('realizado')}
+                onClick={() => showConfirmDialog('realize', 'Marcar como Realizado', `Deseja marcar o agendamento de ${patient?.fullName} como realizado?`)}
+                disabled={isLoading}
+                className="hover:shadow-md transition-all duration-200"
               >
-                ✅ Marcar Realizado
+                {isLoading && confirmAction.action === 'realize' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Marcando...
+                  </>
+                ) : (
+                  '✅ Marcar Realizado'
+                )}
               </Button>
             )}
 
@@ -294,17 +357,34 @@ export function AppointmentDetailsModal({
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleUpdateStatus('faltante')}
+                  onClick={() => showConfirmDialog('miss', 'Marcar Falta', `Deseja marcar que ${patient?.fullName} faltou ao agendamento?`)}
+                  disabled={isLoading}
+                  className="hover:shadow-md transition-all duration-200"
                 >
-                  ❌ Falta
+                  {isLoading && confirmAction.action === 'miss' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Marcando...
+                    </>
+                  ) : (
+                    '❌ Falta'
+                  )}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleUpdateStatus('cancelado')}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={() => showConfirmDialog('cancel', 'Cancelar Agendamento', `Deseja realmente cancelar o agendamento de ${patient?.fullName}? Esta ação não pode ser desfeita.`)}
+                  disabled={isLoading}
+                  className="border-red-300 text-red-600 hover:bg-red-50 hover:shadow-md transition-all duration-200"
                 >
-                  🚫 Cancelar
+                  {isLoading && confirmAction.action === 'cancel' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    '🚫 Cancelar'
+                  )}
                 </Button>
               </>
             )}
@@ -312,5 +392,40 @@ export function AppointmentDetailsModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmAction.action !== null} onOpenChange={() => setConfirmAction({ action: null, title: '', description: '' })}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmAction.title}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmAction.description}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmedAction}
+            disabled={isLoading}
+            className={
+              confirmAction.action === 'miss' || confirmAction.action === 'cancel'
+                ? 'bg-red-600 hover:bg-red-700'
+                : ''
+            }
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              'Confirmar'
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

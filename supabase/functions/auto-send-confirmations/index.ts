@@ -19,103 +19,114 @@ serve(async (req) => {
 
     console.log('Iniciando envio automático de confirmações...');
 
-    // Buscar configurações ativas do WhatsApp
-    const { data: settings, error: settingsError } = await supabase
+    // Buscar todas as clínicas ativas com configurações WhatsApp
+    const { data: clinicsWithSettings, error: clinicsError } = await supabase
       .from('whatsapp_settings')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .select('clinic_id, confirmation_hours_before, *')
+      .eq('is_active', true);
 
-    if (settingsError || !settings) {
-      console.log('Configurações do WhatsApp não encontradas ou inativas');
+    if (clinicsError || !clinicsWithSettings || clinicsWithSettings.length === 0) {
+      console.log('Nenhuma clínica com configurações WhatsApp ativas encontrada');
       return new Response(
-        JSON.stringify({ message: 'Configurações do WhatsApp não encontradas' }),
+        JSON.stringify({ message: 'Nenhuma clínica com configurações WhatsApp ativas' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Calcular data/hora para envio de confirmações (24h antes)
-    const confirmationTime = new Date();
-    confirmationTime.setHours(confirmationTime.getHours() + settings.confirmation_hours_before);
-    const confirmationDate = confirmationTime.toISOString().split('T')[0];
+    console.log(`Processando ${clinicsWithSettings.length} clínicas com WhatsApp ativo`);
 
-    // Buscar agendamentos que precisam de confirmação
-    const { data: appointmentsToConfirm, error: appointmentsError } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        patients!inner(*),
-        profiles!appointments_professional_id_fkey(*)
-      `)
-      .eq('date', confirmationDate)
-      .eq('status', 'marcado')
-      .is('confirmation_sent_at', null)
-      .eq('patients.is_active', true);
+    let totalSuccessCount = 0;
+    let totalErrorCount = 0;
 
-    if (appointmentsError) {
-      console.error('Erro ao buscar agendamentos:', appointmentsError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao buscar agendamentos' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Processar cada clínica separadamente
+    for (const settings of clinicsWithSettings) {
+      console.log(`Processando clínica ${settings.clinic_id}...`);
+      
+      // Calcular data/hora para envio de confirmações (baseado nas configurações da clínica)
+      const confirmationTime = new Date();
+      confirmationTime.setHours(confirmationTime.getHours() + settings.confirmation_hours_before);
+      const confirmationDate = confirmationTime.toISOString().split('T')[0];
 
-    console.log(`Encontrados ${appointmentsToConfirm?.length || 0} agendamentos para envio de confirmação`);
+      // Buscar agendamentos desta clínica que precisam de confirmação
+      const { data: appointmentsToConfirm, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          patients!inner(*),
+          profiles!appointments_professional_id_fkey(*)
+        `)
+        .eq('clinic_id', settings.clinic_id)
+        .eq('date', confirmationDate)
+        .eq('status', 'marcado')
+        .is('confirmation_sent_at', null)
+        .eq('patients.is_active', true);
 
-    let successCount = 0;
-    let errorCount = 0;
+      if (appointmentsError) {
+        console.error(`Erro ao buscar agendamentos da clínica ${settings.clinic_id}:`, appointmentsError);
+        totalErrorCount++;
+        continue;
+      }
 
-    // Enviar confirmações
-    for (const appointment of appointmentsToConfirm || []) {
-      try {
-        // Enviar para paciente
-        const patientResponse = await supabase.functions.invoke('send-whatsapp-message', {
-          body: {
-            appointmentId: appointment.id,
-            messageType: 'confirmation',
-            recipientType: 'patient'
-          }
-        });
+      console.log(`Clínica ${settings.clinic_id}: Encontrados ${appointmentsToConfirm?.length || 0} agendamentos para envio de confirmação`);
 
-        if (patientResponse.error) {
-          console.error(`Erro ao enviar confirmação para paciente ${appointment.patients.full_name}:`, patientResponse.error);
-          errorCount++;
-          continue;
-        }
+      let clinicSuccessCount = 0;
+      let clinicErrorCount = 0;
 
-        // Enviar notificação para fisioterapeuta
-        if (appointment.profiles.phone) {
-          await supabase.functions.invoke('send-whatsapp-message', {
+      // Enviar confirmações para esta clínica
+      for (const appointment of appointmentsToConfirm || []) {
+        try {
+          // Enviar para paciente
+          const patientResponse = await supabase.functions.invoke('send-whatsapp-message', {
             body: {
               appointmentId: appointment.id,
-              messageType: 'notification',
-              recipientType: 'Professional'
+              messageType: 'confirmation',
+              recipientType: 'patient'
             }
           });
+
+          if (patientResponse.error) {
+            console.error(`Erro ao enviar confirmação para paciente ${appointment.patients.full_name}:`, patientResponse.error);
+            clinicErrorCount++;
+            continue;
+          }
+
+          // Enviar notificação para fisioterapeuta
+          if (appointment.profiles.phone) {
+            await supabase.functions.invoke('send-whatsapp-message', {
+              body: {
+                appointmentId: appointment.id,
+                messageType: 'notification',
+                recipientType: 'Professional'
+              }
+            });
+          }
+
+          clinicSuccessCount++;
+          console.log(`Confirmação enviada para ${appointment.patients.full_name} (Clínica ${settings.clinic_id})`);
+
+          // Pequeno delay para evitar spam
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        } catch (error) {
+          console.error(`Erro ao processar agendamento ${appointment.id}:`, error);
+          clinicErrorCount++;
         }
-
-        successCount++;
-        console.log(`Confirmação enviada para ${appointment.patients.full_name}`);
-
-        // Pequeno delay para evitar spam
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-      } catch (error) {
-        console.error(`Erro ao processar agendamento ${appointment.id}:`, error);
-        errorCount++;
       }
+
+      totalSuccessCount += clinicSuccessCount;
+      totalErrorCount += clinicErrorCount;
+      
+      console.log(`Clínica ${settings.clinic_id} concluída: ${clinicSuccessCount} sucessos, ${clinicErrorCount} erros`);
     }
 
-    console.log(`Processamento concluído: ${successCount} sucessos, ${errorCount} erros`);
+    console.log(`Processamento geral concluído: ${totalSuccessCount} sucessos, ${totalErrorCount} erros`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        processed: appointmentsToConfirm?.length || 0,
-        successful: successCount,
-        errors: errorCount
+        clinicsProcessed: clinicsWithSettings.length,
+        totalSuccessful: totalSuccessCount,
+        totalErrors: totalErrorCount
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

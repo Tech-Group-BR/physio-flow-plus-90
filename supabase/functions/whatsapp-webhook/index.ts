@@ -95,14 +95,13 @@ serve(async (req) => {
     if (result?.success && (result?.action === 'confirmed' || result?.action === 'cancelled')) {
       console.log('🔔 Processando notificação para fisioterapeuta...', result);
       
-      if (result.physio_phone) {
-        // Buscar configurações para enviar para fisioterapeuta
+      if (result.physio_phone && result.clinic_id) {
+        // Buscar configurações da clínica específica para enviar para fisioterapeuta
         const { data: settings, error: settingsError } = await supabase
           .from('whatsapp_settings')
           .select('*')
+          .eq('clinic_id', result.clinic_id)
           .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
           .maybeSingle();
 
         console.log('⚙️ Settings encontradas:', settings, 'Error:', settingsError);

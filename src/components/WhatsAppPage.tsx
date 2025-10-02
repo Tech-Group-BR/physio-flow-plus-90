@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClinic } from "@/contexts/ClinicContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 import { WhatsAppTemplates } from "@/components/WhatsAppTemplates";
@@ -37,6 +38,7 @@ interface WhatsAppSettings {
 
 export function WhatsAppPage() {
   const { appointments, patients, professionals, updateAppointment } = useClinic();
+  const { user } = useAuth();
   
   console.log('WhatsAppPage - patients:', patients.length, 'appointments:', appointments.length);
   console.log('WhatsAppPage - first patient:', patients[0]);
@@ -80,16 +82,22 @@ export function WhatsAppPage() {
     : 0;
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (user?.profile?.clinic_id) {
+      loadSettings();
+    }
+  }, [user?.profile?.clinic_id]);
 
   const loadSettings = async () => {
+    if (!user?.profile?.clinic_id) {
+      console.warn('Clinic ID não encontrado no perfil do usuário');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('whatsapp_settings')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('clinic_id', user.profile.clinic_id)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {

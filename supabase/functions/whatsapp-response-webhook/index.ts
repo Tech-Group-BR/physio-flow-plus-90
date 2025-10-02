@@ -87,19 +87,36 @@ serve(async (req)=>{
     for (const v of Array.from(variations)){
       if (!v.startsWith('55')) variations.add('55' + v);
     }
-    // Tenta encontrar o paciente com qualquer variação
-    let patientData = null;
+    // --- SOLUÇÃO 3: Busca TODOS os pacientes com aquele telefone ---
+    console.log('🔍 SOLUÇÃO 3: Buscando TODOS os pacientes com as variações de telefone...');
+    
+    let allPatientsFound = [];
     let patientError = null;
-    for (const phone of variations){
-      const { data, error } = await supabase.from('patients').select('id, full_name').eq('phone', phone).maybeSingle();
-      if (data) {
-        patientData = data;
-        break;
+    
+    // Busca todos os pacientes com qualquer variação do telefone
+    for (const phone of variations) {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, full_name, clinic_id')
+        .eq('phone', phone);
+        
+      if (data && data.length > 0) {
+        allPatientsFound.push(...data);
       }
       if (error) patientError = error;
     }
-    if (!patientData) {
-      console.error('⚠️ Paciente não encontrado no banco de dados (testadas variações):', Array.from(variations).join(', '), patientError);
+    
+    console.log('👥 Pacientes encontrados com este telefone:', {
+      total: allPatientsFound.length,
+      pacientes: allPatientsFound.map((p: any) => ({
+        id: p.id,
+        nome: p.full_name,
+        clinic_id: p.clinic_id
+      }))
+    });
+    
+    if (allPatientsFound.length === 0) {
+      console.error('⚠️ Nenhum paciente encontrado no banco de dados (testadas variações):', Array.from(variations).join(', '), patientError);
       return new Response(JSON.stringify({
         success: false,
         message: 'Paciente não encontrado.'
@@ -111,28 +128,61 @@ serve(async (req)=>{
         }
       });
     }
-    console.log('✅ Paciente encontrado:', {
-      id: patientData.id,
-      name: patientData.full_name
-    });
-    // Busca o agendamento correto para ser atualizado
+    
+    // Agora tenta encontrar qual paciente tem agendamentos pendentes
+    console.log('🔄 Testando cada paciente para encontrar agendamentos pendentes...');
+    
+    let patientData = null;
+    let foundAppointments = null;
+    
+    // Definir datas de busca
     const today = new Date().toISOString().split('T')[0];
     const searchUntil = new Date();
-    searchUntil.setDate(searchUntil.getDate() + 14); // Define uma janela de busca de 14 dias
+    searchUntil.setDate(searchUntil.getDate() + 14);
     const dateLimit = searchUntil.toISOString().split('T')[0];
-    const { data: appointments, error: appointmentError } = await supabase.from('appointments').select('id, date, time, professional_id').eq('patient_id', patientData.id).gte('date', today) // A partir de hoje
-    .lte('date', dateLimit) // Até 14 dias no futuro
-    .eq('status', 'marcado') // Apenas os que estão aguardando confirmação
-    .order('date', {
-      ascending: true
-    }).order('time', {
-      ascending: true
-    });
-    if (appointmentError || !appointments || appointments.length === 0) {
-      console.log('⚠️ Nenhum agendamento pendente encontrado para este paciente.');
+    
+    for (const patient of allPatientsFound) {
+      console.log(`🔍 Testando paciente: ${patient.full_name} (ID: ${patient.id}, Clínica: ${patient.clinic_id})`);
+      
+      // Busca agendamentos para este paciente
+      const { data: patientAppointments, error: appointmentError } = await supabase
+        .from('appointments')
+        .select('id, date, time, professional_id, clinic_id, status')
+        .eq('patient_id', patient.id)
+        .gte('date', today)
+        .lte('date', dateLimit)
+        .eq('status', 'marcado')
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+        
+      console.log(`📋 Agendamentos encontrados para ${patient.full_name}:`, {
+        total: patientAppointments?.length || 0,
+        agendamentos: patientAppointments?.map((apt: any) => ({
+          id: apt.id,
+          date: apt.date,
+          time: apt.time,
+          clinic_id: apt.clinic_id
+        })) || []
+      });
+      
+      // Se encontrou agendamentos para este paciente, usa ele
+      if (patientAppointments && patientAppointments.length > 0) {
+        patientData = patient;
+        foundAppointments = patientAppointments;
+        console.log(`✅ Paciente com agendamentos encontrado: ${patient.full_name} (${patientAppointments.length} agendamentos)`);
+        break;
+      }
+    }
+    
+    if (!patientData || !foundAppointments) {
+      console.log('⚠️ Nenhum dos pacientes encontrados possui agendamentos pendentes no período.');
       return new Response(JSON.stringify({
         success: false,
-        message: 'Nenhum agendamento pendente encontrado.'
+        message: 'Nenhum agendamento pendente encontrado para este telefone.',
+        debug: {
+          patientsFound: allPatientsFound.length,
+          searchPeriod: `${today} a ${dateLimit}`
+        }
       }), {
         status: 404,
         headers: {
@@ -141,6 +191,16 @@ serve(async (req)=>{
         }
       });
     }
+    
+    console.log('✅ Paciente selecionado para processamento:', {
+      id: patientData.id,
+      name: patientData.full_name,
+      clinic_id: patientData.clinic_id,
+      appointmentsFound: foundAppointments.length
+    });
+
+    // Usa os agendamentos já encontrados
+    const appointments = foundAppointments;
     // Pega o agendamento mais próximo da lista para evitar ambiguidade
     const appointmentToUpdate = appointments[0];
     const newStatus = isConfirmation ? 'confirmado' : 'cancelado';
@@ -167,12 +227,21 @@ serve(async (req)=>{
     console.log('✅ Agendamento atualizado com sucesso no banco de dados.');
     // --- Início do Envio de Notificações de Feedback ---
     // Busca dados do profissional e configurações da API em paralelo para maior eficiência
+    console.log(`🔍 Buscando configurações WhatsApp para a clínica: ${patientData.clinic_id}`);
     const [professionalResult, settingsResult] = await Promise.all([
       supabase.from('professionals').select('full_name, phone').eq('id', appointmentToUpdate.professional_id).single(),
-      supabase.from('whatsapp_settings').select('base_url, instance_name, api_key').eq('is_active', true).limit(1).single()
+      supabase.from('whatsapp_settings').select('base_url, instance_name, api_key').eq('clinic_id', patientData.clinic_id).eq('is_active', true).single()
     ]);
     const professional = professionalResult.data;
     const settings = settingsResult.data;
+    
+    console.log('📄 Resultados da busca:', {
+      professional: professional ? { name: professional.full_name, hasPhone: !!professional.phone } : 'Não encontrado',
+      settings: settings ? { hasApiKey: !!settings.api_key, instance: settings.instance_name } : 'Não encontrado',
+      professionalError: professionalResult.error,
+      settingsError: settingsResult.error
+    });
+    
     // Apenas tenta enviar mensagens se houver uma configuração de API ativa
     if (settings?.api_key) {
       const appointmentDateFormatted = new Date(appointmentToUpdate.date).toLocaleDateString('pt-BR');
@@ -256,3 +325,4 @@ serve(async (req)=>{
     });
   }
 });
+

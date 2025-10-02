@@ -69,13 +69,12 @@ serve(async (req) => {
 
     console.log('📋 Dados do agendamento:', appointmentData);
 
-    // Buscar configurações do WhatsApp
+    // Buscar configurações do WhatsApp da clínica específica
     const { data: settings, error: settingsError } = await supabase
       .from('whatsapp_settings')
       .select('*')
+      .eq('clinic_id', appointmentData.clinic_id)
       .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
       .maybeSingle();
 
     console.log('⚙️ Configurações:', settings ? 'encontradas' : 'não encontradas');

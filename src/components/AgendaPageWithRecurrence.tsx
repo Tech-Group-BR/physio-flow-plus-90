@@ -51,13 +51,14 @@ export function AgendaPageWithRecurrence() {
       const appointmentToCreate = {
         patientId: appointmentData.patientId,
         professionalId: appointmentData.professionalId,
-        roomId: appointmentData.roomId && appointmentData.roomId.trim() !== '' ? appointmentData.roomId : null, // Corrigir aqui
+        roomId: appointmentData.roomId && appointmentData.roomId.trim() !== '' ? appointmentData.roomId : null,
         date: appointmentData.date,
         time: appointmentData.time,
         duration: appointmentData.duration,
         treatmentType: appointmentData.type || 'consulta',
         status: 'marcado' as const,
         notes: appointmentData.notes || '',
+        price: appointmentData.price || 0, // Incluir o preço do agendamento
         whatsappConfirmed: false,
         whatsappSentAt: undefined
       };
@@ -129,8 +130,11 @@ export function AgendaPageWithRecurrence() {
             Gerencie os agendamentos dos pacientes
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
+        <Button 
+          onClick={() => setShowForm(true)} 
+          className="w-full sm:w-auto hover:shadow-lg transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+        >
+          <Plus className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:rotate-90" />
           Novo Agendamento
         </Button>
       </div>

@@ -44,31 +44,7 @@ serve(async (req: any) => {
 
     console.log('✅ Input validation passed:', { appointmentId, messageType, recipientType });
 
-    // Buscar configurações do WhatsApp
-    console.log('🔍 Fetching WhatsApp settings...');
-    const { data: settings, error: settingsError } = await supabase
-      .from('whatsapp_settings')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (settingsError || !settings) {
-      console.error('❌ WhatsApp settings error:', settingsError);
-      return new Response(
-        JSON.stringify({ error: 'Configurações do WhatsApp não encontradas' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('✅ WhatsApp settings found:', {
-      instance: settings.instance_name,
-      url: settings.base_url,
-      hasApiKey: !!settings.api_key
-    });
-
-    // Buscar dados do agendamento
+    // Buscar dados do agendamento primeiro para obter clinic_id
     console.log('🔍 Fetching appointment...');
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
@@ -83,6 +59,36 @@ serve(async (req: any) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('✅ Appointment found:', { 
+      id: appointment.id, 
+      clinic_id: appointment.clinic_id,
+      patient_id: appointment.patient_id 
+    });
+
+    // Buscar configurações do WhatsApp da clínica específica
+    console.log('🔍 Fetching WhatsApp settings for clinic:', appointment.clinic_id);
+    const { data: settings, error: settingsError } = await supabase
+      .from('whatsapp_settings')
+      .select('*')
+      .eq('clinic_id', appointment.clinic_id)
+      .eq('is_active', true)
+      .single();
+
+    if (settingsError || !settings) {
+      console.error('❌ WhatsApp settings error:', settingsError);
+      return new Response(
+        JSON.stringify({ error: 'Configurações do WhatsApp não encontradas para esta clínica' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('✅ WhatsApp settings found:', {
+      clinic_id: settings.clinic_id,
+      instance: settings.instance_name,
+      url: settings.base_url,
+      hasApiKey: !!settings.api_key
+    });
 
     // Buscar dados do paciente
     console.log('🔍 Fetching patient...');

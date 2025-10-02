@@ -87,6 +87,7 @@ interface DbAppointment {
   treatment_type?: string;
   status: 'marcado' | 'confirmado' | 'cancelado' | 'realizado' | 'faltante';
   notes?: string;
+  price?: number; // ✅ ADICIONAR CAMPO PRICE
   whatsapp_confirmed?: boolean;
   whatsapp_sent_at?: string;
 }
@@ -293,6 +294,7 @@ const dbToMainAppointment = (dbAppt: DbAppointment): MainAppointment => ({
   treatmentType: dbAppt.treatment_type || '',
   status: dbAppt.status,
   notes: dbAppt.notes,
+  price: dbAppt.price || 0, // ✅ MAPEAR CAMPO PRICE
   whatsappConfirmed: dbAppt.whatsapp_confirmed,
   whatsappSentAt: dbAppt.whatsapp_sent_at,
   createdAt: dbAppt.created_at,
@@ -925,6 +927,7 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
           treatment_type: appointment.treatmentType,
           status: appointment.status,
           notes: appointment.notes,
+          price: appointment.price, // ✅ INCLUIR PREÇO
           whatsapp_confirmed: appointment.whatsappConfirmed,
           whatsapp_sent_at: appointment.whatsappSentAt,
           clinic_id: currentClinicId // ✅ GARANTIR clinic_id

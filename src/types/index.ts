@@ -79,6 +79,7 @@ export interface Appointment {
   treatmentType: string;
   status: 'marcado' | 'confirmado' | 'realizado' | 'faltante' | 'cancelado';
   notes?: string;
+  price: number; // ✅ ADICIONAR CAMPO PRICE
   whatsappConfirmed?: boolean;
   whatsappSentAt?: string;
   createdAt: string;
