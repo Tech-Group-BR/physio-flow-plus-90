@@ -5,65 +5,195 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, FileText, TrendingUp, Calendar, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  ArrowLeft, 
+  Plus, 
+  FileText, 
+  TrendingUp, 
+  Calendar, 
+  DollarSign, 
+  Filter, 
+  CheckSquare, 
+  Square, 
+  CheckCircle, 
+  Trash2, 
+  Users,
+  Search 
+} from "lucide-react";
 import { Patient, MedicalRecord, Evolution } from "@/types";
 import { useClinic } from '@/contexts/ClinicContext';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { MedicalRecordForm } from './MedicalRecordForm';
 import { EvolutionForm } from './EvolutionForm';
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from '@/hooks/useAuth';
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { patients, medicalRecords, evolutions, appointments, accountsReceivable, fetchMedicalRecords, fetchEvolutions } = useClinic();
+  const { 
+    patients, 
+    medicalRecords, 
+    evolutions, 
+    appointments, 
+    accountsReceivable, 
+    fetchMedicalRecords, 
+    fetchEvolutions,
+    bulkMarkReceivablesAsPaid,
+    bulkDeleteReceivables,
+    deleteAppointment
+  } = useClinic();
   const { clinicId } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
-  const [financialData, setFinancialData] = useState<any>(null);
+
+  // Estados para ações em massa - Agendamentos
+  const [selectedAppointmentIds, setSelectedAppointmentIds] = useState<Set<string>>(new Set());
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState("all");
+  const [appointmentDateFilter, setAppointmentDateFilter] = useState("all");
+  const [appointmentSearchTerm, setAppointmentSearchTerm] = useState("");
+  const [showAppointmentFilters, setShowAppointmentFilters] = useState(false);
+
+  // Estados para ações em massa - Financeiro
+  const [selectedReceivableIds, setSelectedReceivableIds] = useState<Set<string>>(new Set());
+  const [financialStatusFilter, setFinancialStatusFilter] = useState("all");
+  const [financialDateFilter, setFinancialDateFilter] = useState("all");
+  const [financialSearchTerm, setFinancialSearchTerm] = useState("");
+  const [showFinancialFilters, setShowFinancialFilters] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   const patient = patients.find(p => p.id === id);
   const patientMedicalRecord = medicalRecords.find(mr => mr.patientId === id);
   const patientEvolutions = evolutions.filter(e => e.recordId === patientMedicalRecord?.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const patientAppointments = appointments.filter(a => a.patientId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const patientReceivables = accountsReceivable.filter(ar => ar.patientId === id);
+  
+  // Função helper para determinar status dos agendamentos
+  const getAppointmentStatus = (appointment: any) => {
+    return appointment.status || 'marcado';
+  };
+
+  // Função helper para determinar status financeiro
+  const getFinancialStatus = (receivable: any) => {
+    if (receivable.receivedDate || receivable.paidDate) return 'recebido';
+    const dueDate = new Date(receivable.dueDate);
+    const today = new Date();
+    if (dueDate < today) return 'vencido';
+    return 'pendente';
+  };
+
+  // Filtrar agendamentos com filtros avançados
+  const filteredAppointments = appointments.filter(a => {
+    if (a.patientId !== id) return false;
+    
+    // Filtro por status
+    if (appointmentStatusFilter !== "all" && getAppointmentStatus(a) !== appointmentStatusFilter) {
+      return false;
+    }
+    
+    // Filtro por data
+    const appointmentDate = new Date(a.date);
+    if (appointmentDateFilter === "thisMonth") {
+      const now = new Date();
+      if (appointmentDate.getMonth() !== now.getMonth() || appointmentDate.getFullYear() !== now.getFullYear()) {
+        return false;
+      }
+    } else if (appointmentDateFilter === "lastMonth") {
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      if (appointmentDate.getMonth() !== lastMonth.getMonth() || appointmentDate.getFullYear() !== lastMonth.getFullYear()) {
+        return false;
+      }
+    } else if (appointmentDateFilter === "custom") {
+      if (customStartDate && appointmentDate < new Date(customStartDate)) return false;
+      if (customEndDate && appointmentDate > new Date(customEndDate)) return false;
+    }
+    
+    // Filtro por busca
+    if (appointmentSearchTerm && !a.notes?.toLowerCase().includes(appointmentSearchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Filtrar contas a receber com filtros avançados
+  const filteredReceivables = accountsReceivable.filter(ar => {
+    if (ar.patientId !== id) return false;
+    
+    // Filtro por status
+    if (financialStatusFilter !== "all" && getFinancialStatus(ar) !== financialStatusFilter) {
+      return false;
+    }
+    
+    // Filtro por data
+    const receivableDate = new Date(ar.dueDate);
+    if (financialDateFilter === "thisMonth") {
+      const now = new Date();
+      if (receivableDate.getMonth() !== now.getMonth() || receivableDate.getFullYear() !== now.getFullYear()) {
+        return false;
+      }
+    } else if (financialDateFilter === "lastMonth") {
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      if (receivableDate.getMonth() !== lastMonth.getMonth() || receivableDate.getFullYear() !== lastMonth.getFullYear()) {
+        return false;
+      }
+    } else if (financialDateFilter === "custom") {
+      if (customStartDate && receivableDate < new Date(customStartDate)) return false;
+      if (customEndDate && receivableDate > new Date(customEndDate)) return false;
+    }
+    
+    // Filtro por busca
+    if (financialSearchTerm && !ar.description?.toLowerCase().includes(financialSearchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  const patientAppointments = filteredAppointments;
+  const patientReceivables = filteredReceivables;
+
+  // Calcular resumo financeiro diretamente dos dados do contexto
+  const calculateFinancialSummary = () => {
+    const patientReceivables = accountsReceivable.filter(ar => ar.patientId === id);
+    
+    let totalBilled = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+    
+    patientReceivables.forEach(receivable => {
+      const amount = Number(receivable.amount);
+      totalBilled += amount;
+      
+      if (receivable.status === 'recebido') {
+        totalPaid += amount;
+      } else {
+        totalPending += amount;
+      }
+    });
+    
+    return {
+      totalBilled,
+      totalPaid,
+      totalPending,
+      balance: totalBilled - totalPaid
+    };
+  };
+
+  const financialSummary = calculateFinancialSummary();
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!patient) {
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        setIsLoading(true);
-        
-        // @ts-ignore
-        const { data: financialResult, error } = await supabase.rpc('get_patient_financial_report', {
-          p_patient_id: id
-        });
-
-        if (error) {
-          console.error('Erro ao buscar dados financeiros:', error);
-          toast.error('Erro ao carregar dados financeiros.');
-        } else {
-          setFinancialData(financialResult);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        toast.error('Erro ao carregar dados do paciente.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [patient, id]);
+    if (patient) {
+      setIsLoading(false);
+    }
+  }, [patient]);
 
   const handleSaveMedicalRecord = () => {
     setShowMedicalRecordForm(false);
@@ -98,6 +228,90 @@ export function PatientDetailsPage() {
       </div>
     );
   }
+
+  // Funções para seleção de agendamentos
+  const toggleAppointmentSelection = (appointmentId: string) => {
+    const newSelected = new Set(selectedAppointmentIds);
+    if (newSelected.has(appointmentId)) {
+      newSelected.delete(appointmentId);
+    } else {
+      newSelected.add(appointmentId);
+    }
+    setSelectedAppointmentIds(newSelected);
+  };
+
+  const selectAllAppointments = () => {
+    const allIds = patientAppointments.map(a => a.id);
+    setSelectedAppointmentIds(new Set(allIds));
+  };
+
+  const clearAppointmentSelection = () => {
+    setSelectedAppointmentIds(new Set());
+  };
+
+  // Funções para seleção de contas a receber
+  const toggleReceivableSelection = (receivableId: string) => {
+    const newSelected = new Set(selectedReceivableIds);
+    if (newSelected.has(receivableId)) {
+      newSelected.delete(receivableId);
+    } else {
+      newSelected.add(receivableId);
+    }
+    setSelectedReceivableIds(newSelected);
+  };
+
+  const selectAllReceivables = () => {
+    const allIds = patientReceivables.map(r => r.id);
+    setSelectedReceivableIds(new Set(allIds));
+  };
+
+  const clearReceivableSelection = () => {
+    setSelectedReceivableIds(new Set());
+  };
+
+  // Ações em massa para agendamentos
+  const handleBulkDeleteAppointments = async () => {
+    if (!confirm(`Tem certeza que deseja excluir ${selectedAppointmentIds.size} agendamentos?`)) {
+      return;
+    }
+
+    try {
+      const idsArray = Array.from(selectedAppointmentIds);
+      for (const id of idsArray) {
+        await deleteAppointment(id);
+      }
+      clearAppointmentSelection();
+      toast.success(`${idsArray.length} agendamentos excluídos com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao excluir agendamentos:', error);
+      toast.error('Erro ao excluir agendamentos');
+    }
+  };
+
+  // Ações em massa para financeiro
+  const handleBulkMarkReceivablesAsPaid = async () => {
+    try {
+      const idsArray = Array.from(selectedReceivableIds);
+      await bulkMarkReceivablesAsPaid(idsArray, 'cash');
+      clearReceivableSelection();
+    } catch (error) {
+      console.error('Erro ao marcar como recebido:', error);
+    }
+  };
+
+  const handleBulkDeleteReceivables = async () => {
+    if (!confirm(`Tem certeza que deseja excluir ${selectedReceivableIds.size} contas a receber?`)) {
+      return;
+    }
+
+    try {
+      const idsArray = Array.from(selectedReceivableIds);
+      await bulkDeleteReceivables(idsArray);
+      clearReceivableSelection();
+    } catch (error) {
+      console.error('Erro ao excluir contas a receber:', error);
+    }
+  };
 
   const renderDetail = (label: string, value: string | undefined | null) => {
     if (!value || value.trim() === '') return null;
@@ -327,39 +541,188 @@ export function PatientDetailsPage() {
         </TabsContent>
 
         <TabsContent value="appointments" className="space-y-6">
+          {/* Filtros Avançados - Agendamentos */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAppointmentFilters(!showAppointmentFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar em observações..."
+                  value={appointmentSearchTerm}
+                  onChange={(e) => setAppointmentSearchTerm(e.target.value)}
+                  className="pl-10 w-48"
+                />
+              </div>
+              <Select value={appointmentStatusFilter} onValueChange={setAppointmentStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="marcado">Marcado</SelectItem>
+                  <SelectItem value="confirmado">Confirmado</SelectItem>
+                  <SelectItem value="realizado">Realizado</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                  <SelectItem value="faltante">Faltante</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {showAppointmentFilters && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Período</label>
+                    <Select value={appointmentDateFilter} onValueChange={setAppointmentDateFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os períodos</SelectItem>
+                        <SelectItem value="thisMonth">Este mês</SelectItem>
+                        <SelectItem value="lastMonth">Mês passado</SelectItem>
+                        <SelectItem value="custom">Período personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {appointmentDateFilter === "custom" && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Data inicial</label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Data final</label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Barra de Ações em Massa - Agendamentos */}
+          {selectedAppointmentIds.size > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">
+                      {selectedAppointmentIds.size} agendamentos selecionados
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDeleteAppointments}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAppointmentSelection}
+                    >
+                      Limpar Seleção
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center text-lg">
-                <Calendar className="mr-2 h-5 w-5" />
-                Histórico de Agendamentos
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center text-lg">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  Histórico de Agendamentos ({patientAppointments.length})
+                </CardTitle>
+                {patientAppointments.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectedAppointmentIds.size === patientAppointments.length ? clearAppointmentSelection : selectAllAppointments}
+                  >
+                    {selectedAppointmentIds.size === patientAppointments.length ? (
+                      <CheckSquare className="h-4 w-4 mr-2" />
+                    ) : (
+                      <Square className="h-4 w-4 mr-2" />
+                    )}
+                    {selectedAppointmentIds.size === patientAppointments.length ? "Desmarcar Todos" : "Selecionar Todos"}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {patientAppointments.length > 0 ? (
                 <div className="space-y-4">
-                  {patientAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-2">
-                      <div>
-                        <div className="font-medium">
-                          {format(new Date(appointment.date), 'dd/MM/yyyy')} às {appointment.time}
+                  {patientAppointments.map((appointment) => {
+                    const isSelected = selectedAppointmentIds.has(appointment.id);
+                    return (
+                      <div 
+                        key={appointment.id} 
+                        className={`flex items-start p-4 border rounded-lg gap-3 ${
+                          isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                        }`}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleAppointmentSelection(appointment.id)}
+                          className="p-1 h-auto mt-1"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="h-5 w-5 text-blue-600" />
+                          ) : (
+                            <Square className="h-5 w-5 text-gray-400" />
+                          )}
+                        </Button>
+                        <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium">
+                              {format(new Date(appointment.date), 'dd/MM/yyyy')} às {appointment.time}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {appointment.treatmentType || 'Consulta'}
+                            </div>
+                            {appointment.notes && (
+                              <div className="text-sm text-gray-500 mt-1">{appointment.notes}</div>
+                            )}
+                          </div>
+                          <Badge variant={
+                            appointment.status === 'realizado' ? 'default' :
+                            appointment.status === 'confirmado' ? 'secondary' :
+                            appointment.status === 'cancelado' ? 'destructive' :
+                            appointment.status === 'faltante' ? 'destructive' : 'outline'
+                          }>
+                            {appointment.status}
+                          </Badge>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {appointment.treatmentType || 'Consulta'}
-                        </div>
-                        {appointment.notes && (
-                          <div className="text-sm text-gray-500 mt-1">{appointment.notes}</div>
-                        )}
                       </div>
-                      <Badge variant={
-                        appointment.status === 'realizado' ? 'default' :
-                        appointment.status === 'confirmado' ? 'secondary' :
-                        appointment.status === 'cancelado' ? 'destructive' :
-                        appointment.status === 'faltante' ? 'destructive' : 'outline'
-                      }>
-                        {appointment.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-8">Nenhum agendamento encontrado.</p>
@@ -369,6 +732,123 @@ export function PatientDetailsPage() {
         </TabsContent>
 
         <TabsContent value="financial" className="space-y-6">
+          {/* Filtros Avançados - Financeiro */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowFinancialFilters(!showFinancialFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar descrição..."
+                  value={financialSearchTerm}
+                  onChange={(e) => setFinancialSearchTerm(e.target.value)}
+                  className="pl-10 w-48"
+                />
+              </div>
+              <Select value={financialStatusFilter} onValueChange={setFinancialStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="recebido">Recebido</SelectItem>
+                  <SelectItem value="vencido">Vencido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {showFinancialFilters && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Período</label>
+                    <Select value={financialDateFilter} onValueChange={setFinancialDateFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os períodos</SelectItem>
+                        <SelectItem value="thisMonth">Este mês</SelectItem>
+                        <SelectItem value="lastMonth">Mês passado</SelectItem>
+                        <SelectItem value="custom">Período personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {financialDateFilter === "custom" && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Data inicial</label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Data final</label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Barra de Ações em Massa - Financeiro */}
+          {selectedReceivableIds.size > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">
+                      {selectedReceivableIds.size} contas selecionadas
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkMarkReceivablesAsPaid}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Marcar como Recebido
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDeleteReceivables}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearReceivableSelection}
+                    >
+                      Limpar Seleção
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center text-lg">
@@ -377,51 +857,68 @@ export function PatientDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {financialData ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      R$ {Number(financialData.summary.totalBilled || 0).toFixed(2)}
-                    </div>
-                    <div className="text-sm text-gray-600">Total Faturado</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    R$ {financialSummary.totalBilled.toFixed(2)}
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      R$ {Number(financialData.summary.totalPaid || 0).toFixed(2)}
-                    </div>
-                    <div className="text-sm text-gray-600">Total Pago</div>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      R$ {Number(financialData.summary.balance || 0).toFixed(2)}
-                    </div>
-                    <div className="text-sm text-gray-600">Saldo Pendente</div>
-                  </div>
+                  <div className="text-sm text-gray-600">Total Faturado</div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                  <p className="text-gray-500 mt-2">Carregando dados financeiros...</p>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    R$ {financialSummary.totalPaid.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Pago</div>
                 </div>
-              )}
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600">
+                    R$ {financialSummary.totalPending.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-600">A Receber</div>
+                </div>
+              </div>
 
               <div className="space-y-4">
-                <h4 className="font-medium">Contas a Receber</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Contas a Receber</h4>
+                  {patientReceivables.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectedReceivableIds.size === patientReceivables.length ? clearReceivableSelection : selectAllReceivables}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedReceivableIds.size === patientReceivables.length && patientReceivables.length > 0}
+                        readOnly
+                        className="mr-2"
+                      />
+                      Selecionar todos
+                    </Button>
+                  )}
+                </div>
+                
                 {patientReceivables.length > 0 ? (
                   <div className="space-y-2">
                     {patientReceivables.map((receivable) => (
-                      <div key={receivable.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border rounded gap-2">
-                        <div>
-                          <div className="font-medium">{receivable.description}</div>
-                          <div className="text-sm text-gray-600">
-                            Vencimento: {format(new Date(receivable.dueDate), 'dd/MM/yyyy')}
+                      <div key={receivable.id} className="flex items-center gap-3 p-3 border rounded">
+                        <Checkbox
+                          checked={selectedReceivableIds.has(receivable.id)}
+                          onCheckedChange={() => toggleReceivableSelection(receivable.id)}
+                        />
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
+                          <div>
+                            <div className="font-medium">{receivable.description}</div>
+                            <div className="text-sm text-gray-600">
+                              Vencimento: {format(new Date(receivable.dueDate), 'dd/MM/yyyy')}
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-left sm:text-right">
-                          <div className="font-medium">R$ {Number(receivable.amount).toFixed(2)}</div>
-                          <Badge variant={receivable.status === 'recebido' ? 'default' : 'secondary'}>
-                            {receivable.status}
-                          </Badge>
+                          <div className="text-left sm:text-right">
+                            <div className="font-medium">R$ {Number(receivable.amount).toFixed(2)}</div>
+                            <Badge variant={receivable.status === 'recebido' ? 'default' : 'secondary'}>
+                              {receivable.status}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     ))}
