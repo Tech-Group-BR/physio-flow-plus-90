@@ -231,6 +231,11 @@ interface ClinicContextType {
   markReceivableAsPaid: (id: string, method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
   markPayableAsPaid: (id: string, paidDate?: string) => Promise<void>;
   addPayment: (payment: { patientId: string; amount: number; method: string; status: string; description: string; dueDate: string; paidDate?: string }) => Promise<void>;
+  // Ações em massa
+  bulkMarkReceivablesAsPaid: (ids: string[], method: Database['public']['Enums']['payment_method_enum']) => Promise<void>;
+  bulkMarkPayablesAsPaid: (ids: string[], paidDate?: string) => Promise<void>;
+  bulkDeleteReceivables: (ids: string[]) => Promise<void>;
+  bulkDeletePayables: (ids: string[]) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -1595,6 +1600,132 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     }
   };
 
+  // Funções para ações em massa
+  const bulkMarkReceivablesAsPaid = async (ids: string[], method: Database['public']['Enums']['payment_method_enum']) => {
+    const receivedDate = new Date().toISOString();
+    
+    // Atualizar estado local primeiro
+    setAccountsReceivable(current =>
+      current.map(acc => 
+        ids.includes(acc.id) 
+          ? { 
+              ...acc, 
+              status: 'recebido', 
+              receivedDate: receivedDate, 
+              method: method 
+            } as MainAccountsReceivable 
+          : acc
+      )
+    );
+
+    try {
+      const { error } = await supabase
+        .from('accounts_receivable')
+        .update({
+          status: 'pago',
+          paid_date: receivedDate,
+          received_date: receivedDate,
+          method: method
+        })
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      console.log(`${ids.length} contas marcadas como recebidas em massa`);
+      toast.success(`${ids.length} contas marcadas como recebidas!`);
+    } catch (error) {
+      console.error('Erro ao marcar contas como recebidas em massa:', error);
+      setAccountsReceivable(prev => prev); // Recarregar em caso de erro
+      await fetchAccountsReceivableWrapper();
+      toast.error('Erro ao marcar contas como recebidas');
+      throw error;
+    }
+  };
+
+  const bulkMarkPayablesAsPaid = async (ids: string[], paidDate?: string) => {
+    const finalPaidDate = paidDate || new Date().toISOString();
+    
+    // Atualizar estado local primeiro
+    setAccountsPayable(current =>
+      current.map(acc => 
+        ids.includes(acc.id) 
+          ? { 
+              ...acc, 
+              status: 'pago', 
+              paidDate: finalPaidDate 
+            } as MainAccountsPayable 
+          : acc
+      )
+    );
+
+    try {
+      const { error } = await supabase
+        .from('accounts_payable')
+        .update({
+          status: 'pago',
+          paid_date: finalPaidDate
+        })
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      console.log(`${ids.length} contas marcadas como pagas em massa`);
+      toast.success(`${ids.length} contas marcadas como pagas!`);
+    } catch (error) {
+      console.error('Erro ao marcar contas como pagas em massa:', error);
+      setAccountsPayable(prev => prev); // Recarregar em caso de erro
+      await fetchAccountsPayableWrapper();
+      toast.error('Erro ao marcar contas como pagas');
+      throw error;
+    }
+  };
+
+  const bulkDeleteReceivables = async (ids: string[]) => {
+    // Remover do estado local primeiro
+    const originalState = [...accountsReceivable];
+    setAccountsReceivable(current => current.filter(acc => !ids.includes(acc.id)));
+
+    try {
+      const { error } = await supabase
+        .from('accounts_receivable')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      console.log(`${ids.length} contas a receber excluídas em massa`);
+      toast.success(`${ids.length} contas a receber excluídas!`);
+    } catch (error) {
+      console.error('Erro ao excluir contas a receber em massa:', error);
+      setAccountsReceivable(originalState); // Restaurar estado em caso de erro
+      toast.error('Erro ao excluir contas a receber');
+      throw error;
+    }
+  };
+
+  const bulkDeletePayables = async (ids: string[]) => {
+    // Remover do estado local primeiro
+    const originalState = [...accountsPayable];
+    setAccountsPayable(current => current.filter(acc => !ids.includes(acc.id)));
+
+    try {
+      const { error } = await supabase
+        .from('accounts_payable')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+      
+      console.log(`${ids.length} contas a pagar excluídas em massa`);
+      toast.success(`${ids.length} contas a pagar excluídas!`);
+    } catch (error) {
+      console.error('Erro ao excluir contas a pagar em massa:', error);
+      setAccountsPayable(originalState); // Restaurar estado em caso de erro
+      toast.error('Erro ao excluir contas a pagar');
+      throw error;
+    }
+  };
+
   // ✅ Wrappers para as funções que usam clinicId automaticamente
   const fetchPatientsWrapper = async () => {
     if (clinicId) await fetchPatients(clinicId);
@@ -1698,6 +1829,10 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
     markReceivableAsPaid,
     markPayableAsPaid,
     addPayment,
+    bulkMarkReceivablesAsPaid,
+    bulkMarkPayablesAsPaid,
+    bulkDeleteReceivables,
+    bulkDeletePayables,
   };
 
   return (
