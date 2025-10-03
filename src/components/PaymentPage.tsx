@@ -18,6 +18,10 @@ export function PaymentPage() {
 
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [paymentData, setPaymentData] = useState<any>(null)
+  
+  // Debug: verificar user.profile
+  console.log('👤 PaymentPage - User completo:', user)
+  console.log('🏥 PaymentPage - User clinic_id:', user?.profile?.clinic_id)
   const planId = searchParams.get('plan') || ''
   
   // Buscar por ID primeiro, depois por nome se não encontrar
@@ -254,16 +258,7 @@ export function PaymentPage() {
           )}
 
           <div className="text-center space-y-2">
-            <Button 
-              onClick={() => {
-                setPaymentData(null)
-                setPaymentCompleted(false)
-              }}
-              variant="outline"
-              className="mr-4"
-            >
-              Fazer Novo Pagamento
-            </Button>
+       
             <Button 
               onClick={() => navigate('/')}
               variant="ghost"
@@ -288,7 +283,7 @@ export function PaymentPage() {
             </div>
             <CardTitle className="text-green-600">Pagamento Realizado!</CardTitle>
             <CardDescription>
-              Seu pagamento foi processado com sucesso. Bem-vindo ao PhysioFlow Plus!
+              Seu pagamento foi processado com sucesso. Bem-vindo ao GoPhysioTech!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -351,7 +346,7 @@ export function PaymentPage() {
         productId={selectedPlan.id}
         clinicId={user.profile?.clinic_id || undefined}
         value={selectedPlan.price}
-        description={`PhysioFlow Plus - ${selectedPlan.name}`}
+        description={`GoPhysioTech - ${selectedPlan.name}`}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentError={handlePaymentError}
       />

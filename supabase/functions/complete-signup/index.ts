@@ -174,7 +174,29 @@ serve(async (req) => {
         is_active: true
       })
 
-  
+    // Criar assinatura de teste (trialing)
+    console.log('📄 Criando assinatura de teste...')
+    const trialEndDate = new Date()
+    trialEndDate.setDate(trialEndDate.getDate() + 7) // 7 dias de teste
+    
+    const subscriptionEndDate = new Date()
+    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30) // 30 dias total
+
+    await supabaseAdmin
+      .from('subscriptions')
+      .insert({
+        clinic_id: clinic.id,
+        plan_id: null, // Será definido quando escolher um plano
+        status: 'trialing',
+        start_date: new Date().toISOString(),
+        end_date: trialEndDate.toISOString(),
+        trial_ends_at: trialEndDate.toISOString(),
+        billing_cycle: 'monthly',
+        metadata: {
+          signup_date: new Date().toISOString(),
+          trial_days: 7
+        }
+      })
 
     // Criar configurações do WhatsApp
     console.log('💬 Criando configurações WhatsApp...')

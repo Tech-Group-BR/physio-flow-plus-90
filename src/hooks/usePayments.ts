@@ -7,6 +7,7 @@ interface PaymentCustomer {
   email: string
   cpfCnpj: string
   phone?: string
+  profileId?: string
 }
 
 interface CreditCardData {
@@ -67,7 +68,10 @@ export function usePayments() {
       setLoading(true)
 
       const { data, error } = await supabase.functions.invoke('create-asaas-customer', {
-        body: customerData
+        body: {
+          ...customerData,
+          profileId: customerData.profileId
+        }
       })
 
       if (error) throw error

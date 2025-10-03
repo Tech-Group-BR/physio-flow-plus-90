@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { corsHeaders } from "../_shared/cors.ts"
 
 const ASAAS_BASE_URL = "https://sandbox.asaas.com/api/v3"
@@ -22,7 +23,12 @@ serve(async (req) => {
   }
 
   try {
-    const { name, cpfCnpj, email, phone } = await req.json()
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    const { name, cpfCnpj, email, phone, profileId } = await req.json()
 
     if (!name || !cpfCnpj || !email) {
       return new Response(
@@ -47,9 +53,35 @@ serve(async (req) => {
 
     const searchData = await searchResponse.json()
     
-    // Se cliente já existe, retornar dados existentes
+    // Se cliente já existe, verificar se existe na tabela local
     if (searchData.data && searchData.data.length > 0) {
       console.log('Cliente já existe no Asaas:', searchData.data[0].id)
+      
+      // Verificar se já existe na tabela clients local
+      const { data: existingClient } = await supabaseClient
+        .from('clients')
+        .select('*')
+        .eq('asaas_customer_id', searchData.data[0].id)
+        .maybeSingle()
+        
+      if (!existingClient && profileId) {
+        // Salvar cliente na tabela local se não existir
+        const { error: clientError } = await supabaseClient
+          .from('clients')
+          .insert({
+            profile_id: profileId,
+            asaas_customer_id: searchData.data[0].id,
+            cpf_cnpj: cpfCnpj,
+            name: name,
+            email: email,
+            phone: phone || null
+          })
+          
+        if (clientError) {
+          console.error('Erro ao salvar cliente na tabela local:', clientError)
+        }
+      }
+      
       return new Response(
         JSON.stringify({ 
           customer: searchData.data[0],
@@ -102,6 +134,27 @@ serve(async (req) => {
     }
 
     console.log('Cliente criado no Asaas:', responseData.id)
+
+    // Salvar cliente na tabela local do Supabase
+    if (profileId) {
+      const { error: clientError } = await supabaseClient
+        .from('clients')
+        .insert({
+          profile_id: profileId,
+          asaas_customer_id: responseData.id,
+          cpf_cnpj: cpfCnpj,
+          name: name,
+          email: email,
+          phone: phone || null
+        })
+        
+      if (clientError) {
+        console.error('Erro ao salvar cliente na tabela local:', clientError)
+        // Não falhar a requisição se houver erro ao salvar localmente
+      } else {
+        console.log('Cliente salvo na tabela local com sucesso')
+      }
+    }
 
     return new Response(
       JSON.stringify({ 

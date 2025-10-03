@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePayments } from '@/hooks/usePayments'
+import { useAuth } from '@/hooks/useAuth'
 import { PixPayment } from '@/components/PixPayment'
 import { BoletoPayment } from '@/components/BoletoPayment'
 import { CreditCardPayment } from '@/components/CreditCardPayment'
@@ -38,12 +39,16 @@ export function PaymentSystem({
   productId,
   clinicId,
   value,
-  description = 'Pagamento PhysioFlow Plus',
+  description = 'Pagamento GoPhysioTech',
   dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 dias
   onPaymentSuccess,
   onPaymentError
 }: PaymentSystemProps) {
   const { createPayment, formatCpfCnpj, formatPhone, loading } = usePayments()
+  const { user } = useAuth()
+  
+  console.log('🏥 PaymentSystem recebeu clinicId:', clinicId)
+  console.log('👤 User profile:', user?.profile)
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>('PIX')
   const [step, setStep] = useState<'customer' | 'payment' | 'processing' | 'result'>('customer')
   const [paymentData, setPaymentData] = useState<any>(null)
@@ -89,15 +94,19 @@ export function PaymentSystem({
           name: data.name,
           email: data.email,
           cpfCnpj: data.cpfCnpj.replace(/\D/g, ''),
-          phone: data.phone?.replace(/\D/g, '')
+          phone: data.phone?.replace(/\D/g, ''),
+          profileId: user?.id
         },
         billingType: paymentMethod,
         value,
         dueDate,
         description,
         clinicId,
-        productId
+        productId,
+
       }
+      
+      console.log('💳 Payment request sendo enviado:', paymentRequest)
 
       const result = await createPayment(paymentRequest)
       
@@ -144,9 +153,8 @@ export function PaymentSystem({
           <PixPayment 
             paymentData={{
               id: paymentData.payment.id,
-              value: paymentData.payment.value,
-              dueDate: paymentData.payment.dueDate,
-              pixCopyAndPaste: paymentData.pixQrCode?.payload || paymentData.payment.pixCopyAndPaste,
+              invoiceUrl: paymentData.payment.invoiceUrl || '',
+              status: paymentData.payment.status || 'pending',
               pixQrCode: paymentData.pixQrCode
             }}
           />

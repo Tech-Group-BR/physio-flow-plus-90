@@ -1,4 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// Utilitário simples para log estruturado
+function logEvent(level: 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>) {
+  const log = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    ...meta
+  }
+  console.log(JSON.stringify(log))
+}
+
+// Simulação de notificação de falha crítica (pode ser integrado com e-mail, Slack, etc)
+async function notifyCriticalError(error: any, context: Record<string, unknown> = {}) {
+  // Aqui você pode integrar com um serviço externo
+  logEvent('error', 'CRITICAL ERROR', { error: error?.message || error, ...context })
+}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Inicializar Supabase Admin Client
@@ -50,7 +66,7 @@ serve(async (req: any) => {
     )
 
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')
-    const asaasBaseUrl = Deno.env.get('ASAAS_BASE_URL') || 'https://www.asaas.com/api/v3'
+    const asaasBaseUrl = Deno.env.get('ASAAS_BASE_URL') 
 
     if (!asaasApiKey) {
       throw new Error('ASAAS_API_KEY not configured')
@@ -70,7 +86,7 @@ serve(async (req: any) => {
       productId
     } = requestData
 
-    console.log('Creating payment for:', { customerId, value, billingType })
+    console.log('📝 Creating payment for:', { customerId, value, billingType, clinicId, productId })
 
     // Validação básica
     if (!customerId || !billingType || !value || !dueDate) {
@@ -98,6 +114,14 @@ serve(async (req: any) => {
 
     // Se for cartão de crédito, incluir dados do cartão
     if (billingType === 'CREDIT_CARD' && creditCard && creditCardHolderInfo) {
+      // Validação antifraude simples: checar se o nome do titular e CPF/CNPJ estão presentes
+      if (!creditCardHolderInfo.name || !creditCardHolderInfo.cpfCnpj) {
+        console.log('⚠️ Cartão sem dados completos para antifraude', { creditCardHolderInfo })
+        return new Response(
+          JSON.stringify({ error: 'Dados do titular do cartão incompletos para validação antifraude.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       paymentData.creditCard = creditCard
       paymentData.creditCardHolderInfo = creditCardHolderInfo
     }
@@ -118,42 +142,78 @@ serve(async (req: any) => {
 
     const payment = await paymentResponse.json()
 
-    // 3. Buscar informações do PIX se necessário
-    let pixPayload = null
-    if (billingType === 'PIX') {
-      const pixResponse = await fetch(`${asaasBaseUrl}/payments/${payment.id}/pixQrCode`, {
-        headers: {
-          'access_token': asaasApiKey,
-        },
-      })
+    // PIX payload será buscado depois com retry logic
 
-      if (pixResponse.ok) {
-        const pixData = await pixResponse.json()
-        pixPayload = pixData.payload
+    // Buscar informações do cliente para obter client_id e clinic_id
+    let clientId = null
+    let resolvedClinicId = clinicId // Usar o clinicId do request se disponível
+    
+    console.log('🏥 Clinic ID recebido no request:', clinicId)
+    console.log('🏥 Resolved Clinic ID inicial:', resolvedClinicId)
+    
+    // Se o clinicId chegou vazio/null, tentar obter de outras formas
+    if (!clinicId) {
+      console.log('⚠️ clinicId está vazio/null no request!')
+    }
+    
+    if (customerId) {
+      const { data: clientData } = await supabaseClient
+        .from('clients')
+        .select('id, profile_id')
+        .eq('asaas_customer_id', customerId)
+        .maybeSingle()
+      
+      clientId = clientData?.id || null
+      
+      // Se não temos clinicId do request, buscar via profile do cliente
+      if (!resolvedClinicId && clientData?.profile_id) {
+        console.log('🔍 Buscando clinic_id via profile_id:', clientData.profile_id)
+        const { data: profileData } = await supabaseClient
+          .from('profiles')
+          .select('clinic_id')
+          .eq('id', clientData.profile_id)
+          .maybeSingle()
+          
+        resolvedClinicId = profileData?.clinic_id || null
+        console.log('🏥 Clinic ID obtido via profile:', resolvedClinicId)
+      } else {
+        console.log('🏥 Usando clinic_id do request ou não há profile_id')
       }
     }
 
-    // Salvar pagamento no Supabase
+    // Salvar pagamento no Supabase com todos os campos corretos
+    console.log('💾 Salvando pagamento com:', {
+      asaas_payment_id: payment.id,
+      client_id: clientId,
+      clinic_id: resolvedClinicId,
+      customer_id: customerId,
+      plan_id: productId
+    })
+    
     const { error: dbError } = await supabaseClient
       .from('payments')
       .insert({
         asaas_payment_id: payment.id,
-        clinic_id: clinicId,
-        product_id: productId,
+        client_id: clientId,
+        clinic_id: resolvedClinicId,
         customer_id: customerId,
-        amount: value,
+        plan_id: productId,
+        value: value,
         status: payment.status,
         billing_type: billingType.toLowerCase(),
         due_date: dueDate,
         description: description || 'Pagamento PhysioFlow Plus',
-        asaas_response: payment,
-        created_at: new Date().toISOString()
+        pix_payload: null, // Será preenchido depois se for PIX
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
 
     if (dbError) {
       console.error('Erro ao salvar pagamento no Supabase:', dbError)
       // Não retornar erro aqui pois o pagamento foi criado no Asaas
       // Apenas log do erro para análise posterior
+    } else {
+      console.log('✅ Payment saved successfully in database')
     }
 
     // Para PIX, buscar QR Code com retry logic
@@ -184,6 +244,16 @@ serve(async (req: any) => {
           if (qrCodeResponse.ok) {
             pixQrCodeInfo = await qrCodeResponse.json()
             console.log('✅ QR Code obtido com sucesso:', pixQrCodeInfo)
+            
+            // Atualizar o pagamento com o PIX payload
+            if (pixQrCodeInfo?.payload) {
+              await supabaseClient
+                .from('payments')
+                .update({ pix_payload: pixQrCodeInfo.payload })
+                .eq('asaas_payment_id', payment.id)
+              console.log('✅ PIX payload salvo no banco')
+            }
+            
             break // Sucesso, sair do loop
           } else {
             const errorText = await qrCodeResponse.text()
@@ -204,106 +274,7 @@ serve(async (req: any) => {
       }
     }
 
-    // Salvar pagamento na nossa base de dados
-    try {
-      console.log('💾 Salvando pagamento no banco local...')
-      
-      // Primeiro, buscar dados do cliente no Asaas
-      console.log('🔍 Buscando dados do cliente no Asaas:', customerId)
-      const customerResponse = await fetch(`${asaasBaseUrl}/customers/${customerId}`, {
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      let customerData = null
-      if (customerResponse.ok) {
-        customerData = await customerResponse.json()
-        console.log('✅ Dados do cliente obtidos:', customerData.name)
-      } else {
-        console.error('❌ Erro ao buscar cliente no Asaas')
-      }
-      
-      // Buscar ou criar o cliente na nossa base
-      let { data: existingClient } = await supabaseAdmin
-        .from('clients')
-        .select('id')
-        .eq('asaas_customer_id', customerId)
-        .single()
-
-      let clientId = existingClient?.id
-
-      if (!existingClient && customerData) {
-        console.log('🔍 Cliente não encontrado, criando registro local...')
-        const { data: newClient, error: clientError } = await supabaseAdmin
-          .from('clients')
-          .insert({
-            asaas_customer_id: customerId,
-            cpf_cnpj: customerData.cpfCnpj,
-            name: customerData.name,
-            email: customerData.email,
-            phone: customerData.phone
-          })
-          .select('id')
-          .single()
-
-        if (clientError) {
-          console.error('❌ Erro ao criar cliente:', clientError)
-        } else {
-          clientId = newClient.id
-          console.log('✅ Cliente criado com ID:', clientId)
-        }
-      }
-
-      // Salvar o pagamento na nossa tabela
-      const { data: localPayment, error: paymentError } = await supabaseAdmin
-        .from('payments')
-        .insert({
-          client_id: clientId,
-          asaas_payment_id: payment.id,
-          status: payment.status,
-          value: payment.value,
-          billing_type: payment.billingType,
-          due_date: payment.dueDate,
-          description: payment.description,
-          pix_payload: pixQrCodeInfo?.payload || null
-        })
-        .select()
-        .single()
-
-      if (paymentError) {
-        console.error('❌ Erro ao salvar pagamento:', paymentError)
-      } else {
-        console.log('✅ Pagamento salvo com ID:', localPayment.id)
-      }
-
-      // Se é para uma clínica específica, criar entrada em accounts_receivable
-      if (clinicId) {
-        const { error: receivableError } = await supabaseAdmin
-          .from('accounts_receivable')
-          .insert({
-            description: payment.description || 'Pagamento via Asaas',
-            amount: payment.value,
-            due_date: payment.dueDate,
-            status: 'pendente',
-            method: payment.billingType === 'PIX' ? 'pix' : 
-                   payment.billingType === 'BOLETO' ? 'boleto' : 'credit_card',
-            clinic_id: clinicId,
-            notes: `Asaas Payment ID: ${payment.id}`
-          })
-
-        if (receivableError) {
-          console.error('❌ Erro ao criar conta a receber:', receivableError)
-        } else {
-          console.log('✅ Conta a receber criada para clínica:', clinicId)
-        }
-      }
-
-    } catch (dbError) {
-      console.error('💥 Erro ao salvar no banco:', dbError)
-      // Não retornar erro aqui pois o pagamento foi criado no Asaas
-    }
+    // O pagamento já foi salvo no primeiro bloco acima, não precisamos duplicar
 
     const responsePayload = {
       payment: payment,
