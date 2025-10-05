@@ -36,8 +36,9 @@ interface CreditCardPaymentProps {
   description?: string
   clinicId?: string
   productId?: string
+  billingPeriod?: string
   onSuccess?: (paymentData: any) => void
-  onError?: (error: string) => void
+  onPaymentError?: (error: string) => void
 }
 
 export function CreditCardPayment({ 
@@ -46,8 +47,9 @@ export function CreditCardPayment({
   description,
   clinicId,
   productId,
+  billingPeriod,
   onSuccess, 
-  onError 
+  onPaymentError 
 }: CreditCardPaymentProps) {
   const { createPayment, formatCpfCnpj, formatPhone, formatCreditCard, loading } = usePayments()
   const [processing, setProcessing] = useState(false)
@@ -105,6 +107,7 @@ export function CreditCardPayment({
         description,
         clinicId,
         productId,
+        billingPeriod, // Período de cobrança
         creditCard: {
           holderName: data.holderName,
           number: data.number.replace(/\s/g, ''),
@@ -135,7 +138,7 @@ export function CreditCardPayment({
     } catch (error: any) {
       console.error('Erro ao processar pagamento:', error)
       const errorMessage = error.message || 'Erro ao processar pagamento'
-      onError?.(errorMessage)
+      onPaymentError?.(errorMessage)
       toast.error(errorMessage)
     } finally {
       setProcessing(false)

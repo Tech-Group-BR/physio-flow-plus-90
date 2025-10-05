@@ -36,6 +36,7 @@ interface CreatePaymentRequest {
   description?: string
   clinicId?: string
   productId?: string
+  billingPeriod?: string // Período de cobrança: monthly, quarterly, semiannual, annual
   creditCard?: CreditCardData
   creditCardHolderInfo?: CreditCardHolderInfo
 }
@@ -108,6 +109,7 @@ export function usePayments() {
           description: paymentData.description,
           clinicId: paymentData.clinicId,
           productId: paymentData.productId,
+          billingPeriod: paymentData.billingPeriod || 'monthly', // 🔥 ADICIONAR BILLING PERIOD
           creditCard: paymentData.creditCard,
           creditCardHolderInfo: paymentData.creditCardHolderInfo
         }

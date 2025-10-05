@@ -163,9 +163,11 @@ async function handlePaymentPending(supabaseClient: any, payment: any) {
 
 // Handler para RECEIVED - Pagamento recebido pelo Asaas
 async function handlePaymentReceived(supabaseClient: any, payment: any) {
-  console.log('Processing payment received:', payment.id)
+  console.log('💰 Processing payment received:', payment.id)
   
   // Atualizar status na tabela payments
+  // O trigger sync_subscription_from_payment() será automaticamente executado
+  // e criará/atualizará a subscription correspondente
   const { error: paymentError } = await supabaseClient
     .from('payments')
     .update({ 
@@ -176,69 +178,19 @@ async function handlePaymentReceived(supabaseClient: any, payment: any) {
     .eq('asaas_payment_id', payment.id)
 
   if (paymentError) {
-    console.error('Error updating payment to RECEIVED:', paymentError)
+    console.error('❌ Error updating payment to RECEIVED:', paymentError)
   } else {
-    console.log('✅ Payment updated to RECEIVED')
+    console.log('✅ Payment updated to RECEIVED - trigger will sync subscription automatically')
   }
 
-  // Buscar o payment para pegar clinic_id e liberar acesso
-  const { data: paymentRecord, error: fetchError } = await supabaseClient
-    .from('payments')
-    .select('clinic_id, product_id')
-    .eq('asaas_payment_id', payment.id)
-    .single()
-
-  if (fetchError) {
-    console.error('Error fetching payment record:', fetchError)
-    return
-  }
-
-  // Liberar acesso ao plano/produto - atualizar assinatura para active
-  if (paymentRecord?.clinic_id && paymentRecord?.product_id) {
-    const startDate = new Date()
-    const endDate = new Date()
-    endDate.setMonth(endDate.getMonth() + 1) // Assumindo assinatura mensal
-
-    const { error: subscriptionError } = await supabaseClient
-      .from('subscriptions')
-      .upsert({
-        clinic_id: paymentRecord.clinic_id,
-        product_id: paymentRecord.product_id,
-        status: 'active',
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'clinic_id,product_id'
-      })
-
-    if (subscriptionError) {
-      console.error('Error updating subscription to active:', subscriptionError)
-    } else {
-      console.log('✅ Subscription activated')
-    }
-  }
-
-  // Atualizar conta a receber correspondente
-  const { error: receivableError } = await supabaseClient
-    .from('accounts_receivable')
-    .update({ 
-      status: 'pago',
-      paid_date: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .ilike('notes', `%${payment.id}%`)
-
-  if (receivableError) {
-    console.error('Error updating receivable to paid:', receivableError)
-  } else {
-    console.log('✅ Accounts receivable updated to paid')
-  }
+  // NOTA: A subscription será automaticamente criada/atualizada pelo trigger
+  // sync_subscription_from_payment() que monitora mudanças na tabela payments
+  // Não precisamos gerenciar subscription manualmente aqui
 }
 
 // Handler para CONFIRMED - Pagamento liquidado na conta Asaas (confirmação final)
 async function handlePaymentConfirmed(supabaseClient: any, payment: any) {
-  console.log('Processing payment confirmed:', payment.id)
+  console.log('✅ Processing payment confirmed:', payment.id)
   
   const { error: paymentError } = await supabaseClient
     .from('payments')
@@ -250,59 +202,12 @@ async function handlePaymentConfirmed(supabaseClient: any, payment: any) {
     .eq('asaas_payment_id', payment.id)
 
   if (paymentError) {
-    console.error('Error updating payment to CONFIRMED:', paymentError)
+    console.error('❌ Error updating payment to CONFIRMED:', paymentError)
     return
   }
 
   console.log('✅ Payment updated to CONFIRMED')
-
-  // Buscar o payment para verificar se já foi liberado
-  const { data: paymentRecord, error: fetchError } = await supabaseClient
-    .from('payments')
-    .select('clinic_id, product_id')
-    .eq('asaas_payment_id', payment.id)
-    .single()
-
-  if (fetchError) {
-    console.error('Error fetching payment record:', fetchError)
-    return
-  }
-
-  // Verificar se já existe assinatura ativa
-  if (paymentRecord?.clinic_id && paymentRecord?.product_id) {
-    const { data: existingSubscription } = await supabaseClient
-      .from('subscriptions')
-      .select('status')
-      .eq('clinic_id', paymentRecord.clinic_id)
-      .eq('product_id', paymentRecord.product_id)
-      .single()
-
-    // Se ainda não tem assinatura ativa, liberar agora
-    if (!existingSubscription || existingSubscription.status !== 'active') {
-      const startDate = new Date()
-      const endDate = new Date()
-      endDate.setMonth(endDate.getMonth() + 1)
-
-      const { error: subscriptionError } = await supabaseClient
-        .from('subscriptions')
-        .upsert({
-          clinic_id: paymentRecord.clinic_id,
-          product_id: paymentRecord.product_id,
-          status: 'active',
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'clinic_id,product_id'
-        })
-
-      if (subscriptionError) {
-        console.error('Error activating subscription on CONFIRMED:', subscriptionError)
-      } else {
-        console.log('✅ Subscription activated on CONFIRMED')
-      }
-    }
-  }
+  // NOTA: Se payment já estava RECEIVED, a subscription já foi ativada pelo trigger
 }
 
 // Handler para OVERDUE - Cobrança vencida e não paga

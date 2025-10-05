@@ -83,10 +83,28 @@ serve(async (req: any) => {
       creditCard,
       creditCardHolderInfo,
       clinicId,
-      productId
+      productId,
+      billingPeriod
     } = requestData
 
-    console.log('📝 Creating payment for:', { customerId, value, billingType, clinicId, productId })
+    // Mapear período para o cycle do Asaas
+    const cycleMap: Record<string, string> = {
+      'monthly': 'MONTHLY',
+      'quarterly': 'QUARTERLY',
+      'semiannual': 'SEMIANNUALLY',
+      'annual': 'YEARLY'
+    }
+    const asaasCycle = cycleMap[billingPeriod || 'monthly'] || 'MONTHLY'
+
+    console.log('� REQUEST COMPLETO:', JSON.stringify(requestData, null, 2))
+    console.log('�📝 Creating payment for:', { customerId, value, billingType, clinicId, productId })
+    
+    // VALIDAR SE CLINICID E PRODUCTID ESTÃO PRESENTES
+    if (!clinicId || !productId) {
+      console.error('❌ ERRO: clinicId ou productId estão faltando no request!')
+      console.error('clinicId:', clinicId)
+      console.error('productId:', productId)
+    }
 
     // Validação básica
     if (!customerId || !billingType || !value || !dueDate) {
@@ -99,22 +117,21 @@ serve(async (req: any) => {
       )
     }
 
-    // Preparar dados do pagamento
-    const paymentData: any = {
+    // 🔄 CRIAR SUBSCRIPTION NATIVA NO ASAAS (não apenas payment avulso)
+    console.log('📋 Criando SUBSCRIPTION no Asaas (recorrência nativa)...')
+    
+    const subscriptionData: any = {
       customer: customerId,
       billingType: billingType,
       value: Number(value),
-      dueDate: dueDate,
-      description: description || 'Pagamento PhysioFlow Plus'
-    }
-
-    if (externalReference) {
-      paymentData.externalReference = externalReference
+      nextDueDate: dueDate,
+      description: description || 'Assinatura PhysioFlow Plus',
+      cycle: asaasCycle, // Ciclo baseado no período selecionado
+      externalReference: externalReference
     }
 
     // Se for cartão de crédito, incluir dados do cartão
     if (billingType === 'CREDIT_CARD' && creditCard && creditCardHolderInfo) {
-      // Validação antifraude simples: checar se o nome do titular e CPF/CNPJ estão presentes
       if (!creditCardHolderInfo.name || !creditCardHolderInfo.cpfCnpj) {
         console.log('⚠️ Cartão sem dados completos para antifraude', { creditCardHolderInfo })
         return new Response(
@@ -122,25 +139,62 @@ serve(async (req: any) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-      paymentData.creditCard = creditCard
-      paymentData.creditCardHolderInfo = creditCardHolderInfo
+      subscriptionData.creditCard = creditCard
+      subscriptionData.creditCardHolderInfo = creditCardHolderInfo
     }
 
-    const paymentResponse = await fetch(`${asaasBaseUrl}/payments`, {
+    // Chamar API de SUBSCRIPTIONS do Asaas
+    const subscriptionResponse = await fetch(`${asaasBaseUrl}/subscriptions`, {
       method: 'POST',
       headers: {
         'access_token': asaasApiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(paymentData),
+      body: JSON.stringify(subscriptionData),
     })
 
-    if (!paymentResponse.ok) {
-      const errorText = await paymentResponse.text()
-      throw new Error(`Failed to create payment: ${errorText}`)
+    if (!subscriptionResponse.ok) {
+      const errorText = await subscriptionResponse.text()
+      console.error('❌ Erro ao criar subscription no Asaas:', errorText)
+      throw new Error(`Failed to create subscription: ${errorText}`)
     }
 
-    const payment = await paymentResponse.json()
+    const asaasSubscription = await subscriptionResponse.json()
+    console.log('✅ Subscription criada no Asaas:', asaasSubscription.id)
+
+    // O Asaas retorna a subscription com o primeiro payment já criado
+    // Vamos buscar o payment da subscription
+    let payment = null
+    if (asaasSubscription.id) {
+      // Aguardar um pouco para o Asaas gerar o payment
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      const paymentsResponse = await fetch(`${asaasBaseUrl}/payments?subscription=${asaasSubscription.id}`, {
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (paymentsResponse.ok) {
+        const paymentsData = await paymentsResponse.json()
+        if (paymentsData.data && paymentsData.data.length > 0) {
+          payment = paymentsData.data[0]
+          console.log('✅ Payment da subscription encontrado:', payment.id)
+        }
+      }
+    }
+    
+    // Se não encontrou payment, usar dados da subscription
+    if (!payment) {
+      payment = {
+        id: `sub_${asaasSubscription.id}`,
+        status: asaasSubscription.status,
+        value: asaasSubscription.value,
+        billingType: asaasSubscription.billingType,
+        dueDate: asaasSubscription.nextDueDate
+      }
+    }
 
     // PIX payload será buscado depois com retry logic
 
@@ -184,6 +238,7 @@ serve(async (req: any) => {
     // Salvar pagamento no Supabase com todos os campos corretos
     console.log('💾 Salvando pagamento com:', {
       asaas_payment_id: payment.id,
+      asaas_subscription_id: asaasSubscription.id,
       client_id: clientId,
       clinic_id: resolvedClinicId,
       customer_id: customerId,
@@ -194,6 +249,7 @@ serve(async (req: any) => {
       .from('payments')
       .insert({
         asaas_payment_id: payment.id,
+        asaas_subscription_id: asaasSubscription.id, // 🔥 VINCULAR AO SUBSCRIPTION DO ASAAS
         client_id: clientId,
         clinic_id: resolvedClinicId,
         customer_id: customerId,
@@ -201,8 +257,9 @@ serve(async (req: any) => {
         value: value,
         status: payment.status,
         billing_type: billingType.toLowerCase(),
+        billing_period: billingPeriod || 'monthly', // 🔥 PERÍODO DE COBRANÇA SELECIONADO
         due_date: dueDate,
-        description: description || 'Pagamento PhysioFlow Plus',
+        description: description || 'Assinatura PhysioFlow Plus',
         pix_payload: null, // Será preenchido depois se for PIX
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -214,6 +271,28 @@ serve(async (req: any) => {
       // Apenas log do erro para análise posterior
     } else {
       console.log('✅ Payment saved successfully in database')
+      
+      // ✅ ATUALIZAR subscription existente da clínica (não criar nova!)
+      // A subscription já foi criada no cadastro com status 'trialing'
+      if (productId && resolvedClinicId && asaasSubscription.id) {
+        console.log('🔄 Atualizando subscription existente da clínica:', resolvedClinicId)
+        
+        const { error: subError } = await supabaseClient
+          .from('subscriptions')
+          .update({
+            plan_id: productId, // Atualizar plano escolhido
+            asaas_subscription_id: asaasSubscription.id, // 🔥 VINCULAR AO SUBSCRIPTION DO ASAAS
+            status: 'pending_payment', // Aguardando confirmação do pagamento
+            updated_at: new Date().toISOString()
+          })
+          .eq('clinic_id', resolvedClinicId)
+        
+        if (subError) {
+          console.error('⚠️ Erro ao atualizar subscription:', subError)
+        } else {
+          console.log('✅ Subscription atualizada com asaas_subscription_id:', asaasSubscription.id)
+        }
+      }
     }
 
     // Para PIX, buscar QR Code com retry logic

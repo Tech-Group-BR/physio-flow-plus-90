@@ -29,6 +29,7 @@ interface PaymentSystemProps {
   productId?: string
   clinicId?: string
   value: number
+  billingPeriod?: string // Período de cobrança: monthly, quarterly, semiannual, annual
   description?: string
   dueDate?: string
   onPaymentSuccess?: (paymentData: any) => void
@@ -39,6 +40,7 @@ export function PaymentSystem({
   productId,
   clinicId,
   value,
+  billingPeriod = 'monthly',
   description = 'Pagamento GoPhysioTech',
   dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 dias
   onPaymentSuccess,
@@ -48,6 +50,7 @@ export function PaymentSystem({
   const { user } = useAuth()
   
   console.log('🏥 PaymentSystem recebeu clinicId:', clinicId)
+  console.log('📅 PaymentSystem recebeu billingPeriod:', billingPeriod)
   console.log('👤 User profile:', user?.profile)
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>('PIX')
   const [step, setStep] = useState<'customer' | 'payment' | 'processing' | 'result'>('customer')
@@ -103,7 +106,7 @@ export function PaymentSystem({
         description,
         clinicId,
         productId,
-
+        billingPeriod, // Período de cobrança
       }
       
       console.log('💳 Payment request sendo enviado:', paymentRequest)
@@ -192,8 +195,9 @@ export function PaymentSystem({
           description={description}
           clinicId={clinicId}
           productId={productId}
+          billingPeriod={billingPeriod}
           onSuccess={handleCreditCardSuccess}
-          onError={handleCreditCardError}
+          onPaymentError={handleCreditCardError}
         />
         
         <div className="text-center">

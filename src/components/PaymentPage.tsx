@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/useAuth"
 import { useProducts } from "@/hooks/useProducts"
+import { useSubscriptionPeriods } from "@/hooks/useSubscriptionPeriods"
 import { PaymentSystem } from "@/components/PaymentSystem"
 import { PixPayment } from "@/components/PixPayment"
 import { BoletoPayment } from "@/components/BoletoPayment"
+import { SubscriptionPeriodSelector } from "@/components/SubscriptionPeriodSelector"
 import { LogIn, ArrowLeft, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -15,9 +17,11 @@ export function PaymentPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
   const { products, loading: productsLoading } = useProducts()
+  const { getAllPeriodsWithPrices, loading: periodsLoading } = useSubscriptionPeriods()
 
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [paymentData, setPaymentData] = useState<any>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('monthly') // Período padrão
   
   // Debug: verificar user.profile
   console.log('👤 PaymentPage - User completo:', user)
@@ -283,15 +287,18 @@ export function PaymentPage() {
             </div>
             <CardTitle className="text-green-600">Pagamento Realizado!</CardTitle>
             <CardDescription>
-              Seu pagamento foi processado com sucesso. Bem-vindo ao GoPhysioTech!
+              Sua assinatura foi ativada com sucesso. Bem-vindo ao GoPhysioTech!
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold mb-2">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-700 mb-2">
+                ✓ Assinatura ativa
+              </p>
+              <p className="text-2xl font-bold mb-1">
                 {selectedPlan.name}
               </p>
-              <p className="text-lg">
+              <p className="text-lg text-green-800">
                 R$ {selectedPlan.price.toLocaleString('pt-BR', { 
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
@@ -321,35 +328,43 @@ export function PaymentPage() {
   }
 
   // Formulário de pagamento
+  // Calcular valores baseado no período selecionado
+  const periodsWithPrices = getAllPeriodsWithPrices(selectedPlan.price)
+  const currentPeriod = periodsWithPrices.find(p => p.period === selectedPeriod)
+  const finalValue = currentPeriod?.totalPrice || selectedPlan.price
+  const monthlyValue = currentPeriod?.monthlyPrice || selectedPlan.price
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 space-y-6 bg-gradient-to-br from-sky-50 to-white">
-      <div className="text-center max-w-2xl">
+      <div className="text-center max-w-6xl w-full">
         <h1 className="text-3xl font-bold mb-2">Finalizar Assinatura</h1>
         <p className="text-xl text-muted-foreground mb-4">
           {selectedPlan.name}
         </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <p className="text-3xl font-bold text-blue-900 mb-2">
-            R$ {selectedPlan.price.toLocaleString('pt-BR', { 
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            })}
-            <span className="text-lg font-normal text-blue-700">/mês</span>
-          </p>
-          <p className="text-sm text-blue-700">
-            {selectedPlan.description}
-          </p>
-        </div>
       </div>
 
-      <PaymentSystem
-        productId={selectedPlan.id}
-        clinicId={user.profile?.clinic_id || undefined}
-        value={selectedPlan.price}
-        description={`GoPhysioTech - ${selectedPlan.name}`}
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentError={handlePaymentError}
-      />
+      {/* Seletor de Período */}
+      <div className="max-w-6xl w-full">
+        <SubscriptionPeriodSelector
+          basePrice={selectedPlan.price}
+          periods={periodsWithPrices}
+          selectedPeriod={selectedPeriod}
+          onPeriodChange={setSelectedPeriod}
+        />
+      </div>
+
+      {/* Formulário de Pagamento */}
+      <div className="max-w-2xl w-full">
+        <PaymentSystem
+          productId={selectedPlan.id}
+          clinicId={user.profile?.clinic_id || undefined}
+          value={finalValue}
+          billingPeriod={selectedPeriod}
+          description={`GoPhysioTech - ${selectedPlan.name} - ${currentPeriod?.displayName}`}
+          onPaymentSuccess={handlePaymentSuccess}
+          onPaymentError={handlePaymentError}
+        />
+      </div>
 
       <div className="text-center space-y-2">
 
