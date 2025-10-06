@@ -163,6 +163,35 @@ class PersistentCache {
     
     return userData?.clinic_id || clinicData?.clinic_id || null;
   }
+  
+  static setClinicId(clinicId: string): void {
+    try {
+      // Salvar tanto no user data quanto no clinic data para redundância
+      const userData = this.getCachedUserData();
+      if (userData) {
+        userData.clinic_id = clinicId;
+        this.cacheUserData(userData);
+      }
+      
+      const clinicData = this.getCachedClinicData();
+      if (clinicData) {
+        clinicData.clinic_id = clinicId;
+        this.cacheClinicData(clinicData);
+      } else {
+        // Se não tem clinic data, criar um mínimo
+        this.cacheClinicData({
+          clinic_id: clinicId,
+          name: '',
+          code: '',
+          cachedAt: Date.now()
+        });
+      }
+      
+      console.log('✅ clinicId salvo no cache:', clinicId);
+    } catch (error) {
+      console.error('❌ Erro ao salvar clinicId:', error);
+    }
+  }
 
   static getUserId(): string | null {
     const userData = this.getCachedUserData();

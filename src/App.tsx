@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ClinicProvider } from "@/contexts/ClinicContext";
+import { ProductsCacheProvider } from "@/contexts/ProductsCacheContext";
 import Index from "@/pages/Index";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
@@ -31,7 +32,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     pathname: window.location.pathname 
   });
 
-  if (loading) {
+  // ✅ OTIMIZAÇÃO: Só mostrar loading na primeira carga (quando não tem user E está loading)
+  // Se já tem user, renderizar imediatamente mesmo que loading seja true
+  if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -65,7 +68,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   console.log('🌐 PublicRoute:', { user: user?.email, loading });
 
-  if (loading) {
+  // ✅ OTIMIZAÇÃO: Só mostrar loading se não tem decisão clara
+  // Se já tem user, redirecionar imediatamente
+  if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -89,8 +94,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ClinicProvider>
-          <Router>
-            <Routes>
+          <ProductsCacheProvider>
+            <Router>
+              <Routes>
               {/* <Route path="/" element={<RootRoute />} /> */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/pagamento" element={<PaymentPage />} />
@@ -127,6 +133,7 @@ function App() {
             </Routes>
             <Toaster />
           </Router>
+          </ProductsCacheProvider>
         </ClinicProvider>
       </AuthProvider>
     </QueryClientProvider>

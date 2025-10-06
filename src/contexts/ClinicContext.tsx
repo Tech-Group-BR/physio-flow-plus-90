@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Database } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import PersistentCache from '../lib/persistentCache';
+import { globalCache, CACHE_KEYS, CACHE_TTL } from '@/lib/globalCache';
 
 // Use the types from the main types file
 import { 
@@ -177,6 +178,7 @@ interface DbClinicSettings {
 }
 
 interface ClinicContextType {
+  clinicId: string | null;
   patients: MainPatient[];
   professionals: MainProfessional[];
   rooms: MainRoom[];
@@ -406,21 +408,50 @@ const dbToMainClinicSettings = (dbClinic: DbClinicSettings): MainClinicSettings 
 // --- End Mappers ---
 
 export function ClinicProvider({ children }: { children: React.ReactNode }) {
-  const [patients, setPatients] = useState<MainPatient[]>([]);
-  const [professionals, setProfessionals] = useState<MainProfessional[]>([]);
-  const [rooms, setRooms] = useState<MainRoom[]>([]);
-  const [appointments, setAppointments] = useState<MainAppointment[]>([]);
-  const [medicalRecords, setMedicalRecords] = useState<MainMedicalRecord[]>([]);
-  const [accountsPayable, setAccountsPayable] = useState<MainAccountsPayable[]>([]);
-  const [accountsReceivable, setAccountsReceivable] = useState<MainAccountsReceivable[]>([]);
-  const [evolutions, setEvolutions] = useState<MainEvolution[]>([]);
-  const [leads, setLeads] = useState<MainLead[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<MainDashboardStats | null>(null);
-  const [clinicSettings, setClinicSettings] = useState<MainClinicSettings | null>(null);
+  const { user, loading: authLoading } = useAuth();
+  const clinicId = user?.profile?.clinic_id;
+  
+  // ✅ useRef para evitar re-renders e loops infinitos
+  const isInitialized = useRef(false);
+  const loadingRef = useRef(false);
+  
+  // ✅ Estados com inicialização do cache
+  const [patients, setPatients] = useState<MainPatient[]>(() => 
+    globalCache.get(CACHE_KEYS.PATIENTS, clinicId, CACHE_TTL.MEDIUM) || []
+  );
+  const [professionals, setProfessionals] = useState<MainProfessional[]>(() =>
+    globalCache.get(CACHE_KEYS.PROFESSIONALS, clinicId, CACHE_TTL.MEDIUM) || []
+  );
+  const [rooms, setRooms] = useState<MainRoom[]>(() =>
+    globalCache.get(CACHE_KEYS.ROOMS, clinicId, CACHE_TTL.MEDIUM) || []
+  );
+  const [appointments, setAppointments] = useState<MainAppointment[]>(() =>
+    globalCache.get(CACHE_KEYS.APPOINTMENTS, clinicId, CACHE_TTL.DYNAMIC) || []
+  );
+  const [medicalRecords, setMedicalRecords] = useState<MainMedicalRecord[]>(() =>
+    globalCache.get(CACHE_KEYS.MEDICAL_RECORDS, clinicId, CACHE_TTL.MEDIUM) || []
+  );
+  const [accountsPayable, setAccountsPayable] = useState<MainAccountsPayable[]>(() =>
+    globalCache.get(CACHE_KEYS.ACCOUNTS_PAYABLE, clinicId, CACHE_TTL.DYNAMIC) || []
+  );
+  const [accountsReceivable, setAccountsReceivable] = useState<MainAccountsReceivable[]>(() =>
+    globalCache.get(CACHE_KEYS.ACCOUNTS_RECEIVABLE, clinicId, CACHE_TTL.DYNAMIC) || []
+  );
+  const [evolutions, setEvolutions] = useState<MainEvolution[]>(() =>
+    globalCache.get(CACHE_KEYS.EVOLUTIONS, clinicId, CACHE_TTL.MEDIUM) || []
+  );
+  const [leads, setLeads] = useState<MainLead[]>(() =>
+    globalCache.get(CACHE_KEYS.LEADS, clinicId, CACHE_TTL.DYNAMIC) || []
+  );
+  const [dashboardStats, setDashboardStats] = useState<MainDashboardStats | null>(() =>
+    globalCache.get(CACHE_KEYS.DASHBOARD_STATS, clinicId, CACHE_TTL.DYNAMIC) || null
+  );
+  const [clinicSettings, setClinicSettings] = useState<MainClinicSettings | null>(() =>
+    globalCache.get(CACHE_KEYS.CLINIC_SETTINGS, clinicId, CACHE_TTL.STATIC) || null
+  );
+  
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
- const { user, loading: authLoading } = useAuth();
-const clinicId = user?.profile?.clinic_id;
 
 // ✅ FUNÇÃO ROBUSTA: Obter clinic_id com fallback do cache
 const getClinicId = (): string | null => {
@@ -440,53 +471,54 @@ const getClinicId = (): string | null => {
   return null;
 };
 
-// ✅ ESTABILIZAR: Memorizar valores para evitar loops e adicionar timestamp
-const hasValidUser = Boolean(user && user.profile && (clinicId || PersistentCache.getClinicId()));
-const isAuthReady = !authLoading;
-const [lastLoadTime, setLastLoadTime] = useState<number>(0);
-const [isLoadingData, setIsLoadingData] = useState(false);
- 
+// ✅ Verificar se tem dados em cache
+const hasDataInCache = () => {
+  return (
+    globalCache.has(CACHE_KEYS.PATIENTS, clinicId, CACHE_TTL.MEDIUM) ||
+    globalCache.has(CACHE_KEYS.APPOINTMENTS, clinicId, CACHE_TTL.DYNAMIC)
+  );
+};
  
  useEffect(() => {
-    console.log('🔄 ClinicContext useEffect - Estado atual:', {
-      hasUser: !!user,
-      hasProfile: !!user?.profile,
-      clinicId,
-      authLoading,
-      hasValidUser,
-      isAuthReady,
-      isLoadingData,
-      timeSinceLastLoad: Date.now() - lastLoadTime
-    });
-
-    // ✅ PROTEÇÃO: Evitar carregamento duplo
-    if (isLoadingData) {
-      console.log('⏭️ ClinicContext: Já está carregando dados, ignorando...');
+    // ✅ Se já inicializou ou está carregando, não fazer nada
+    if (isInitialized.current || loadingRef.current) {
+      console.log('⏭️ ClinicContext: Já inicializado ou carregando');
       return;
     }
-
-    // ✅ PROTEÇÃO: Evitar recarregamento muito frequente (mínimo 5 segundos)
-    const now = Date.now();
-    if (hasValidUser && isAuthReady && (now - lastLoadTime) < 5000) {
-      console.log('⏭️ ClinicContext: Carregamento muito recente, aguardando...');
+    
+    // ✅ Se não tem usuário ou está esperando auth, não fazer nada
+    if (authLoading || !user || !clinicId) {
+      console.log('⏳ ClinicContext: Aguardando autenticação...', { authLoading, hasUser: !!user, clinicId });
       return;
     }
+    
+    // ✅ SALVAR clinicId no cache assim que disponível
+    if (clinicId) {
+      console.log('💾 Salvando clinicId no cache:', clinicId);
+      PersistentCache.setClinicId(clinicId);
+    }
+    
+    // ✅ Se tem dados em cache válido, não recarregar
+    if (hasDataInCache()) {
+      console.log('✅ ClinicContext: Dados já em cache, não recarregando');
+      isInitialized.current = true;
+      return;
+    }
+    
+    // ✅ Inicializar dados pela primeira vez
+    console.log('🚀 ClinicContext: Inicializando dados da clínica:', clinicId);
+    loadingRef.current = true;
+    isInitialized.current = true;
+    setLoading(true);
 
-    // 1. Condição para iniciar o carregamento de dados da clínica
-    if (hasValidUser && isAuthReady) { 
-      console.log('🏥 ClinicContext: Iniciando carregamento de dados para clínica:', clinicId);
-      setLoading(true);
-      setIsLoadingData(true);
-      setLastLoadTime(now);
-
-      const loadAllClinicData = async () => {
-        try {
-          console.log('📊 Carregando dados essenciais...');
-          await Promise.all([
-            fetchPatients(clinicId),
-            fetchAppointments(clinicId)
-          ]);
-          console.log('✅ Dados essenciais carregados');
+    const loadAllClinicData = async () => {
+      try {
+        console.log('📊 Carregando dados essenciais...');
+        await Promise.all([
+          fetchPatients(clinicId),
+          fetchAppointments(clinicId)
+        ]);
+        console.log('✅ Dados essenciais carregados');
 
           console.log('📋 Carregando dados secundários...');
           await Promise.all([
@@ -507,117 +539,17 @@ const [isLoadingData, setIsLoadingData] = useState(false);
         } finally {
           console.log('✅ ClinicContext: Carregamento de dados finalizado.');
           setLoading(false);
-          setIsLoadingData(false);
+          loadingRef.current = false;
         }
       };
 
       loadAllClinicData();
+    }, [authLoading, clinicId]); // ✅ Dependências simplificadas
+    
+    // ✅ REMOVIDO: useEffects de visibilitychange e windowFocus
+    // Causavam recarregamentos desnecessários ao trocar de aba/janela
 
-    } else if (!user && isAuthReady) {
-      console.warn('⚠️ ClinicContext: Usuário deslogado. Limpando dados.');
-      setLoading(false);
-      setIsLoadingData(false);
-      // Limpar todos os dados quando usuário sair
-      setPatients([]);
-      setProfessionals([]);
-      setRooms([]);
-      setAppointments([]);
-      setMedicalRecords([]);
-      setAccountsPayable([]);
-      setAccountsReceivable([]);
-      setEvolutions([]);
-      setLeads([]);
-      setDashboardStats(null);
-      setCurrentUser(null);
-    } else if (!hasValidUser && user && isAuthReady) {
-      console.warn('⚠️ ClinicContext: Usuário sem perfil válido ou clinic_id.');
-      setLoading(false);
-      setIsLoadingData(false);
-    } else if (!isAuthReady) {
-      console.log('⏳ ClinicContext: Aguardando autenticação terminar...');
-    }
-  }, [hasValidUser, isAuthReady, clinicId]); // ✅ Dependências simplificadas
-
-  // useEffect para recarregar dados quando a aba volta ao foco
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && hasValidUser && isAuthReady && !isLoadingData) {
-        const now = Date.now();
-        const timeSinceLastLoad = now - lastLoadTime;
-        
-        // Só recarregar se passou pelo menos 30 segundos desde o último carregamento
-        if (timeSinceLastLoad > 30000) {
-          console.log('👁️ ClinicContext: Aba voltou ao foco, recarregando dados...');
-          
-          const reloadCriticalData = async () => {
-            try {
-              setIsLoadingData(true);
-              setLastLoadTime(now);
-              
-              // Recarregar apenas dados críticos
-              await Promise.all([
-                fetchAppointments(clinicId),
-                fetchDashboardStatsWrapper()
-              ]);
-              
-              console.log('✅ ClinicContext: Dados críticos recarregados após mudança de aba');
-            } catch (error) {
-              console.error('❌ Erro ao recarregar dados após mudança de aba:', error);
-            } finally {
-              setIsLoadingData(false);
-            }
-          };
-          
-          reloadCriticalData();
-        } else {
-          console.log('⏭️ ClinicContext: Mudança de aba muito recente, aguardando...');
-        }
-      }
-    };
-
-    const handleWindowFocus = () => {
-      if (hasValidUser && isAuthReady && !isLoadingData) {
-        const now = Date.now();
-        const timeSinceLastLoad = now - lastLoadTime;
-        
-        // Só recarregar se passou pelo menos 15 segundos
-        if (timeSinceLastLoad > 15000) {
-          console.log('🎯 ClinicContext: Janela voltou ao foco, atualizando dados...');
-          
-          const refreshData = async () => {
-            try {
-              setIsLoadingData(true);
-              setLastLoadTime(now);
-              
-              // Atualizar apenas compromissos e stats
-              await Promise.all([
-                fetchAppointments(clinicId),
-                fetchDashboardStatsWrapper()
-              ]);
-              
-              console.log('✅ ClinicContext: Dados atualizados após foco da janela');
-            } catch (error) {
-              console.error('❌ Erro ao atualizar dados após foco da janela:', error);
-            } finally {
-              setIsLoadingData(false);
-            }
-          };
-          
-          refreshData();
-        }
-      }
-    };
-
-    // Adiciona listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, [hasValidUser, isAuthReady, isLoadingData, clinicId, lastLoadTime]);
-const fetchPatients = async (clinicId: string) => { // clinicId deve ser passado ou acessível
+  const fetchPatients = async (clinicId: string) => { // clinicId deve ser passado ou acessível
   try {
     const { data, error } = await supabase
       .from('patients')
@@ -1775,6 +1707,7 @@ const fetchEvolutions = async (clinicId: string) => { // <<< clinicId deve ser p
   };
 
   const value: ClinicContextType = {
+    clinicId: clinicId || null,
     patients,
     professionals,
     rooms,

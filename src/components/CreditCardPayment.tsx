@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { usePayments } from '@/hooks/usePayments'
+import { usePaymentPersistence } from '@/hooks/usePaymentPersistence'
 import { CreditCard, Lock, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -52,6 +53,7 @@ export function CreditCardPayment({
   onPaymentError 
 }: CreditCardPaymentProps) {
   const { createPayment, formatCpfCnpj, formatPhone, formatCreditCard, loading } = usePayments()
+  const { persistedData, persistData, clearCardData } = usePaymentPersistence()
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -60,12 +62,58 @@ export function CreditCardPayment({
     handleSubmit,
     formState: { errors },
     watch,
-    setValue
+    setValue,
+    reset
   } = useForm<CreditCardFormData>({
     resolver: zodResolver(creditCardSchema)
   })
 
   const watchedFields = watch()
+
+  // Carregar dados persistidos quando o componente montar ou dados mudarem
+  useEffect(() => {
+    if (persistedData && Object.keys(persistedData).length > 0) {
+      console.log('🔄 Carregando dados persistidos:', persistedData);
+      
+      // Resetar formulário com dados persistidos
+      reset({
+        holderName: persistedData.cardHolderName || '',
+        number: persistedData.cardNumber || '',
+        expiryMonth: persistedData.cardExpiryMonth || '',
+        expiryYear: persistedData.cardExpiryYear || '',
+        ccv: persistedData.cardCcv || '',
+        name: persistedData.holderName || '',
+        email: persistedData.holderEmail || '',
+        cpfCnpj: persistedData.holderCpfCnpj || '',
+        postalCode: persistedData.holderPostalCode || '',
+        addressNumber: persistedData.holderAddressNumber || '',
+        phone: persistedData.holderPhone || '',
+      }, { keepDefaultValues: false });
+    }
+  }, [persistedData, reset]);
+
+  // Persistir dados conforme o usuário digita
+  useEffect(() => {
+    const subscription = watch((values) => {
+      if (values && Object.values(values).some(v => v)) { // Só persiste se houver dados
+        console.log('💾 Persistindo dados do cartão...');
+        persistData({
+          cardHolderName: values.holderName,
+          cardNumber: values.number,
+          cardExpiryMonth: values.expiryMonth,
+          cardExpiryYear: values.expiryYear,
+          cardCcv: values.ccv,
+          holderName: values.name,
+          holderEmail: values.email,
+          holderCpfCnpj: values.cpfCnpj,
+          holderPostalCode: values.postalCode,
+          holderAddressNumber: values.addressNumber,
+          holderPhone: values.phone,
+        });
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, persistData])
 
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCreditCard(e.target.value)
@@ -129,6 +177,7 @@ export function CreditCardPayment({
       
       if (result.success) {
         setSuccess(true)
+        clearCardData() // Limpar dados do cartão após sucesso
         onSuccess?.(result)
         toast.success('Pagamento processado com sucesso!')
       } else {

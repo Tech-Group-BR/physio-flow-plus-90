@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth } from "@/contexts/AuthContext"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client"
 import { 
@@ -33,6 +33,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { PaymentDashboard } from "@/components/PaymentDashboard"
+import { ProductsManager } from "@/components/admin/ProductsManager"
+import { DiscountsManager } from "@/components/admin/DiscountsManager"
 
 // Tipos para os dados
 interface Clinic {
@@ -471,50 +473,33 @@ export function AdminPage() {
 
             {/* Planos */}
             <TabsContent value="plans" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Gestão de Planos</h2>
-                  <p className="text-gray-600">Criar e gerenciar planos de assinatura</p>
-                </div>
-                <Button className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Plano</span>
-                </Button>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>CRUD de Planos - Em Desenvolvimento</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Sistema de Planos
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Interface completa para criar, editar e gerenciar planos será implementada aqui.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                      <div className="p-4 border rounded-lg">
-                        <h4 className="font-medium">Plano Básico</h4>
-                        <p className="text-2xl font-bold">R$ 99/mês</p>
-                        <p className="text-sm text-gray-600">Até 3 usuários</p>
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        <h4 className="font-medium">Plano Pro</h4>
-                        <p className="text-2xl font-bold">R$ 199/mês</p>
-                        <p className="text-sm text-gray-600">Até 10 usuários</p>
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        <h4 className="font-medium">Plano Enterprise</h4>
-                        <p className="text-2xl font-bold">R$ 399/mês</p>
-                        <p className="text-sm text-gray-600">Usuários ilimitados</p>
-                      </div>
-                    </div>
+              <Tabs defaultValue="products" className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Gestão de Planos</h2>
+                    <p className="text-gray-600">Gerenciar produtos e descontos de assinatura</p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="products">
+                    <Package className="mr-2 h-4 w-4" />
+                    Produtos
+                  </TabsTrigger>
+                  <TabsTrigger value="discounts">
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Descontos
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="products">
+                  <ProductsManager />
+                </TabsContent>
+
+                <TabsContent value="discounts">
+                  <DiscountsManager />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             {/* Outras abas com placeholder */}

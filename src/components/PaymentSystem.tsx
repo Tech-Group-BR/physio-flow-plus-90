@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePayments } from '@/hooks/usePayments'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/contexts/AuthContext'
+import { usePaymentPersistence } from '@/hooks/usePaymentPersistence'
 import { PixPayment } from '@/components/PixPayment'
 import { BoletoPayment } from '@/components/BoletoPayment'
 import { CreditCardPayment } from '@/components/CreditCardPayment'
@@ -48,14 +49,33 @@ export function PaymentSystem({
 }: PaymentSystemProps) {
   const { createPayment, formatCpfCnpj, formatPhone, loading } = usePayments()
   const { user } = useAuth()
+  const { persistedData, persistData } = usePaymentPersistence()
   
   console.log('🏥 PaymentSystem recebeu clinicId:', clinicId)
   console.log('📅 PaymentSystem recebeu billingPeriod:', billingPeriod)
   console.log('👤 User profile:', user?.profile)
-  const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>('PIX')
+  
+  // Restaurar método de pagamento do storage ou persistedData
+  const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'BOLETO' | 'CREDIT_CARD'>(() => {
+    // Tentar carregar do persistedData primeiro
+    if (persistedData.activeTab) {
+      return persistedData.activeTab as any;
+    }
+    // Fallback para sessionStorage
+    const saved = sessionStorage.getItem('payment_method');
+    return (saved as any) || 'PIX';
+  });
+  
   const [step, setStep] = useState<'customer' | 'payment' | 'processing' | 'result'>('customer')
   const [paymentData, setPaymentData] = useState<any>(null)
   const [customerData, setCustomerData] = useState<CustomerFormData | null>(null)
+
+  // Persistir método de pagamento selecionado
+  useEffect(() => {
+    sessionStorage.setItem('payment_method', paymentMethod);
+    persistData({ activeTab: paymentMethod });
+    console.log('💾 Tab ativa salva:', paymentMethod);
+  }, [paymentMethod, persistData]);
 
   const {
     register,
@@ -226,7 +246,7 @@ export function PaymentSystem({
 
   // Renderizar formulário de cliente e seleção de método
   return (
-    <Card className="w-full max-w-lg mx-auto">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="w-5 h-5" />
@@ -241,113 +261,180 @@ export function PaymentSystem({
       </CardHeader>
 
       <CardContent>
-        <div className="space-y-6">
-          {/* Seleção do método de pagamento */}
-          <div>
-            <Label className="text-base font-medium mb-3 block">Escolha a forma de pagamento</Label>
-            <RadioGroup value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)}>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="PIX" id="pix" />
-                  <Label htmlFor="pix" className="flex items-center gap-2 cursor-pointer">
-                    <QrCode className="w-4 h-4" />
-                    PIX
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="BOLETO" id="boleto" />
-                  <Label htmlFor="boleto" className="flex items-center gap-2 cursor-pointer">
-                    <FileText className="w-4 h-4" />
-                    Boleto
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="CREDIT_CARD" id="credit-card" />
-                  <Label htmlFor="credit-card" className="flex items-center gap-2 cursor-pointer">
-                    <CreditCard className="w-4 h-4" />
-                    Cartão
-                  </Label>
-                </div>
-              </div>
-            </RadioGroup>
-          </div>
+        <Tabs value={paymentMethod} onValueChange={(value: any) => setPaymentMethod(value)} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="PIX" className="flex items-center gap-2">
+              <QrCode className="w-4 h-4" />
+              PIX
+            </TabsTrigger>
+            <TabsTrigger value="BOLETO" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Boleto
+            </TabsTrigger>
+            <TabsTrigger value="CREDIT_CARD" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Cartão
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Formulário de dados do cliente */}
-          <form onSubmit={handleSubmit(onCustomerSubmit)} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nome Completo</Label>
-              <Input
-                id="name"
-                {...register('name')}
-                placeholder="Digite seu nome completo"
-                className={errors.name ? 'border-red-500' : ''}
-              />
-              {errors.name && (
-                <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tab PIX */}
+          <TabsContent value="PIX" className="space-y-4">
+            <form onSubmit={handleSubmit(onCustomerSubmit)} className="space-y-4">
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="name-pix">Nome Completo</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  {...register('email')}
-                  placeholder="email@exemplo.com"
-                  className={errors.email ? 'border-red-500' : ''}
+                  id="name-pix"
+                  {...register('name')}
+                  placeholder="Digite seu nome completo"
+                  className={errors.name ? 'border-red-500' : ''}
                 />
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
                 )}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email-pix">Email</Label>
+                  <Input
+                    id="email-pix"
+                    type="email"
+                    {...register('email')}
+                    placeholder="email@exemplo.com"
+                    className={errors.email ? 'border-red-500' : ''}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="cpfCnpj-pix">CPF/CNPJ</Label>
+                  <Input
+                    id="cpfCnpj-pix"
+                    {...register('cpfCnpj')}
+                    placeholder="000.000.000-00"
+                    onChange={handleCpfChange}
+                    className={errors.cpfCnpj ? 'border-red-500' : ''}
+                  />
+                  {errors.cpfCnpj && (
+                    <p className="text-red-500 text-xs mt-1">{errors.cpfCnpj.message}</p>
+                  )}
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
+                <Label htmlFor="phone-pix">Telefone (opcional)</Label>
                 <Input
-                  id="cpfCnpj"
-                  {...register('cpfCnpj')}
-                  placeholder="000.000.000-00"
-                  onChange={handleCpfChange}
-                  className={errors.cpfCnpj ? 'border-red-500' : ''}
+                  id="phone-pix"
+                  {...register('phone')}
+                  placeholder="(00) 00000-0000"
+                  onChange={handlePhoneChange}
+                  className={errors.phone ? 'border-red-500' : ''}
                 />
-                {errors.cpfCnpj && (
-                  <p className="text-red-500 text-xs mt-1">{errors.cpfCnpj.message}</p>
+                {errors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
                 )}
               </div>
-            </div>
 
-            <div>
-              <Label htmlFor="phone">Telefone (opcional)</Label>
-              <Input
-                id="phone"
-                {...register('phone')}
-                placeholder="(00) 00000-0000"
-                onChange={handlePhoneChange}
-                className={errors.phone ? 'border-red-500' : ''}
-              />
-              {errors.phone && (
-                <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
-              )}
-            </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processando...
+                  </div>
+                ) : (
+                  'Gerar PIX'
+                )}
+              </Button>
+            </form>
+          </TabsContent>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Processando...
+          {/* Tab BOLETO */}
+          <TabsContent value="BOLETO" className="space-y-4">
+            <form onSubmit={handleSubmit(onCustomerSubmit)} className="space-y-4">
+              <div>
+                <Label htmlFor="name-boleto">Nome Completo</Label>
+                <Input
+                  id="name-boleto"
+                  {...register('name')}
+                  placeholder="Digite seu nome completo"
+                  className={errors.name ? 'border-red-500' : ''}
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email-boleto">Email</Label>
+                  <Input
+                    id="email-boleto"
+                    type="email"
+                    {...register('email')}
+                    placeholder="email@exemplo.com"
+                    className={errors.email ? 'border-red-500' : ''}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                  )}
                 </div>
-              ) : paymentMethod === 'CREDIT_CARD' ? (
-                'Continuar para Cartão'
-              ) : (
-                `Gerar ${paymentMethod === 'PIX' ? 'PIX' : 'Boleto'}`
-              )}
-            </Button>
-          </form>
-        </div>
+                <div>
+                  <Label htmlFor="cpfCnpj-boleto">CPF/CNPJ</Label>
+                  <Input
+                    id="cpfCnpj-boleto"
+                    {...register('cpfCnpj')}
+                    placeholder="000.000.000-00"
+                    onChange={handleCpfChange}
+                    className={errors.cpfCnpj ? 'border-red-500' : ''}
+                  />
+                  {errors.cpfCnpj && (
+                    <p className="text-red-500 text-xs mt-1">{errors.cpfCnpj.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="phone-boleto">Telefone (opcional)</Label>
+                <Input
+                  id="phone-boleto"
+                  {...register('phone')}
+                  placeholder="(00) 00000-0000"
+                  onChange={handlePhoneChange}
+                  className={errors.phone ? 'border-red-500' : ''}
+                />
+                {errors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processando...
+                  </div>
+                ) : (
+                  'Gerar Boleto'
+                )}
+              </Button>
+            </form>
+          </TabsContent>
+
+          {/* Tab CARTÃO */}
+          <TabsContent value="CREDIT_CARD" className="space-y-4">
+            <CreditCardPayment
+              paymentValue={value}
+              dueDate={dueDate}
+              description={description}
+              clinicId={clinicId}
+              productId={productId}
+              billingPeriod={billingPeriod}
+              onSuccess={handleCreditCardSuccess}
+              onPaymentError={handleCreditCardError}
+            />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   )

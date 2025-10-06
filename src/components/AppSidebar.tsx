@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { SidebarMenuSection } from "./sidebar/SidebarMenuSection";
 import {
   professionalItems,

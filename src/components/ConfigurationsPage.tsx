@@ -9,7 +9,7 @@ import { DollarSign, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { RoomsManager } from "./RoomsManager";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function ConfigurationsPage() {
   const { clinicId } = useAuth();

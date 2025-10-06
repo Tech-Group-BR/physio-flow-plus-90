@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/hooks/useAuth"
-import { useProducts } from "@/hooks/useProducts"
+import { SSLBadge } from "@/components/ui/ssl-badge"
+import { useAuth } from "@/contexts/AuthContext"
+import { useProductsCache } from "@/contexts/ProductsCacheContext"
 import { useSubscriptionPeriods } from "@/hooks/useSubscriptionPeriods"
 import { PaymentSystem } from "@/components/PaymentSystem"
 import { PixPayment } from "@/components/PixPayment"
@@ -12,42 +13,79 @@ import { SubscriptionPeriodSelector } from "@/components/SubscriptionPeriodSelec
 import { LogIn, ArrowLeft, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
+// Cache do plano selecionado no localStorage
+const SELECTED_PLAN_KEY = 'physioflow_selected_plan'
+
 export function PaymentPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  const { products, loading: productsLoading } = useProducts()
+  const { products, loading: productsLoading, getProductById, getProductByName } = useProductsCache()
   const { getAllPeriodsWithPrices, loading: periodsLoading } = useSubscriptionPeriods()
 
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [paymentData, setPaymentData] = useState<any>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('monthly') // Período padrão
+  
+  // Carregar período selecionado do localStorage
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => {
+    const saved = localStorage.getItem('physioflow_selected_period')
+    return saved || 'monthly'
+  })
   
   // Debug: verificar user.profile
   console.log('👤 PaymentPage - User completo:', user)
   console.log('🏥 PaymentPage - User clinic_id:', user?.profile?.clinic_id)
+  
   const planId = searchParams.get('plan') || ''
   
-  // Buscar por ID primeiro, depois por nome se não encontrar
-  let selectedPlan = products.find(p => p.id === planId) || 
-                     products.find(p => p.name.toLowerCase() === planId.toLowerCase())
+  // Buscar plano selecionado usando cache
+  const selectedPlan = useMemo(() => {
+    if (!planId) {
+      // Tentar carregar do localStorage
+      const savedPlanId = localStorage.getItem(SELECTED_PLAN_KEY)
+      if (savedPlanId) {
+        const plan = getProductById(savedPlanId)
+        if (plan) {
+          console.log('📦 Plano restaurado do localStorage:', plan.name)
+          // Atualizar URL sem recarregar
+          searchParams.set('plan', savedPlanId)
+          setSearchParams(searchParams, { replace: true })
+          return plan
+        }
+      }
+      return null
+    }
+    
+    // Buscar por ID ou nome
+    const plan = getProductById(planId) || getProductByName(planId)
+    
+    // Salvar no localStorage para próxima vez
+    if (plan) {
+      localStorage.setItem(SELECTED_PLAN_KEY, plan.id)
+      console.log('💾 Plano salvo no localStorage:', plan.name)
+    }
+    
+    return plan
+  }, [planId, products, getProductById, getProductByName])
+
+  // Persistir período selecionado
+  useEffect(() => {
+    localStorage.setItem('physioflow_selected_period', selectedPeriod)
+  }, [selectedPeriod])
   
-
-
-
 
   // Auto-selecionar primeiro plano se não especificado
   useEffect(() => {
-    if (products.length > 0 && !planId && !searchParams.get('plan')) {
+    if (products.length > 0 && !planId && !selectedPlan) {
       const defaultPlan = products.find(p => p.name.toLowerCase().includes('starter')) || products[0]
       if (defaultPlan) {
-        console.log('Auto-selecionando plano:', defaultPlan)
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.set('plan', defaultPlan.id)
-        window.history.replaceState({}, '', newUrl.toString())
+        console.log('🎯 Auto-selecionando plano:', defaultPlan.name)
+        localStorage.setItem(SELECTED_PLAN_KEY, defaultPlan.id)
+        searchParams.set('plan', defaultPlan.id)
+        setSearchParams(searchParams, { replace: true })
       }
     }
-  }, [products, planId, searchParams])
+  }, [products, planId, selectedPlan])
 
   const handlePaymentSuccess = (paymentDataReceived: any) => {
     console.log('Pagamento realizado com sucesso:', paymentDataReceived)
@@ -341,6 +379,11 @@ export function PaymentPage() {
         <p className="text-xl text-muted-foreground mb-4">
           {selectedPlan.name}
         </p>
+        
+        {/* SSL Badge no topo */}
+        <div className="flex justify-center mb-4">
+          <SSLBadge variant="compact" />
+        </div>
       </div>
 
       {/* Seletor de Período */}
@@ -367,8 +410,6 @@ export function PaymentPage() {
       </div>
 
       <div className="text-center space-y-2">
-
-        
         <Button 
           onClick={() => navigate('/')}
           variant="ghost"

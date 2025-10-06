@@ -30,7 +30,7 @@ import { Link } from 'react-router-dom';
 import { MedicalRecordForm } from './MedicalRecordForm';
 import { EvolutionForm } from './EvolutionForm';
 import { toast } from "sonner";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();

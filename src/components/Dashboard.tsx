@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useClinic } from "@/contexts/ClinicContext";
-import { useAuth } from "@/hooks/useAuth"; // ✅ MUDANÇA: Import correto
+import { useAuth } from "@/contexts/AuthContext"; // ✅ MUDANÇA: Import correto
 import { format, isToday, isThisWeek, parseISO, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {

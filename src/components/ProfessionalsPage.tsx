@@ -12,7 +12,7 @@ import { Professional } from '@/types';
 import { BadgeCheck } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Phone } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export function ProfessionalsPage() {

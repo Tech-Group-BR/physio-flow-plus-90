@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Patient } from "@/types";
-import { useAuth } from "@/hooks/useAuth"; // Certifique-se de que este hook existe para obter o usuário
+import { useAuth } from "@/contexts/AuthContext"; // Certifique-se de que este hook existe para obter o usuário
 
 interface MedicalRecordFormProps {
   patient: Patient;

@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { fetchClinicSettings, ClinicSettings } from "@/services/settingsService";
 import { Button } from "@/components/ui/button";

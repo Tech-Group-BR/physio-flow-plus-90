@@ -9,7 +9,7 @@ import { DragDropAgendaWeekView } from "./agenda/DragDropAgendaWeekView";
 import { AppointmentFormWithRecurrence } from "./agenda/AppointmentFormWithRecurrence";
 import { useAgendaLogic } from "@/hooks/useAgendaLogic";
 import { useClinic } from "@/contexts/ClinicContext";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export function AgendaPageWithRecurrence() {

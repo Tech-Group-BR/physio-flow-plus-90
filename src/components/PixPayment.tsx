@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Copy, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePaymentPersistence } from '@/hooks/usePaymentPersistence';
 
 interface PixQrCode {
   encodedImage: string;
@@ -21,12 +22,34 @@ interface PixPaymentProps {
 
 export function PixPayment({ paymentData, onStatusChange }: PixPaymentProps) {
   const [paymentStatus, setPaymentStatus] = useState(paymentData.status);
+  const { persistedData, persistData, clearPixData } = usePaymentPersistence();
+
+  // Persistir QR Code quando receber
+  useEffect(() => {
+    if (paymentData.pixQrCode) {
+      persistData({
+        pixQrCode: paymentData.pixQrCode.encodedImage,
+        pixCopyPaste: paymentData.pixQrCode.payload,
+      });
+    }
+  }, [paymentData.pixQrCode, persistData]);
+
+  // Limpar dados do PIX quando o pagamento for confirmado
+  useEffect(() => {
+    if (paymentStatus === 'CONFIRMED' || paymentStatus === 'RECEIVED') {
+      clearPixData();
+    }
+  }, [paymentStatus, clearPixData]);
+
+  // Usar QR Code persistido se disponível
+  const qrCodeImage = paymentData.pixQrCode?.encodedImage || persistedData.pixQrCode;
+  const qrCodePayload = paymentData.pixQrCode?.payload || persistedData.pixCopyPaste;
 
 
 
   const copyPixCode = () => {
-    if (paymentData.pixQrCode?.payload) {
-      navigator.clipboard.writeText(paymentData.pixQrCode.payload);
+    if (qrCodePayload) {
+      navigator.clipboard.writeText(qrCodePayload);
       toast.success('Código PIX copiado para a área de transferência!');
     } else {
       toast.error('Código PIX não disponível');
@@ -66,10 +89,10 @@ export function PixPayment({ paymentData, onStatusChange }: PixPaymentProps) {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {paymentData.pixQrCode?.encodedImage ? (
+        {qrCodeImage ? (
           <div className="text-center">
             <img 
-              src={`data:image/png;base64,${paymentData.pixQrCode.encodedImage}`}
+              src={`data:image/png;base64,${qrCodeImage}`}
               alt="QR Code PIX"
               className="mx-auto mb-4 border rounded"
               style={{ maxWidth: '200px', height: 'auto' }}
@@ -90,12 +113,12 @@ export function PixPayment({ paymentData, onStatusChange }: PixPaymentProps) {
           </div>
         )}
 
-        {paymentData.pixQrCode?.payload && (
+        {qrCodePayload && (
           <div className="space-y-2">
             <p className="text-sm font-medium">Código PIX (Copia e Cola):</p>
             <div className="flex gap-2">
               <div className="flex-1 p-2 bg-gray-50 rounded text-xs font-mono break-all">
-                {paymentData.pixQrCode.payload}
+                {qrCodePayload}
               </div>
               <Button onClick={copyPixCode} size="sm" variant="outline">
                 <Copy className="w-4 h-4" />

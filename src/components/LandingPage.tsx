@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SSLBadge } from "@/components/ui/ssl-badge";
 import { 
   Calendar, 
   Users, 
@@ -17,12 +18,12 @@ import {
   Zap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useProducts } from "@/hooks/useProducts";
-import { useAuth } from "@/hooks/useAuth";
+import { useProductsCache } from "@/contexts/ProductsCacheContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const { products, loading } = useProducts();
+  const { products, loading } = useProductsCache();
   const { user, setRedirectTo } = useAuth();
 
   const handleLogin = () => {
@@ -348,6 +349,12 @@ export function LandingPage() {
           <p className="text-gray-400 mb-6">
             O sistema de gestão mais completo para clínicas de fisioterapia.
           </p>
+          
+          {/* SSL Badge */}
+          <div className="flex justify-center mb-6">
+            <SSLBadge variant="default" />
+          </div>
+          
           <div className="flex justify-center space-x-8 text-sm text-gray-400">
             <a href="#" className="hover:text-white transition-colors">Termos de Uso</a>
             <a href="#" className="hover:text-white transition-colors">Política de Privacidade</a>
