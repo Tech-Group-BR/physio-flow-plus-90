@@ -864,10 +864,11 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
           treatment_type: appointment.treatmentType,
           status: appointment.status,
           notes: appointment.notes,
-          price: appointment.price, // ✅ INCLUIR PREÇO
+          price: appointment.price,
+          patient_package_id: appointment.patientPackageId || null, // ✅ INCLUIR patient_package_id
           whatsapp_confirmed: appointment.whatsappConfirmed,
           whatsapp_sent_at: appointment.whatsappSentAt,
-          clinic_id: currentClinicId // ✅ GARANTIR clinic_id
+          clinic_id: currentClinicId
         });
         
       if (error) throw error;

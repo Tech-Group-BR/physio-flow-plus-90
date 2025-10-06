@@ -21,7 +21,8 @@ import {
   CheckCircle, 
   Trash2, 
   Users,
-  Search 
+  Search,
+  Package 
 } from "lucide-react";
 import { Patient, MedicalRecord, Evolution } from "@/types";
 import { useClinic } from '@/contexts/ClinicContext';
@@ -31,6 +32,7 @@ import { MedicalRecordForm } from './MedicalRecordForm';
 import { EvolutionForm } from './EvolutionForm';
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from "@/integrations/supabase/client";
 
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +54,7 @@ export function PatientDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
+  const [patientPackages, setPatientPackages] = useState<any[]>([]);
 
   // Estados para ações em massa - Agendamentos
   const [selectedAppointmentIds, setSelectedAppointmentIds] = useState<Set<string>>(new Set());
@@ -159,6 +162,40 @@ export function PatientDetailsPage() {
 
   const patientAppointments = filteredAppointments;
   const patientReceivables = filteredReceivables;
+
+  // Buscar pacotes do paciente
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchPatientPackages = async () => {
+      const { data, error } = await supabase
+        .from('patient_packages')
+        .select(`
+          id,
+          sessions_used,
+          purchase_date,
+          expiry_date,
+          status,
+          is_paid,
+          session_packages (
+            name,
+            sessions,
+            price
+          )
+        `)
+        .eq('patient_id', id)
+        .order('purchase_date', { ascending: false });
+      
+      if (error) {
+        console.error('Erro ao buscar pacotes:', error);
+        return;
+      }
+      
+      setPatientPackages(data || []);
+    };
+    
+    fetchPatientPackages();
+  }, [id]);
 
   // Calcular resumo financeiro diretamente dos dados do contexto
   const calculateFinancialSummary = () => {
@@ -848,6 +885,104 @@ export function PatientDetailsPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Pacotes do Paciente */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg">
+                <Package className="mr-2 h-5 w-5 text-blue-600" />
+                Pacotes de Sessões
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {patientPackages.length > 0 ? (
+                <div className="space-y-4">
+                  {patientPackages.map((pkg) => {
+                    const packageDetails = pkg.session_packages && (
+                      Array.isArray(pkg.session_packages)
+                        ? pkg.session_packages[0]
+                        : pkg.session_packages
+                    );
+                    
+                    if (!packageDetails) return null;
+                    
+                    const sessionsRemaining = packageDetails.sessions - pkg.sessions_used;
+                    const progressPercentage = (pkg.sessions_used / packageDetails.sessions) * 100;
+                    const isExpired = new Date(pkg.expiry_date) < new Date();
+                    const isCompleted = pkg.status === 'completed';
+                    
+                    return (
+                      <div key={pkg.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-lg">{packageDetails.name}</h4>
+                              <Badge 
+                                variant={
+                                  isCompleted ? "secondary" : 
+                                  isExpired ? "destructive" : 
+                                  pkg.status === 'active' ? "default" : 
+                                  "outline"
+                                }
+                              >
+                                {isCompleted ? 'Concluído' : isExpired ? 'Expirado' : pkg.status === 'active' ? 'Ativo' : pkg.status}
+                              </Badge>
+                              {!pkg.is_paid && (
+                                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
+                                  Não Pago
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <p>Comprado em: {format(new Date(pkg.purchase_date), 'dd/MM/yyyy')}</p>
+                              <p>Válido até: {format(new Date(pkg.expiry_date), 'dd/MM/yyyy')}</p>
+                              <p className="font-medium">
+                                Valor: R$ {parseFloat(packageDetails.price).toFixed(2).replace('.', ',')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-3xl font-bold text-blue-600">
+                              {sessionsRemaining}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              de {packageDetails.sessions} restantes
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Barra de progresso */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>{pkg.sessions_used} sessões utilizadas</span>
+                            <span>{progressPercentage.toFixed(0)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                isCompleted ? 'bg-gray-400' :
+                                isExpired ? 'bg-red-500' :
+                                'bg-blue-600'
+                              }`}
+                              style={{ width: `${progressPercentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-500">Nenhum pacote de sessões encontrado</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Pacotes aparecerão aqui quando o paciente adquirir sessões
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { fetchClinicSettings, ClinicSettings } from "@/services/settingsService";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,12 @@ interface AppointmentFormProps {
   onSave?: (appointmentData: any) => void;
 }
 
+interface PatientPackageInfo {
+  id: string;
+  name: string;
+  sessions_remaining: number;
+}
+
 export function AppointmentFormWithRecurrence({ 
   initialDate, 
   initialTime, 
@@ -27,6 +34,7 @@ export function AppointmentFormWithRecurrence({
   const { clinicId, loading } = useAuth();
   const { patients, professionals, rooms } = useClinic();
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
+  const [patientPackages, setPatientPackages] = useState<PatientPackageInfo[]>([]);
   const [formData, setFormData] = useState({
     patientId: "",
     professionalId: "",
@@ -40,7 +48,8 @@ export function AppointmentFormWithRecurrence({
     isRecurring: false,
     recurrenceWeeks: 1,
     weekDays: [] as number[],
-    notes: ""
+    notes: "",
+    selectedPackageId: ""
   });
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +93,79 @@ export function AppointmentFormWithRecurrence({
       }));
     }
   }, [initialDate, initialTime]);
+
+  // Buscar pacotes do paciente quando selecionado
+  useEffect(() => {
+    if (!formData.patientId) {
+      setPatientPackages([]);
+      return;
+    }
+
+    const fetchPatientPackages = async () => {
+      const today = new Date().toISOString().split('T')[0]; // Apenas YYYY-MM-DD
+      
+      console.log('🔍 Buscando pacotes para paciente:', formData.patientId);
+      console.log('📅 Data de hoje:', today);
+      
+      const { data, error } = await supabase
+        .from('patient_packages')
+        .select(`id, sessions_used, expiry_date, package_id, session_packages ( name, sessions )`)
+        .eq('patient_id', formData.patientId)
+        .eq('status', 'active')
+        .gte('expiry_date', today);
+
+      console.log('📦 Pacotes retornados:', data);
+      console.log('❌ Erro ao buscar:', error);
+
+      if (error) { 
+        console.error("Erro ao buscar pacotes:", error); 
+        return; 
+      }
+      
+      if (data) {
+        console.log('🔄 Processando', data.length, 'pacote(s)...');
+        
+        const formattedPackages = data
+          .filter(p => {
+            const hasPackage = p.session_packages && (
+              Array.isArray(p.session_packages)
+                ? p.session_packages.length > 0
+                : typeof p.session_packages === 'object'
+            );
+            console.log('✓ Pacote tem session_packages?', hasPackage, p);
+            return hasPackage;
+          })
+          .map(p => {
+            const pkgDetails = Array.isArray(p.session_packages)
+              ? p.session_packages[0]
+              : p.session_packages;
+            const sessionsRemaining = pkgDetails.sessions - p.sessions_used;
+            console.log('📊', pkgDetails.name, '- Sessões restantes:', sessionsRemaining, '(Total:', pkgDetails.sessions, ', Usadas:', p.sessions_used, ')');
+            return { 
+              id: p.id, 
+              name: pkgDetails.name, 
+              sessions_remaining: sessionsRemaining
+            };
+          })
+          .filter(p => p.sessions_remaining > 0);
+        
+        console.log('✅ Pacotes disponíveis:', formattedPackages);
+        setPatientPackages(formattedPackages);
+        
+        // Se tinha pacote selecionado mas não está mais disponível, resetar para consulta
+        if (formData.selectedPackageId && !formattedPackages.find(p => p.id === formData.selectedPackageId)) {
+          setFormData(prev => ({ ...prev, selectedPackageId: "", type: "consulta" }));
+        }
+        
+        // Se tipo é pacote mas não há pacotes disponíveis, resetar para consulta
+        if (formData.type === "pacote" && formattedPackages.length === 0) {
+          setFormData(prev => ({ ...prev, type: "consulta", selectedPackageId: "" }));
+        }
+      }
+    };
+    
+    fetchPatientPackages();
+  }, [formData.patientId]);
 
   useEffect(() => {
     if (!loading && clinicId) {
@@ -146,8 +228,20 @@ export function AppointmentFormWithRecurrence({
         return;
       }
 
+      // Validação específica para pacote
+      if (formData.type === "pacote" && !formData.selectedPackageId) {
+        toast.error("Selecione um pacote para usar");
+        setSubmitting(false);
+        return;
+      }
+
       // Validação específica para recorrência
       if (formData.isRecurring) {
+        if (formData.type === "pacote") {
+          toast.error("Agendamentos com pacote não podem ser recorrentes");
+          setSubmitting(false);
+          return;
+        }
         if (formData.weekDays.length === 0) {
           toast.error("Selecione pelo menos um dia da semana para recorrência");
           setSubmitting(false);
@@ -161,10 +255,10 @@ export function AppointmentFormWithRecurrence({
       }
 
       // Calcular o preço do agendamento
-      const appointmentPrice = parseFloat(getAppointmentPrice());
+      const appointmentPrice = formData.type === "pacote" ? 0 : parseFloat(getAppointmentPrice());
       
-      // Validação do preço
-      if (appointmentPrice <= 0) {
+      // Validação do preço (apenas se não for pacote)
+      if (formData.type !== "pacote" && appointmentPrice <= 0) {
         toast.error('Por favor, defina um valor válido para o agendamento');
         setSubmitting(false);
         return;
@@ -188,12 +282,23 @@ export function AppointmentFormWithRecurrence({
           toast.success(`${recurringDates.length} agendamentos criados com sucesso! (Valor: R$ ${appointmentPrice.toFixed(2).replace('.', ',')} cada)`);
         } else {
           // Agendamento único
-          const appointmentData = {
+          const appointmentData: any = {
             ...formData,
             price: appointmentPrice,
           };
+          
+          // Se for pacote, adicionar o patient_package_id
+          if (formData.type === "pacote" && formData.selectedPackageId) {
+            appointmentData.patient_package_id = formData.selectedPackageId;
+          }
+          
           await onSave(appointmentData);
-          toast.success(`Agendamento salvo com sucesso! (Valor: R$ ${appointmentPrice.toFixed(2).replace('.', ',')})`);
+          
+          if (formData.type === "pacote") {
+            toast.success("Agendamento salvo com sucesso! Uma sessão foi consumida do pacote.");
+          } else {
+            toast.success(`Agendamento salvo com sucesso! (Valor: R$ ${appointmentPrice.toFixed(2).replace('.', ',')})`);
+          }
         }
         
         // Reset do formulário após salvar
@@ -210,7 +315,8 @@ export function AppointmentFormWithRecurrence({
           isRecurring: false,
           recurrenceWeeks: 1,
           weekDays: [],
-          notes: ""
+          notes: "",
+          selectedPackageId: ""
         });
       }
     } catch (error) {
@@ -252,7 +358,7 @@ export function AppointmentFormWithRecurrence({
             value={formData.patientId}
             onValueChange={(value) => {
               console.log('Paciente selecionado:', value);
-              setFormData(prev => ({ ...prev, patientId: value }));
+              setFormData(prev => ({ ...prev, patientId: value, selectedPackageId: "", type: "consulta" }));
             }}
           >
             <SelectTrigger>
@@ -270,52 +376,131 @@ export function AppointmentFormWithRecurrence({
           </Select>
         </div>
 
-        <div>
-          <Label>Tipo de Agendamento *</Label>
-          <div className="flex gap-6 mt-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="type"
-                value="consulta"
-                checked={formData.type === "consulta"}
-                onChange={() => {
-                  const consultationPrice = clinicSettings?.consultation_price 
-                    ? parseFloat(clinicSettings.consultation_price.toString()) 
-                    : 0;
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    type: "consulta",
-                    price: consultationPrice,
-                    customPrice: ""
-                  }));
-                }}
-              />
-              Nova Consulta
-              {clinicSettings?.consultation_price && (
-                <span className="text-green-600 font-semibold">
-                  (R$ {parseFloat(clinicSettings.consultation_price.toString()).toFixed(2).replace('.', ',')})
-                </span>
-              )}
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="type"
-                value="outro"
-                checked={formData.type === "outro"}
-                onChange={() => {
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    type: "outro",
-                    price: 0
-                  }));
-                }}
-              />
-              Outro (Valor Personalizado)
-            </label>
+        {/* Mostrar opção de pacote apenas se o paciente tiver pacotes disponíveis */}
+        {formData.patientId && (
+          <div>
+            <Label>Tipo de Agendamento *</Label>
+            <div className="flex flex-col gap-3 mt-2">
+              {/* OPÇÃO 1: SESSÃO DE PACOTE - Sempre visível, mas desabilitada se não houver pacotes */}
+              <label className={`flex items-start gap-2 p-3 border rounded-lg transition-colors ${
+                patientPackages.length > 0 
+                  ? 'cursor-pointer hover:bg-blue-50' 
+                  : 'opacity-50 cursor-not-allowed bg-gray-50'
+              }`}>
+                <input
+                  type="radio"
+                  name="type"
+                  value="pacote"
+                  checked={formData.type === "pacote"}
+                  disabled={patientPackages.length === 0}
+                  onChange={() => {
+                    if (patientPackages.length > 0) {
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        type: "pacote",
+                        price: 0,
+                        customPrice: "",
+                        isRecurring: false
+                      }));
+                    }
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-blue-700">Usar Sessão de Pacote</div>
+                  {patientPackages.length > 0 ? (
+                    <div className="text-sm text-blue-600 mt-1">
+                      ✓ Paciente possui {patientPackages.length} pacote(s) disponível(is)
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 mt-1">
+                      Paciente não possui pacotes ativos disponíveis
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {/* OPÇÃO 2: NOVA CONSULTA */}
+              <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                <input
+                  type="radio"
+                  name="type"
+                  value="consulta"
+                  checked={formData.type === "consulta"}
+                  onChange={() => {
+                    const consultationPrice = clinicSettings?.consultation_price 
+                      ? parseFloat(clinicSettings.consultation_price.toString()) 
+                      : 0;
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      type: "consulta",
+                      price: consultationPrice,
+                      customPrice: "",
+                      selectedPackageId: ""
+                    }));
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="font-medium">Nova Consulta</div>
+                  {clinicSettings?.consultation_price && (
+                    <span className="text-green-600 font-semibold text-sm">
+                      R$ {parseFloat(clinicSettings.consultation_price.toString()).toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                </div>
+              </label>
+
+              {/* OPÇÃO 3: OUTRO (VALOR PERSONALIZADO) */}
+              <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-purple-50 transition-colors">
+                <input
+                  type="radio"
+                  name="type"
+                  value="outro"
+                  checked={formData.type === "outro"}
+                  onChange={() => {
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      type: "outro",
+                      price: 0,
+                      selectedPackageId: ""
+                    }));
+                  }}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="font-medium">Outro</div>
+                  <div className="text-sm text-gray-600">Valor Personalizado</div>
+                </div>
+              </label>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Seleção de pacote quando tipo é 'pacote' */}
+        {formData.type === "pacote" && patientPackages.length > 0 && (
+          <div className="animate-in fade-in-50">
+            <Label>Selecione o Pacote *</Label>
+            <Select
+              value={formData.selectedPackageId}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, selectedPackageId: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha qual pacote usar" />
+              </SelectTrigger>
+              <SelectContent>
+                {patientPackages.map(pkg => (
+                  <SelectItem key={pkg.id} value={pkg.id}>
+                    {pkg.name} ({pkg.sessions_remaining} sessões restantes)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-blue-600 mt-2">
+              💡 Ao salvar, uma sessão será automaticamente consumida do pacote
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -433,12 +618,16 @@ export function AppointmentFormWithRecurrence({
         )}
 
         <div>
-          <label className="flex items-center gap-2">
+          <label className={`flex items-center gap-2 ${formData.type === "pacote" ? "opacity-50 cursor-not-allowed" : ""}`}>
             <Checkbox
               checked={formData.isRecurring}
+              disabled={formData.type === "pacote"}
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isRecurring: !!checked }))}
             />
             Agendamento recorrente
+            {formData.type === "pacote" && (
+              <span className="text-xs text-red-600 ml-2">(Não disponível para pacotes)</span>
+            )}
           </label>
         </div>
 
@@ -507,11 +696,26 @@ export function AppointmentFormWithRecurrence({
         {/* Resumo do Valor */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center">
-            <span className="text-gray-700 font-medium">Valor do Agendamento:</span>
-            <span className="text-lg font-bold text-green-600">
-              R$ {getAppointmentPrice().replace('.', ',')}
+            <span className="text-gray-700 font-medium">
+              {formData.type === "pacote" ? "Forma de Pagamento:" : "Valor do Agendamento:"}
             </span>
+            {formData.type === "pacote" ? (
+              <span className="text-lg font-bold text-blue-600">
+                Sessão de Pacote
+              </span>
+            ) : (
+              <span className="text-lg font-bold text-green-600">
+                R$ {getAppointmentPrice().replace('.', ',')}
+              </span>
+            )}
           </div>
+          {formData.type === "pacote" && formData.selectedPackageId && (
+            <div className="mt-2 pt-2 border-t border-gray-300">
+              <p className="text-sm text-blue-600">
+                ✓ Uma sessão será consumida do pacote selecionado
+              </p>
+            </div>
+          )}
           {formData.isRecurring && formData.weekDays.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-300">
               <div className="flex justify-between items-center text-sm">

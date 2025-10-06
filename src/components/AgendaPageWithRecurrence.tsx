@@ -48,7 +48,7 @@ export function AgendaPageWithRecurrence() {
       }
 
       // Preparar dados no formato esperado pelo ClinicContext
-      const appointmentToCreate = {
+      const appointmentToCreate: any = {
         patientId: appointmentData.patientId,
         professionalId: appointmentData.professionalId,
         roomId: appointmentData.roomId && appointmentData.roomId.trim() !== '' ? appointmentData.roomId : null,
@@ -58,10 +58,15 @@ export function AgendaPageWithRecurrence() {
         treatmentType: appointmentData.type || 'consulta',
         status: 'marcado' as const,
         notes: appointmentData.notes || '',
-        price: appointmentData.price || 0, // Incluir o preço do agendamento
+        price: appointmentData.price || 0,
         whatsappConfirmed: false,
         whatsappSentAt: undefined
       };
+
+      // Se for pacote, incluir o patient_package_id
+      if (appointmentData.patient_package_id) {
+        appointmentToCreate.patientPackageId = appointmentData.patient_package_id;
+      }
 
       console.log('Dados preparados para ClinicContext:', appointmentToCreate);
 

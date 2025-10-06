@@ -79,7 +79,8 @@ export interface Appointment {
   treatmentType: string;
   status: 'marcado' | 'confirmado' | 'realizado' | 'faltante' | 'cancelado';
   notes?: string;
-  price: number; // ✅ ADICIONAR CAMPO PRICE
+  price: number;
+  patientPackageId?: string; // ID do pacote se o agendamento usar sessão de pacote
   whatsappConfirmed?: boolean;
   whatsappSentAt?: string;
   createdAt: string;
