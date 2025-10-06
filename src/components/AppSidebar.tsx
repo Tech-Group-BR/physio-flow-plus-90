@@ -20,6 +20,7 @@ import {
 
 export function AppSidebar() {
   const [userName, setUserName] = useState<string>('Usuário');
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { signOut, user } = useAuth();
   
   // FIXO: Sempre usar menu do fisioterapeuta
@@ -56,11 +57,20 @@ export function AppSidebar() {
   }, [user]);
 
   const handleLogout = async () => {
+    // ✅ PROTEÇÃO: Evitar múltiplas chamadas simultâneas
+    if (isLoggingOut) {
+      console.log('⏳ Logout já em andamento, ignorando clique duplicado');
+      return;
+    }
+
     console.log('🚪 Iniciando logout...');
+    setIsLoggingOut(true);
+    
     try {
       await signOut();
     } catch (error) {
       console.error('❌ Erro no logout:', error);
+      setIsLoggingOut(false); // Reset em caso de erro
     }
   };
 
@@ -113,9 +123,10 @@ export function AppSidebar() {
           size="sm" 
           className="w-full justify-start gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm lg:text-base h-9 lg:h-10"
           onClick={handleLogout}
+          disabled={isLoggingOut}
         >
           <LogOut className="h-4 w-4" />
-          Sair
+          {isLoggingOut ? 'Saindo...' : 'Sair'}
         </Button>
       </SidebarFooter>
     </Sidebar>

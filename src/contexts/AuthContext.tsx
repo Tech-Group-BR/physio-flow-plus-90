@@ -36,7 +36,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const cleanupAuthState = () => {
   console.log('🧹 Limpando estado de autenticação...');
   localStorage.removeItem('supabase.auth.token');
+  localStorage.removeItem('auth_user_data'); // ✅ Remover dados persistidos
   sessionStorage.clear();
+};
+
+// ✅ Salvar dados críticos no localStorage
+const persistUserData = (user: AppUser | null) => {
+  if (user && user.profile) {
+    const criticalData = {
+      userId: user.id,
+      email: user.email,
+      profileId: user.profile.id,
+      clinicId: user.profile.clinic_id,
+      clinicCode: user.profile.clinic_code,
+      role: user.profile.role,
+      fullName: user.profile.full_name,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('auth_user_data', JSON.stringify(criticalData));
+    console.log('💾 Dados críticos salvos no localStorage:', criticalData);
+  }
+};
+
+// ✅ Recuperar dados críticos do localStorage
+const loadPersistedUserData = () => {
+  try {
+    const stored = localStorage.getItem('auth_user_data');
+    if (stored) {
+      const data = JSON.parse(stored);
+      // Verificar se não expirou (24 horas)
+      const age = Date.now() - data.timestamp;
+      if (age < 24 * 60 * 60 * 1000) {
+        console.log('✅ Dados críticos recuperados do localStorage:', data);
+        return data;
+      } else {
+        console.log('⏰ Dados persistidos expiraram');
+        localStorage.removeItem('auth_user_data');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao recuperar dados persistidos:', error);
+  }
+  return null;
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -47,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [redirectTo, setRedirectToState] = useState<string | null>(null);
   
   const isInitialized = useRef(false);
+  const isLoggingOut = useRef(false); // ✅ PROTEÇÃO: Flag para evitar logout duplicado
+  const lastProcessedSessionId = useRef<string | null>(null); // ✅ Rastrear último userId processado
 
   const setRedirectTo = useCallback((path: string | null) => {
     setRedirectToState(path);
@@ -76,6 +119,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error && error.code !== 'PGRST116') {
       console.error("❌ Erro ao buscar perfil:", error);
+      
+      // ✅ FALLBACK: Tentar usar dados persistidos
+      const persistedData = loadPersistedUserData();
+      if (persistedData && persistedData.userId === supabaseUser.id) {
+        console.log('🔄 Usando dados persistidos como fallback');
+        const appUser: AppUser = {
+          ...supabaseUser,
+          profile: {
+            id: persistedData.profileId,
+            clinic_id: persistedData.clinicId,
+            clinic_code: persistedData.clinicCode,
+            role: persistedData.role,
+            full_name: persistedData.fullName,
+            email: persistedData.email,
+          } as Profile,
+          clinicId: persistedData.clinicId,
+        };
+        return appUser;
+      }
     }
 
     const appUser: AppUser = {
@@ -154,6 +216,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         console.log('✅ Login de super admin realizado');
+        
+        // ✅ CORREÇÃO: Aguardar atualização do estado
+        console.log('⏳ Aguardando atualização do estado user (super admin)...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // ✅ CRÍTICO: Resetar loading após sucesso
+        setLoading(false);
         return { error: null, isSuperAdmin: true };
       }
 
@@ -192,6 +261,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('✅ Login realizado com sucesso');
+      
+      // ✅ CORREÇÃO CRÍTICA: Aguardar o onAuthStateChange processar e atualizar o estado user
+      // Isso garante que o useEffect no LoginPage detectará o usuário logado
+      console.log('⏳ Aguardando atualização do estado user...');
+      await new Promise(resolve => setTimeout(resolve, 100)); // Pequeno delay para garantir processamento
+      
+      // ✅ CRÍTICO: Resetar loading após sucesso
+      setLoading(false);
       return { error: null, isSuperAdmin: false };
       
     } catch (error: any) {
@@ -328,28 +405,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ✅ SIGN OUT
   const signOut = useCallback(async () => {
+    // ✅ PROTEÇÃO: Evitar múltiplas chamadas simultâneas
+    if (isLoggingOut.current) {
+      console.log('⏳ Logout já em andamento, ignorando chamada duplicada');
+      return;
+    }
+
     console.log('🚪 Iniciando logout...');
+    isLoggingOut.current = true; // ✅ Seta flag ANTES de qualquer operação
+    
     try {
-      setLoading(true);
-      cleanupAuthState();
+      // ✅ NÃO setar loading aqui - deixar o onAuthStateChange lidar se necessário
+      // setLoading(true); 
       
-      // Limpar cache global
-      globalCache.clear();
-      
-      await supabase.auth.signOut({ scope: 'global' });
-      
+      // ✅ Limpar estados locais PRIMEIRO
       setUser(null);
       setSession(null);
       setProfile(null);
+      lastProcessedSessionId.current = null; // ✅ Resetar ref
+      
+      // Depois limpar cache
+      cleanupAuthState();
+      globalCache.clear();
+      
+      // Por último, fazer logout no Supabase (vai disparar onAuthStateChange)
+      await supabase.auth.signOut({ scope: 'global' });
       
       console.log('✅ Logout realizado');
     } catch (error) {
       console.error('❌ Erro no logout:', error);
+      // Garantir que estados são limpos mesmo com erro
       setUser(null);
       setSession(null);
       setProfile(null);
     } finally {
+      // ✅ Garantir loading false e resetar flag imediatamente
       setLoading(false);
+      isLoggingOut.current = false;
     }
   }, []);
 
@@ -360,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    lastProcessedSessionId.current = null; // ✅ Resetar ref
     setLoading(false);
     toast.warning('Sessão expirada. Faça login novamente.');
   }, []);
@@ -384,7 +477,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [forceReauth]);
 
+  // ✅ PROTEÇÃO: Garantir que loading = false quando user = null (após inicialização)
   useEffect(() => {
+    if (isInitialized.current && !user && loading) {
+      console.log('⚠️ Detectado estado inconsistente: user=null mas loading=true. Corrigindo...');
+      setLoading(false);
+    }
+  }, [user, loading]);
+
+  // ✅ PERSISTÊNCIA: Salvar dados críticos sempre que user mudar
+  useEffect(() => {
+    if (user && user.profile) {
+      persistUserData(user);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    console.log('🚀 AuthContext useEffect executando - Provider (re)montado');
+    
     // Carregar redirectTo do localStorage
     const savedRedirectTo = localStorage.getItem('auth_redirect_to');
     if (savedRedirectTo) {
@@ -409,6 +519,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (initialSession?.user) {
           console.log('👤 Buscando perfil do usuário:', initialSession.user.id);
           initialAppUser = await getProfileAndClinicId(initialSession.user);
+          
+          // ✅ CRÍTICO: Atualizar ref para prevenir reprocessamento
+          if (initialAppUser?.id) {
+            lastProcessedSessionId.current = initialAppUser.id;
+            console.log('🔒 Sessão inicial marcada como processada:', initialAppUser.id);
+          }
         }
         
         setUser(initialAppUser);
@@ -434,8 +550,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
         console.log('🔄 AuthContext: onAuthStateChange', _event, {
           isInitialized: isInitialized.current,
-          hasSession: !!newSession
+          hasSession: !!newSession,
+          isLoggingOut: isLoggingOut.current,
+          currentLoading: loading
         });
+        
+        // ✅ PROTEÇÃO: Ignorar eventos durante logout
+        if (isLoggingOut.current) {
+          console.log('⏭️ Ignorando onAuthStateChange - logout em andamento');
+          return;
+        }
         
         // Se não inicializou ainda, ignora (fetchInitialSession vai lidar)
         if (!isInitialized.current) {
@@ -443,20 +567,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        setSession(newSession);
-        
-        let appUser: AppUser | null = null;
-        if (newSession?.user) {
-          appUser = await getProfileAndClinicId(newSession.user);
+        // ✅ PROTEÇÃO CRÍTICA: Se já processamos este userId, não processar novamente
+        // Evita queries duplicadas e loading desnecessário quando SIGNED_IN dispara após INITIAL_SESSION
+        const newUserId = newSession?.user?.id;
+        if (newUserId && newUserId === lastProcessedSessionId.current) {
+          // Mesma sessão já processada - não precisa processar novamente
+          if (_event !== 'SIGNED_OUT') {
+            console.log(`⏭️ Ignorando ${_event} - sessão já processada (ID: ${newUserId})`);
+            return;
+          }
         }
         
-        setUser(appUser);
-        setProfile(appUser?.profile || null);
+        // ✅ OTIMIZAÇÃO CRÍTICA: Apenas mostrar loading em eventos críticos (login/logout)
+        // TOKEN_REFRESHED, USER_UPDATED não devem bloquear a UI
+        const criticalEvents = ['SIGNED_IN', 'SIGNED_OUT'];
+        const shouldShowLoading = criticalEvents.includes(_event);
         
-        console.log('✅ AuthContext: Estado atualizado por onAuthStateChange', {
-          hasUser: !!appUser,
-          clinicId: appUser?.clinicId
-        });
+        try {
+          if (shouldShowLoading) {
+            console.log('⏳ Evento crítico detectado, setando loading...');
+            setLoading(true);
+          } else {
+            console.log('🔄 Evento não-crítico, processando silenciosamente...');
+          }
+          
+          console.log('1️⃣ Atualizando session...');
+          setSession(newSession);
+          
+          console.log('2️⃣ Buscando perfil do usuário...');
+          let appUser: AppUser | null = null;
+          if (newSession?.user) {
+            appUser = await getProfileAndClinicId(newSession.user);
+            console.log('3️⃣ Perfil recuperado:', appUser ? 'SIM' : 'NÃO');
+            
+            // ✅ CRÍTICO: Atualizar ref IMEDIATAMENTE após processar
+            // Isso previne eventos duplicados (como SIGNED_IN após INITIAL_SESSION)
+            if (appUser?.id) {
+              lastProcessedSessionId.current = appUser.id;
+              console.log('🔒 Sessão marcada como processada:', appUser.id);
+            }
+          }
+          
+          console.log('4️⃣ Verificando proteção TOKEN_REFRESHED...');
+          // ✅ PROTEÇÃO: Se já temos user E o novo appUser tem os mesmos dados,
+          // não sobrescrever para evitar perder estado em TOKEN_REFRESHED
+          if (_event === 'TOKEN_REFRESHED' && user && appUser) {
+            // Se é o mesmo usuário, manter dados existentes (mais completos)
+            if (user.id === appUser.id) {
+              console.log('🔄 TOKEN_REFRESHED: Mantendo dados existentes do usuário');
+              // ✅ IMPORTANTE: NÃO usar return aqui, pois pula o finally
+              // Apenas não sobrescrever user/profile
+            } else {
+              console.log('5️⃣ Atualizando user/profile (diferente)...');
+              setUser(appUser);
+              setProfile(appUser?.profile || null);
+            }
+          } else {
+            // Para todos os outros eventos (SIGNED_IN, SIGNED_OUT, etc)
+            console.log('5️⃣ Atualizando user/profile (evento ' + _event + ')...');
+            setUser(appUser);
+            setProfile(appUser?.profile || null);
+          }
+          
+          console.log('6️⃣ Finalizando processamento...');
+          console.log('✅ AuthContext: Estado atualizado por onAuthStateChange', {
+            hasUser: !!appUser,
+            clinicId: appUser?.clinicId,
+            event: _event
+          });
+          console.log('7️⃣ Try block completo, indo para finally...');
+        } catch (error) {
+          console.error('❌ Erro em onAuthStateChange:', error);
+          // ✅ PROTEÇÃO: Manter sessão/user atuais em caso de erro
+          console.log('⚠️ Mantendo estado anterior devido a erro');
+        } finally {
+          // ✅ CRÍTICO: Resetar loading apenas se foi setado
+          if (shouldShowLoading) {
+            console.log('✅ Resetando loading para false');
+            setLoading(false);
+          }
+        }
       });
       
       subscription = data.subscription;

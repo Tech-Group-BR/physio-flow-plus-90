@@ -11,33 +11,31 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ArrowLeft, Building2, Mail, Lock, Hash } from 'lucide-react';
 
 export function LoginPage() {
-  const { signIn, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already logged in (only on initial load, not during login process)
+  // Redirect if already logged in
   useEffect(() => {
-    if (user && !authLoading && !loading) {
-      console.log('✅ Usuário já logado (página carregada), redirecionando...', {
+    // ✅ CORREÇÃO: Não verificar loading local, apenas authLoading
+    if (user && !authLoading) {
+      console.log('✅ Usuário já logado, redirecionando...', {
         email: user.email,
-        redirectTo,
         role: user.profile?.role
       });
       
-      // Prioridade: redirectTo > Super Admin > Dashboard padrão
-      if (redirectTo) {
-        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
-        navigate(redirectTo, { replace: true });
-        clearRedirectTo();
-      } else if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
+      // Redirecionar baseado no role
+      if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
+        console.log('👑 Super admin detectado, redirecionando para /admin');
         navigate('/admin', { replace: true });
       } else {
+        console.log('👤 Usuário normal, redirecionando para /dashboard');
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, authLoading, navigate, loading, redirectTo, clearRedirectTo]);
+  }, [user, authLoading, navigate]);
 
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -66,29 +64,12 @@ export function LoginPage() {
       
       toast.success('Login realizado com sucesso!');
       
-      // Redirecionamento baseado na prioridade: redirectTo > Super Admin > Dashboard
-      console.log('🎯 Verificando redirecionamento...', { 
+      // ✅ CORREÇÃO: Não redirecionar manualmente aqui
+      // O useEffect irá detectar user e redirecionar automaticamente
+      console.log('🎯 Login bem-sucedido, aguardando useEffect redirecionar...', { 
         isSuperAdmin: result.isSuperAdmin,
-        hasProperty: 'isSuperAdmin' in result,
-        redirectTo: redirectTo
+        hasProperty: 'isSuperAdmin' in result
       });
-      
-      // Prioridade 1: Se há um destino armazenado (ex: página de pagamento)
-      if (redirectTo) {
-        console.log('🎯 Redirecionando para destino armazenado:', redirectTo);
-        navigate(redirectTo, { replace: true });
-        clearRedirectTo();
-      }
-      // Prioridade 2: Super Admin
-      else if (result.isSuperAdmin) {
-        console.log('👑 Super admin detectado, redirecionando para /admin');
-        navigate('/admin', { replace: true });
-      }
-      // Prioridade 3: Dashboard padrão
-      else {
-        console.log('👤 Usuário normal, redirecionando para /dashboard');
-        navigate('/dashboard', { replace: true });
-      }
       
     } catch (error: any) {
       console.error('❌ Erro no login:', error);
