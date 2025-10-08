@@ -414,6 +414,7 @@ export function ClinicProvider({ children }: { children: React.ReactNode }) {
   // ✅ useRef para evitar re-renders e loops infinitos
   const isInitialized = useRef(false);
   const loadingRef = useRef(false);
+  const lastClinicId = useRef<string | null>(null); // ✅ Rastrear mudanças de clínica
   
   // ✅ Estados com inicialização do cache
   const [patients, setPatients] = useState<MainPatient[]>(() => 
@@ -480,6 +481,40 @@ const hasDataInCache = () => {
 };
  
  useEffect(() => {
+    // ✅ CRÍTICO: Detectar mudança de clínica (troca de conta)
+    if (clinicId && lastClinicId.current && clinicId !== lastClinicId.current) {
+      console.log('🔄 MUDANÇA DE CLÍNICA DETECTADA:', { anterior: lastClinicId.current, nova: clinicId });
+      console.log('🗑️ Resetando todos os estados e cache do ClinicContext...');
+      
+      // Resetar todos os estados
+      setPatients([]);
+      setProfessionals([]);
+      setRooms([]);
+      setAppointments([]);
+      setMedicalRecords([]);
+      setAccountsPayable([]);
+      setAccountsReceivable([]);
+      setEvolutions([]);
+      setLeads([]);
+      setDashboardStats(null);
+      setClinicSettings(null);
+      setCurrentUser(null);
+      
+      // Limpar cache da clínica anterior
+      globalCache.invalidateClinic(lastClinicId.current);
+      
+      // Resetar flags para forçar recarga
+      isInitialized.current = false;
+      loadingRef.current = false;
+      
+      console.log('✅ Estados resetados, preparando para carregar nova clínica');
+    }
+    
+    // ✅ Atualizar último clinicId
+    if (clinicId) {
+      lastClinicId.current = clinicId;
+    }
+    
     // ✅ Se já inicializou ou está carregando, não fazer nada
     if (isInitialized.current || loadingRef.current) {
       console.log('⏭️ ClinicContext: Já inicializado ou carregando');

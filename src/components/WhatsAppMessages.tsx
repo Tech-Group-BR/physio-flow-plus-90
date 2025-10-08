@@ -3,6 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Send, Calendar, Filter } from "lucide-react";
 import { format } from "date-fns";
 
@@ -23,12 +33,29 @@ export function WhatsAppMessages({
 }: WhatsAppMessagesProps) {
   const [confirmationDateFilter, setConfirmationDateFilter] = useState('');
   const [reminderDateFilter, setReminderDateFilter] = useState('');
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [bulkSendAction, setBulkSendAction] = useState<{ ids: string[], type: 'confirmation' | 'reminder' } | null>(null);
   
   // Helper para formatar data sem problemas de timezone
   const formatDateFromInput = (dateString: string) => {
     if (!dateString) return '';
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
+  };
+  
+  // Função para abrir diálogo de confirmação
+  const handleBulkSendClick = (appointmentIds: string[], type: 'confirmation' | 'reminder') => {
+    setBulkSendAction({ ids: appointmentIds, type });
+    setIsConfirmDialogOpen(true);
+  };
+  
+  // Função para confirmar envio em massa
+  const handleConfirmBulkSend = () => {
+    if (bulkSendAction) {
+      onSendBulkMessages(bulkSendAction.ids, bulkSendAction.type);
+    }
+    setIsConfirmDialogOpen(false);
+    setBulkSendAction(null);
   };
   
   // Debug logs
@@ -92,7 +119,7 @@ export function WhatsAppMessages({
             <>
               {/* Botão de envio em massa com largura total */}
               <Button
-                onClick={() => onSendBulkMessages(filteredPendingConfirmations.map(a => a.id), 'confirmation')}
+                onClick={() => handleBulkSendClick(filteredPendingConfirmations.map(a => a.id), 'confirmation')}
                 className="w-full"
                 size="sm"
               >
@@ -175,7 +202,7 @@ export function WhatsAppMessages({
             <>
               {/* Botão de envio em massa com largura total */}
               <Button
-                onClick={() => onSendBulkMessages(filteredTomorrowAppointments.map(a => a.id), 'reminder')}
+                onClick={() => handleBulkSendClick(filteredTomorrowAppointments.map(a => a.id), 'reminder')}
                 variant="outline"
                 className="w-full"
                 size="sm"
@@ -214,6 +241,42 @@ export function WhatsAppMessages({
           )}
         </CardContent>
       </Card>
+
+      {/* Diálogo de Confirmação para Envio em Massa */}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Envio em Massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkSendAction?.type === 'confirmation' ? (
+                <>
+                  Você está prestes a enviar <strong>{bulkSendAction.ids.length} mensagens de confirmação</strong> via WhatsApp.
+                  {confirmationDateFilter && (
+                    <> para a data <strong>{formatDateFromInput(confirmationDateFilter)}</strong></>
+                  )}
+                  <br /><br />
+                  Deseja continuar com o envio?
+                </>
+              ) : (
+                <>
+                  Você está prestes a enviar <strong>{bulkSendAction?.ids.length} mensagens de lembrete</strong> via WhatsApp.
+                  {reminderDateFilter && (
+                    <> para a data <strong>{formatDateFromInput(reminderDateFilter)}</strong></>
+                  )}
+                  <br /><br />
+                  Deseja continuar com o envio?
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBulkSend}>
+              Confirmar Envio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, Hash, User, Phone } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, Hash, User, Phone, CheckCircle2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { normalizePhone, isValidPhone } from '@/utils/formatters';
 
 export function RegisterPage() {
   const { register, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
@@ -36,6 +38,10 @@ export function RegisterPage() {
     }
   }, [user, authLoading, navigate, redirectTo, clearRedirectTo]);
 
+  // Estado para controlar se é um cadastro via convite
+  const [isInvitedSignup, setIsInvitedSignup] = useState(false);
+  const [invitationData, setInvitationData] = useState<any>(null);
+
   const [registerForm, setregisterForm] = useState({
     email: '',
     password: '',
@@ -47,14 +53,82 @@ export function RegisterPage() {
     clinicCode: ''
   });
 
+  // Carregar dados do convite pendente, se houver
+  useEffect(() => {
+    const pendingInvite = localStorage.getItem('pendingInvitation');
+    
+    if (pendingInvite) {
+      try {
+        const inviteData = JSON.parse(pendingInvite);
+        console.log('📧 Convite pendente detectado:', inviteData);
+        
+        setIsInvitedSignup(true);
+        setInvitationData(inviteData);
+        
+        // Preencher automaticamente os campos do formulário
+        setregisterForm(prev => ({
+          ...prev,
+          email: inviteData.email || '',
+          clinicCode: inviteData.clinicCode || '',
+          role: inviteData.role || 'professional',
+        }));
+
+        // Mostrar toast informativo
+        toast.success(
+          `Bem-vindo! Complete seu cadastro na ${inviteData.clinicName}`,
+          { duration: 5000 }
+        );
+      } catch (error) {
+        console.error('Erro ao processar convite:', error);
+      }
+    } else {
+      // SEM CONVITE: Bloquear acesso à página
+      console.warn('⚠️ Tentativa de acesso sem convite válido');
+      toast.error('Você precisa de um convite válido para se cadastrar. Entre em contato com o administrador da clínica.');
+      
+      // Redirecionar para página de login após 3 segundos
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
+  }, [navigate]);
+
   const handleregister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // ===== VALIDAÇÃO OBRIGATÓRIA: APENAS COM CONVITE =====
+    if (!isInvitedSignup || !invitationData) {
+      toast.error('Você precisa de um convite válido para se cadastrar');
+      setLoading(false);
+      navigate('/login');
+      return;
+    }
+
     console.log('📝 Tentando cadastrar:', registerForm.email);
 
     try {
+      // ===== VALIDAÇÃO DE INTEGRIDADE DO CONVITE =====
+      // Verificar se email, clinicCode e role não foram alterados
+      if (registerForm.email !== invitationData.email) {
+        toast.error('O email não pode ser diferente do convite recebido');
+        setLoading(false);
+        return;
+      }
+
+      if (registerForm.clinicCode !== invitationData.clinicCode) {
+        toast.error('O código da clínica não pode ser alterado');
+        setLoading(false);
+        return;
+      }
+
+      if (registerForm.role !== invitationData.role) {
+        toast.error('O cargo não pode ser diferente do definido no convite');
+        setLoading(false);
+        return;
+      }
+
       // Validação básica
       if (!registerForm.email || !registerForm.password || !registerForm.confirmPassword || 
           !registerForm.fullName || !registerForm.clinicCode) {
@@ -84,10 +158,61 @@ export function RegisterPage() {
         return;
       }
 
+      // ===== VALIDAÇÃO DO CONVITE =====
+      if (isInvitedSignup && invitationData) {
+        console.log('🎫 Validando convite antes do registro...');
+        
+        // Verificar se o convite ainda é válido
+        const { data: invite, error: inviteError } = await supabase
+          .from('user_invitations' as any)
+          .select('*')
+          .eq('token', invitationData.token)
+          .eq('email', registerForm.email)
+          .eq('status', 'pending')
+          .single();
+
+        if (inviteError || !invite) {
+          console.error('❌ Convite inválido:', inviteError);
+          toast.error('Este convite não é mais válido. Solicite um novo convite.');
+          setLoading(false);
+          
+          // Limpar dados do convite
+          localStorage.removeItem('pendingInvitation');
+          setIsInvitedSignup(false);
+          setInvitationData(null);
+          return;
+        }
+
+        // Verificar se o convite expirou
+        if ((invite as any).expires_at && new Date((invite as any).expires_at) < new Date()) {
+          console.error('❌ Convite expirado');
+          toast.error('Este convite expirou. Solicite um novo convite.');
+          setLoading(false);
+          
+          // Limpar dados do convite
+          localStorage.removeItem('pendingInvitation');
+          setIsInvitedSignup(false);
+          setInvitationData(null);
+          return;
+        }
+
+        console.log('✅ Convite válido, prosseguindo com registro');
+      }
+
+      // Normalizar telefone antes de salvar
+      const normalizedPhone = registerForm.phone ? normalizePhone(registerForm.phone) : '';
+
+      // Validar telefone se preenchido
+      if (normalizedPhone && !isValidPhone(normalizedPhone)) {
+        toast.error('Telefone inválido. Por favor, verifique o número digitado.');
+        setLoading(false);
+        return;
+      }
+
       // Preparar metadata
       const userData = {
         full_name: registerForm.fullName.trim(),
-        phone: registerForm.phone?.trim() || '',
+        phone: normalizedPhone, // Usar telefone normalizado
         role: registerForm.role,
         clinic_code: registerForm.clinicCode,
         crefito: registerForm.crefito?.trim() || ''
@@ -127,9 +252,50 @@ export function RegisterPage() {
       // Se chegou aqui, significa que error é null/undefined (sucesso)
       console.log('✅ Cadastro bem-sucedido - error é null/undefined');
       
+      // ===== APLICAR PERMISSÕES DO CONVITE =====
+      if (isInvitedSignup && invitationData) {
+        console.log('🎫 Aplicando permissões do convite...');
+        
+        try {
+          // Buscar o usuário recém-criado pelo email
+          const { data: newProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', registerForm.email)
+            .eq('clinic_code', registerForm.clinicCode)
+            .single();
+
+          if (profileError || !newProfile) {
+            console.error('⚠️ Erro ao buscar perfil criado:', profileError);
+            toast.warning('Cadastro realizado, mas houve um problema ao aplicar permissões. Entre em contato com o administrador.');
+          } else {
+            console.log('✅ Perfil encontrado:', newProfile.id);
+            
+            // Chamar função RPC para aplicar permissões e marcar convite como aceito
+            const { error: rpcError } = await supabase.rpc('apply_invitation_permissions', {
+              user_id: newProfile.id,
+              invitation_id: invitationData.invitationId
+            });
+
+            if (rpcError) {
+              console.error('⚠️ Erro ao aplicar permissões do convite:', rpcError);
+              toast.warning('Cadastro realizado, mas houve um problema ao aplicar permissões. Entre em contato com o administrador.');
+            } else {
+              console.log('✅ Permissões do convite aplicadas com sucesso');
+            }
+          }
+        } catch (err) {
+          console.error('⚠️ Erro inesperado ao aplicar permissões:', err);
+          toast.warning('Cadastro realizado, mas houve um problema ao aplicar permissões. Entre em contato com o administrador.');
+        }
+
+        // Limpar dados do convite do localStorage
+        localStorage.removeItem('pendingInvitation');
+      }
+      
       // SUCESSO: apenas aqui limpa formulário e redireciona para login  
       setError('');
-      toast.success('Cadastro realizado com sucesso! Agora faça login para acessar o sistema.');
+      toast.success('Cadastro realizado com sucesso! Faça login para acessar o sistema.');
       
       console.log('✅ Limpando formulário e redirecionando para login');
       
@@ -217,12 +383,19 @@ export function RegisterPage() {
                   value={registerForm.clinicCode}
                   onChange={(e) => setregisterForm({ ...registerForm, clinicCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   required
-                  disabled={loading}
+                  disabled={loading || isInvitedSignup}
                   placeholder="000000"
                   maxLength={6}
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                 />
-                <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
+                {isInvitedSignup ? (
+                  <p className="text-xs text-blue-600 flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Código definido pelo convite
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500">Entre em contato com a clínica para obter o código</p>
+                )}
               </div>
 
               {/* Name Field */}
@@ -255,10 +428,16 @@ export function RegisterPage() {
                   value={registerForm.email}
                   onChange={(e) => setregisterForm({ ...registerForm, email: e.target.value })}
                   required
-                  disabled={loading}
+                  disabled={loading || isInvitedSignup}
                   placeholder="seu@email.com"
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
                 />
+                {isInvitedSignup && (
+                  <p className="text-xs text-blue-600 flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Email definido pelo convite
+                  </p>
+                )}
               </div>
 
               {/* Phone Field */}
@@ -287,7 +466,7 @@ export function RegisterPage() {
                 <Select 
                   value={registerForm.role} 
                   onValueChange={(value: string) => setregisterForm({ ...registerForm, role: value })}
-                  disabled={loading}
+                  disabled={loading || isInvitedSignup}
                 >
                   <SelectTrigger className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200">
                     <SelectValue />
@@ -423,7 +602,7 @@ export function RegisterPage() {
               <p className="text-sm text-gray-500">
                 Quer criar uma nova clínica?{' '}
                 <Link 
-                  to="/cadastro" 
+                  to="/signup" 
                   className="text-green-600 hover:text-green-700 font-medium hover:underline transition-colors"
                 >
                   Começar grátis

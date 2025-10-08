@@ -8,7 +8,6 @@ import {
   BarChart,
   Settings,
   UserPlus,
-  Phone,
   Home,
   ShoppingCart,
   MessageCircle
@@ -36,6 +35,12 @@ export const professionalItems: MenuItem[] = [
     description: "Meus atendimentos e consultas"
   },
   {
+    title: "Confirmações",
+    url: "/whatsapp",
+    icon: MessageCircle,
+    description: "Mensagens automáticas"
+  },
+  {
     title: "Pacientes",
     url: "/pacientes",
     icon: Users,
@@ -58,12 +63,6 @@ export const professionalItems: MenuItem[] = [
     url: "/pacotes",
     icon: Package,
     description: "Pacotes de sessões"
-  },
-  {
-    title: "WhatsApp",
-    url: "/whatsapp",
-    icon: MessageCircle,
-    description: "Mensagens automáticas"
   },
   {
     title: "Relatórios",
@@ -118,16 +117,16 @@ export const adminMainItems: MenuItem[] = [
     description: "Atendimentos"
   },
   {
+    title: "Confirmações",
+    url: "/whatsapp",
+    icon: MessageCircle,
+    description: "Mensagens"
+  },
+  {
     title: "Pacientes",
     url: "/pacientes",
     icon: Users,
     description: "Cadastros"
-  },
-  {
-    title: "Prontuários",
-    url: "/prontuarios",
-    icon: FileText,
-    description: "Registros"
   },
   {
     title: "Financeiro",
@@ -140,12 +139,6 @@ export const adminMainItems: MenuItem[] = [
     url: "/pacotes",
     icon: Package,
     description: "Sessões"
-  },
-  {
-    title: "WhatsApp",
-    url: "/whatsapp",
-    icon: MessageCircle,
-    description: "Mensagens"
   },
   {
     title: "Relatórios",
@@ -163,28 +156,10 @@ export const adminManagementItems: MenuItem[] = [
     description: "Equipe"
   },
   {
-    title: "Relatório Financeiro",
-    url: "/relatorios/pacientes",
-    icon: DollarSign,
-    description: "Faturamento por paciente"
-  },
-  {
     title: "Configurações",
     url: "/configuracoes",
     icon: Settings,
     description: "Sistema"
-  },
-  {
-    title: "Vendas",
-    url: "/vendas",
-    icon: ShoppingCart,
-    description: "SAAS"
-  },
-  {
-    title: "CRM",
-    url: "/crm",
-    icon: Phone,
-    description: "Leads"
   }
 ];
 

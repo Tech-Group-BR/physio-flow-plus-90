@@ -5,14 +5,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { DollarSign, Settings } from "lucide-react";
+import { DollarSign, Settings, Shield, UserCog } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { RoomsManager } from "./RoomsManager";
+import { PermissionsSetupPage } from "./PermissionsSetupPage";
+import { SuperAdminDashboard } from "./SuperAdminDashboard";
+import LinkProfileToProfessional from "./LinkProfileToProfessional";
+
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissionActions } from "@/hooks/usePermissions";
 
 export function ConfigurationsPage() {
   const { clinicId } = useAuth();
+  const { settings, isSuperAdmin } = usePermissionActions();
   const [activeTab, setActiveTab] = useState("general");
   const [isLoading, setIsLoading] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
@@ -113,9 +119,27 @@ export function ConfigurationsPage() {
       {/* TABS */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         {/* Tab List responsiva com quebra de linha */}
-        <TabsList className="flex flex-wrap h-auto w-full grid-cols-1 sm:grid-cols-2">
+        <TabsList className={`flex flex-wrap h-auto w-full ${isSuperAdmin() ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="general" className="w-full sm:w-auto">Configurações Gerais</TabsTrigger>
           <TabsTrigger value="rooms" className="w-full sm:w-auto">Gerenciar Salas</TabsTrigger>
+          {settings.canManage() && (
+            <>
+              <TabsTrigger value="permissions" className="w-full sm:w-auto">
+                <Shield className="mr-2 h-4 w-4" />
+                Usuários e Permissões
+              </TabsTrigger>
+              <TabsTrigger value="link-professionals" className="w-full sm:w-auto">
+                <UserCog className="mr-2 h-4 w-4" />
+                Associar Fisioterapeutas
+              </TabsTrigger>
+            </>
+          )}
+          {isSuperAdmin() && (
+            <TabsTrigger value="superadmin" className="w-full sm:w-auto">
+              <Shield className="mr-2 h-4 w-4 text-yellow-500" />
+              Super Admin
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
@@ -294,6 +318,24 @@ export function ConfigurationsPage() {
         <TabsContent value="rooms" className="space-y-4">
           <RoomsManager />
         </TabsContent>
+
+        {settings.canManage() && (
+          <TabsContent value="permissions" className="space-y-4">
+            <PermissionsSetupPage />
+          </TabsContent>
+        )}
+
+        {settings.canManage() && (
+          <TabsContent value="link-professionals" className="space-y-4">
+            <LinkProfileToProfessional />
+          </TabsContent>
+        )}
+
+        {isSuperAdmin() && (
+          <TabsContent value="superadmin" className="space-y-4">
+            <SuperAdminDashboard />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

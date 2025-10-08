@@ -36,6 +36,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizePhone, isValidPhone } from '@/utils/formatters';
 
 interface ProfessionalStats {
   totalAppointments: number;
@@ -228,8 +229,19 @@ export function ProfessionalDetailsPage() {
     e.preventDefault();
     if (!professional) return;
 
+    // Normalize and validate phone
+    const normalizedPhone = editFormData.phone ? normalizePhone(editFormData.phone) : '';
+
+    if (editFormData.phone && !isValidPhone(normalizedPhone)) {
+      toast.error('Telefone inválido. Use o formato: (66) 99999-9999');
+      return;
+    }
+
     try {
-      await updateProfessional(professional.id, editFormData);
+      await updateProfessional(professional.id, {
+        ...editFormData,
+        phone: normalizedPhone // Use normalized phone
+      });
       setIsEditDialogOpen(false);
       toast.success('Profissional atualizado com sucesso!');
     } catch (error) {

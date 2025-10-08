@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/contexts/ClinicContext";
 import { Patient } from "@/types";
 import { useState } from "react";
+import { normalizePhone, normalizeCPF, formatPhoneDisplay, formatCPFDisplay, isValidCPF, isValidPhone } from "@/utils/formatters";
 
 interface PatientFormProps {
   patient?: Patient;
@@ -74,15 +75,38 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
       return;
     }
 
+    // Normalizar telefone e CPF antes de salvar
+    const normalizedPhone = normalizePhone(formData.phone);
+    const normalizedCPF = normalizeCPF(formData.cpf);
+    const normalizedEmergencyPhone = formData.emergencyPhone ? normalizePhone(formData.emergencyPhone) : '';
+
+    // Validar CPF
+    if (!isValidCPF(normalizedCPF)) {
+      alert('CPF inválido. Por favor, verifique o número digitado.');
+      return;
+    }
+
+    // Validar telefone principal
+    if (!isValidPhone(normalizedPhone)) {
+      alert('Telefone inválido. Por favor, verifique o número digitado.');
+      return;
+    }
+
+    // Validar telefone de emergência se preenchido
+    if (normalizedEmergencyPhone && !isValidPhone(normalizedEmergencyPhone)) {
+      alert('Telefone de emergência inválido. Por favor, verifique o número digitado.');
+      return;
+    }
+
     try {
       const age = calculateAge(formData.birthDate);
       const isMinor = age < 18;
 
       const patientData = {
         fullName: formData.fullName,
-        phone: formData.phone,
+        phone: normalizedPhone, // Usar telefone normalizado
         email: formData.email,
-        cpf: formData.cpf,
+        cpf: normalizedCPF, // Usar CPF normalizado
         birth_date: formData.birthDate,
         gender: formData.gender as 'male' | 'female',
         address: {
@@ -98,10 +122,10 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
         treatmentType: formData.treatmentType,
         emergencyContact: {
           name: formData.emergencyName,
-          phone: formData.emergencyPhone,
+          phone: normalizedEmergencyPhone, // Usar telefone normalizado
           relationship: formData.emergencyRelationship
         },
-        emergencyPhone: formData.emergencyPhone,
+        emergencyPhone: normalizedEmergencyPhone, // Usar telefone normalizado
         medicalHistory: formData.medicalHistory,
         notes: formData.notes,
         isActive: true,
@@ -118,9 +142,9 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
     
         const updateData = {
           fullName: formData.fullName,
-          phone: formData.phone,
+          phone: normalizedPhone, // Usar telefone normalizado
           email: formData.email,
-          cpf: formData.cpf,
+          cpf: normalizedCPF, // Usar CPF normalizado
           birth_date: formData.birthDate,
           gender: formData.gender as 'male' | 'female',
           address: {
@@ -136,10 +160,10 @@ export function PatientForm({ patient, onSave, onCancel }: PatientFormProps) {
           treatmentType: formData.treatmentType,
           emergencyContact: {
             name: formData.emergencyName,
-            phone: formData.emergencyPhone,
+            phone: normalizedEmergencyPhone, // Usar telefone normalizado
             relationship: formData.emergencyRelationship
           },
-          emergencyPhone: formData.emergencyPhone,
+          emergencyPhone: normalizedEmergencyPhone, // Usar telefone normalizado
           medicalHistory: formData.medicalHistory,
           notes: formData.notes,
           isMinor: isMinor,

@@ -9,7 +9,7 @@ import { Dashboard } from "@/components/Dashboard";
 // Componentes das Páginas
 import { PatientsPage } from "@/components/PatientsPage";
 import { AgendaPageWithRecurrence } from "@/components/AgendaPageWithRecurrence";
-import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
+// import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
 import { FinancialPage } from "@/components/FinancialPage";
 import { ReportsPage } from "@/components/ReportsPage";
 import { WhatsAppPage } from "@/components/WhatsAppPage";
@@ -18,7 +18,7 @@ import { ProfessionalsPage } from "@/components/ProfessionalsPage";
 import { ConfigurationsPage } from "@/components/ConfigurationsPage";
 
 import { SalesPage } from "@/components/SalesPage";
-import { CRMPage } from "@/components/CRMPage";
+// import { CRMPage } from "@/components/CRMPage";
 import { GuardianPortal } from "@/components/GuardianPortal";
 import { PatientFinancialReport } from "@/components/PatientFinancialReport";
 import { PatientDetailsPage } from "@/components/PatientDetailsPage";
@@ -54,7 +54,7 @@ const Index = () => {
                 <Route path="/agenda" element={<AgendaPageWithRecurrence />} />
                 <Route path="/pacientes" element={<PatientsPage />} />
                 <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
-                <Route path="/prontuarios" element={<MedicalRecordsPage />} />
+                {/* <Route path="/prontuarios" element={<MedicalRecordsPage />} /> */}
                 <Route path="/prontuario/:patientId" element={<AnamnesisDetailsPage />} />
                 <Route path="/prontuario/evolucao/:evoId" element={<EvolutionDetailsPage />} />
                 <Route path="/financeiro" element={<FinancialPage />} />
@@ -67,8 +67,8 @@ const Index = () => {
                 <Route path="/fisioterapeutas" element={<ProfessionalsPage />} />
                 <Route path="/profissionais/:id" element={<ProfessionalDetailsPage />} />
                 <Route path="/configuracoes" element={<ConfigurationsPage />} />
-                <Route path="/vendas" element={<SalesPage />} />
-                <Route path="/crm" element={<CRMPage />} />
+                {/* <Route path="/vendas" element={<SalesPage />} /> */}
+                {/* <Route path="/crm" element={<CRMPage />} /> */}
                 <Route path="/portal-responsavel" element={<GuardianPortal />} />
                 <Route path="*" element={<Dashboard />} />
               </Routes>

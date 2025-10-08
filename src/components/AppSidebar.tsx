@@ -7,7 +7,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Home, Calendar, Users, DollarSign, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarMenuSection } from "./sidebar/SidebarMenuSection";
@@ -15,7 +15,8 @@ import {
   professionalItems,
   adminMainItems,
   adminManagementItems,
-  guardianItems
+  guardianItems,
+  type MenuItem
 } from "./sidebar/SidebarMenuItems";
 
 export function AppSidebar() {
@@ -23,8 +24,8 @@ export function AppSidebar() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { signOut, user } = useAuth();
   
-  // FIXO: Sempre usar menu do fisioterapeuta
-  const userRole = 'Professional';
+  // Usar o role real do usuário
+  const userRole = user?.profile?.role || 'guardian';
 
   useEffect(() => {
     // Buscar apenas o nome, não o role
@@ -74,13 +75,59 @@ export function AppSidebar() {
     }
   };
 
-  // SEMPRE usar itens do fisioterapeuta
-  const mainItems = professionalItems;
-  const managementItems: any[] = [];
+  // Definir itens de menu baseado no role do usuário
+  let mainItems: MenuItem[] = [];
+  let managementItems: MenuItem[] = [];
+  let mainMenuLabel = 'Sistema GoPhysioTech';
+  let roleLabel = 'Usuário';
 
-  // Labels fixos
-  const mainMenuLabel = 'Sistema GoPhysioTech';
-  const roleLabel = 'Fisioterapeuta';
+  switch (userRole) {
+    case 'admin':
+    case 'super':
+      // Admin e Super Admin têm acesso total
+      mainItems = adminMainItems;
+      managementItems = adminManagementItems;
+      mainMenuLabel = 'Sistema Administrativo';
+      roleLabel = userRole === 'super' ? 'Super Administrador' : 'Administrador';
+      break;
+    
+    case 'professional':
+      // Profissional tem acesso operacional (sem vendas e CRM)
+      mainItems = professionalItems;
+      managementItems = [];
+      mainMenuLabel = 'Sistema GoPhysioTech';
+      roleLabel = 'Profissional';
+      break;
+    
+    case 'receptionist':
+      // Recepcionista: Agenda, Pacientes, Financeiro básico, Pacotes
+      mainItems = [
+        { title: "Dashboard", url: "/dashboard", icon: Home, description: "Visão geral" },
+        { title: "Agenda", url: "/agenda", icon: Calendar, description: "Atendimentos" },
+        { title: "Pacientes", url: "/pacientes", icon: Users, description: "Cadastros" },
+        { title: "Financeiro", url: "/financeiro", icon: DollarSign, description: "Controle financeiro" },
+        { title: "Pacotes", url: "/pacotes", icon: Package, description: "Pacotes de sessões" },
+      ];
+      managementItems = [];
+      mainMenuLabel = 'Sistema de Atendimento';
+      roleLabel = 'Recepcionista';
+      break;
+    
+    case 'guardian':
+      // Responsável: Apenas portal do responsável
+      mainItems = guardianItems;
+      managementItems = [];
+      mainMenuLabel = 'Portal do Responsável';
+      roleLabel = 'Responsável';
+      break;
+    
+    default:
+      // Fallback para guardião
+      mainItems = guardianItems;
+      managementItems = [];
+      mainMenuLabel = 'Portal do Responsável';
+      roleLabel = 'Usuário';
+  }
 
   return (
     <Sidebar className="border-r bg-background w-64 min-w-64 lg:w-72 lg:min-w-72">
@@ -101,6 +148,12 @@ export function AppSidebar() {
           label={mainMenuLabel}
           items={mainItems}
         />
+        {managementItems.length > 0 && (
+          <SidebarMenuSection 
+            label="Gestão"
+            items={managementItems}
+          />
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t px-4 lg:px-6 py-3 lg:py-4 bg-background">

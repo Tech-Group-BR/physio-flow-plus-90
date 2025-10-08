@@ -272,7 +272,7 @@ export function LoginPage() {
             <p className="text-sm text-gray-500">
               Quer criar uma nova clínica?{' '}
               <Link 
-                to="/cadastro" 
+                to="/signup" 
                 className="text-green-600 hover:text-green-700 font-medium hover:underline transition-colors"
               >
                 Começar grátis

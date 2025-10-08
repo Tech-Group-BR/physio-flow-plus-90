@@ -162,6 +162,48 @@ serve(async (req) => {
     }
     console.log('✅ Usuário criado com ID:', authUser.user.id);
 
+    // 2.1 Criar perfil e dar permissões de admin automaticamente
+    console.log('👑 Configurando perfil como admin...')
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: authUser.user.id,
+        email: email, // Email real do usuário
+        full_name: fullName,
+        phone: phone,
+        role: 'admin', // Sempre admin para quem cria a clínica
+        clinic_id: clinic.id,
+        is_active: true
+      })
+
+    if (profileError) {
+      console.error('❌ Erro ao criar perfil:', profileError);
+      // Cleanup
+      await supabaseAdmin.from('clinic_settings').delete().eq('id', clinic.id);
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      return new Response(
+        JSON.stringify({ error: `Erro ao criar perfil: ${profileError.message}` }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // 2.2 Aplicar permissões de admin
+    console.log('🔐 Aplicando permissões de administrador...')
+    const { error: permissionsError } = await supabaseAdmin.rpc('apply_role_preset_permissions', {
+      target_user_id: authUser.user.id,
+      target_role: 'admin'
+    });
+
+    if (permissionsError) {
+      console.warn('⚠️ Aviso: Erro ao aplicar permissões:', permissionsError.message);
+      // Não vamos falhar o signup por isso, mas vamos logar
+    } else {
+      console.log('✅ Permissões de admin aplicadas com sucesso');
+    }
+
     // 3. Criar dados iniciais da clínica (opcional)
     console.log('📋 Criando configurações iniciais...')
     // Criar sala padrão
@@ -243,6 +285,7 @@ serve(async (req) => {
     }
 
     console.log('🎉 Signup completo realizado com sucesso!')
+    console.log('📤 Retornando dados:', JSON.stringify(responseData, null, 2))
 
     return new Response(
       JSON.stringify(responseData),

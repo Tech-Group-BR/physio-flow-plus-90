@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { globalCache } from '@/lib/globalCache';
+import { clearAllCaches } from '@/utils/cacheCleanup';
 
 // --- TIPAGEM ---
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -285,7 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
-      const { clinic_code, full_name, phone, role } = userData;
+      const { clinic_code, full_name, phone, role, crefito } = userData;
       
       if (!clinic_code) {
         setLoading(false);
@@ -298,6 +299,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return { error: { message: 'Código da clínica inválido' } };
       }
+      
+      // 1.1 VALIDAÇÃO DE CONVITE OBRIGATÓRIO
+      // Verificar se existe um convite pendente válido para este email e clínica
+      const { data: invitation, error: inviteError } = await supabase
+        .from('user_invitations' as any)
+        .select('*')
+        .eq('email', email.trim())
+        .eq('clinic_id', clinicData.id)
+        .eq('status', 'pending')
+        .single();
+
+      if (inviteError || !invitation) {
+        setLoading(false);
+        return { error: { message: 'Você precisa de um convite válido para se cadastrar nesta clínica' } };
+      }
+
+      // Verificar se o convite não expirou
+      const inviteRecord = invitation as any;
+      if (inviteRecord.expires_at && new Date(inviteRecord.expires_at) < new Date()) {
+        setLoading(false);
+        return { error: { message: 'Este convite expirou. Solicite um novo convite' } };
+      }
+
+      // Validar que o role corresponde ao convite
+      if (inviteRecord.role !== role) {
+        setLoading(false);
+        return { error: { message: 'O cargo não corresponde ao convite recebido' } };
+      }
+
+      console.log('✅ Convite válido encontrado:', inviteRecord.id);
       
       // 2. Verificar email disponível
       const { data: existingUser } = await supabase
@@ -312,7 +343,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: 'Este email já está cadastrado nesta clínica.' } };
       }
       
-      // 3. Criar usuário
+      // 3. Criar usuário (sem confirmação de email)
       const [name, domain] = email.trim().split('@');
       const syntheticEmail = `${name}+${clinic_code}@${domain}`;
       
@@ -326,7 +357,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: role || 'guardian',
             phone: phone?.trim() || '',
             clinic_code: clinic_code,
-            is_active: true
+            is_active: true,
+            email_confirmed: true // Marcar email como confirmado
           }
         }
       });
@@ -336,8 +368,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return { error };
       }
+
+      if (!data.user) {
+        console.error('❌ Usuário não foi criado');
+        setLoading(false);
+        return { error: { message: 'Erro ao criar usuário' } };
+      }
+
+      console.log('✅ Usuário criado no auth:', data.user.id);
+
+      // 4. Criar perfil na tabela profiles com o email REAL
+      console.log('📝 Criando perfil...');
+      const profileData: any = {
+        id: data.user.id,
+        email: email.trim(), // Email REAL do usuário
+        full_name: full_name.trim(),
+        phone: phone?.trim() || '',
+        role: role || 'guardian',
+        clinic_id: clinicData.id,
+        clinic_code: clinic_code,
+        is_active: true,
+      };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert(profileData);
+
+      if (profileError) {
+        console.error('❌ Erro ao criar perfil:', profileError);
+        setLoading(false);
+        return { error: { message: `Erro ao criar perfil: ${profileError.message}` } };
+      }
+
+      // 4.1 Atualizar crefito se for profissional (via UPDATE para evitar erro de schema cache)
+      if (role === 'professional' && crefito) {
+        console.log('📝 Adicionando CREFITO ao perfil...');
+        const { error: crefitoError } = await supabase
+          .from('profiles')
+          .update({ crefito: crefito.trim() } as any)
+          .eq('id', data.user.id);
+
+        if (crefitoError) {
+          console.warn('⚠️ Erro ao atualizar CREFITO:', crefitoError);
+          // Não bloqueia o cadastro, mas loga o erro
+        } else {
+          console.log('✅ CREFITO adicionado com sucesso');
+        }
+      }
+
+      console.log('✅ Perfil criado com sucesso');
+
+      // 5. Aplicar permissões do convite (se houver)
+      if (inviteRecord.permissions && inviteRecord.permissions.length > 0) {
+        console.log('🔐 Aplicando permissões do convite...');
+        const permissionsToInsert = inviteRecord.permissions.map((permId: string) => ({
+          user_id: data.user.id,
+          permission_id: permId,
+          granted_by: inviteRecord.invited_by,
+          granted_at: new Date().toISOString(),
+        }));
+
+        const { error: permError } = await supabase
+          .from('user_permissions' as any)
+          .insert(permissionsToInsert);
+
+        if (permError) {
+          console.warn('⚠️ Erro ao aplicar permissões customizadas:', permError);
+        } else {
+          console.log('✅ Permissões customizadas aplicadas');
+        }
+      }
+
+      // 6. Marcar convite como aceito
+      console.log('✉️ Marcando convite como aceito...');
+      const { error: updateInviteError } = await supabase
+        .from('user_invitations' as any)
+        .update({ 
+          status: 'accepted',
+          accepted_at: new Date().toISOString()
+        })
+        .eq('id', inviteRecord.id);
+
+      if (updateInviteError) {
+        console.warn('⚠️ Erro ao atualizar convite:', updateInviteError);
+      } else {
+        console.log('✅ Convite marcado como aceito');
+      }
+
+      // 7. Fazer login automático para confirmar email
+      if (data.user && !data.user.email_confirmed_at) {
+        console.log('🔄 Confirmando email automaticamente...');
+        
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: syntheticEmail,
+          password
+        });
+
+        if (loginError) {
+          console.warn('⚠️ Não foi possível fazer login automático:', loginError);
+        } else {
+          console.log('✅ Email confirmado automaticamente via login');
+        }
+      }
       
-      console.log('✅ Usuário criado. Verifique seu email.');
+      console.log('🎉 Registro completo! Usuário criado, perfil configurado e convite aceito.');
       setLoading(false);
       return { error: null };
       
@@ -387,6 +521,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: { message: `Erro no cadastro: ${error.message}` } };
       }
 
+      // Debug: Verificar dados retornados
+      console.log('🔍 Dados retornados da Edge Function:', data);
+      console.log('🔍 Success:', data?.success);
+      console.log('🔍 Clinic Code:', data?.clinic?.clinic_code);
+
       if (!data.success) {
         setLoading(false);
         return { error: { message: data.error || 'Erro no cadastro' } };
@@ -424,14 +563,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       lastProcessedSessionId.current = null; // ✅ Resetar ref
       
-      // Depois limpar cache
-      cleanupAuthState();
-      globalCache.clear();
+      // ✅ CRÍTICO: Limpar TODOS os caches usando função centralizada
+      console.log('🗑️ Limpando todos os caches...');
+      clearAllCaches();
       
       // Por último, fazer logout no Supabase (vai disparar onAuthStateChange)
       await supabase.auth.signOut({ scope: 'global' });
       
-      console.log('✅ Logout realizado');
+      console.log('✅ Logout realizado com limpeza completa');
     } catch (error) {
       console.error('❌ Erro no logout:', error);
       // Garantir que estados são limpos mesmo com erro
@@ -448,7 +587,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ✅ FORCE REAUTH
   const forceReauth = useCallback(() => {
     console.log('🔄 Forçando nova autenticação...');
-    cleanupAuthState();
+    clearAllCaches();
     setUser(null);
     setSession(null);
     setProfile(null);

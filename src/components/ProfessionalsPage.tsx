@@ -14,6 +14,7 @@ import { Mail } from 'lucide-react';
 import { Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { normalizePhone, isValidPhone } from '@/utils/formatters';
 
 export function ProfessionalsPage() {
   const { 
@@ -69,8 +70,21 @@ export function ProfessionalsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Normalizar telefone antes de salvar
+    const normalizedPhone = formData.phone ? normalizePhone(formData.phone) : '';
+
+    // Validar telefone se preenchido
+    if (normalizedPhone && !isValidPhone(normalizedPhone)) {
+      toast.error('Telefone inválido. Por favor, verifique o número digitado.');
+      return;
+    }
+
     // Sempre garanta que clinicId está atualizado do contexto
-    const dataToSend = { ...formData, clinicId };
+    const dataToSend = { 
+      ...formData, 
+      phone: normalizedPhone, // Usar telefone normalizado
+      clinicId 
+    };
 
     try {
       if (editingProfessional) {

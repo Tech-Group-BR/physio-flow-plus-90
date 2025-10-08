@@ -136,10 +136,15 @@ serve(async (req)=>{
     let foundAppointments = null;
     
     // Definir datas de busca
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+    
     const searchUntil = new Date();
     searchUntil.setDate(searchUntil.getDate() + 14);
     const dateLimit = searchUntil.toISOString().split('T')[0];
+    
+    console.log(`⏰ Filtro temporal: Hoje: ${today} ${currentTime}, Até: ${dateLimit}`);
     
     for (const patient of allPatientsFound) {
       console.log(`🔍 Testando paciente: ${patient.full_name} (ID: ${patient.id}, Clínica: ${patient.clinic_id})`);
@@ -154,23 +159,33 @@ serve(async (req)=>{
         .eq('status', 'marcado')
         .order('date', { ascending: true })
         .order('time', { ascending: true });
+      
+      // Filtrar apenas agendamentos futuros (considerando data E hora)
+      const futureAppointments = patientAppointments?.filter((apt: any) => {
+        const aptDateTime = `${apt.date} ${apt.time}`;
+        const nowDateTime = `${today} ${currentTime}`;
+        return aptDateTime > nowDateTime;
+      }) || [];
         
       console.log(`📋 Agendamentos encontrados para ${patient.full_name}:`, {
-        total: patientAppointments?.length || 0,
-        agendamentos: patientAppointments?.map((apt: any) => ({
+        total: futureAppointments.length,
+        todosAgendamentos: patientAppointments?.length || 0,
+        agendamentosFuturos: futureAppointments.map((apt: any) => ({
           id: apt.id,
           date: apt.date,
           time: apt.time,
           clinic_id: apt.clinic_id
-        })) || []
+        }))
       });
       
-      // Se encontrou agendamentos para este paciente, usa ele
-      if (patientAppointments && patientAppointments.length > 0) {
+      // Se encontrou agendamentos FUTUROS para este paciente, usa ele
+      if (futureAppointments.length > 0) {
         patientData = patient;
-        foundAppointments = patientAppointments;
-        console.log(`✅ Paciente com agendamentos encontrado: ${patient.full_name} (${patientAppointments.length} agendamentos)`);
+        foundAppointments = futureAppointments;
+        console.log(`✅ Paciente com agendamentos futuros encontrado: ${patient.full_name} (${futureAppointments.length} agendamentos)`);
         break;
+      } else if (patientAppointments && patientAppointments.length > 0) {
+        console.log(`⚠️ Paciente ${patient.full_name} tem agendamentos, mas todos já passaram`);
       }
     }
     
@@ -225,6 +240,26 @@ serve(async (req)=>{
       });
     }
     console.log('✅ Agendamento atualizado com sucesso no banco de dados.');
+    
+    // Registrar mensagem recebida do paciente no whatsapp_logs
+    console.log('📝 Registrando mensagem recebida do paciente no log...');
+    const { error: logReceivedError } = await supabase.from('whatsapp_logs').insert({
+      appointment_id: appointmentToUpdate.id,
+      patient_phone: cleanPhone,
+      message_type: 'response_received',
+      message_content: `Resposta do paciente: ${messageText}`,
+      status: 'delivered',
+      response_content: isConfirmation ? 'Confirmado' : 'Cancelado',
+      sent_at: new Date().toISOString(),
+      clinic_id: patientData.clinic_id
+    });
+    
+    if (logReceivedError) {
+      console.warn('⚠️ Erro ao registrar mensagem recebida no log:', logReceivedError);
+    } else {
+      console.log('✅ Mensagem recebida registrada no log');
+    }
+    
     // --- Início do Envio de Notificações de Feedback ---
     // Busca dados do profissional e configurações da API em paralelo para maior eficiência
     console.log(`🔍 Buscando configurações WhatsApp para a clínica: ${patientData.clinic_id}`);
@@ -245,42 +280,106 @@ serve(async (req)=>{
     // Apenas tenta enviar mensagens se houver uma configuração de API ativa
     if (settings?.api_key) {
       const appointmentDateFormatted = new Date(appointmentToUpdate.date).toLocaleDateString('pt-BR');
+      
       // 1. Envia feedback para o PACIENTE
-      const patientFeedbackMessage = isConfirmation ? `✅ Obrigado! \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} está *CONFIRMADA*.` : `✅ Entendido. \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
+      const patientFeedbackMessage = isConfirmation 
+        ? `✅ Obrigado! \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} está *CONFIRMADA*.` 
+        : `✅ Entendido. \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
+      
       const patientPhone = '55' + cleanPhone;
-      fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': settings.api_key
-        },
-        body: JSON.stringify({
-          number: patientPhone,
-          text: patientFeedbackMessage
-        })
-      }).then((res)=>{
-        if (res.ok) console.log('✅ Feedback enviado para o paciente.');
-        else console.error('⚠️ Falha ao enviar feedback para o paciente.');
-      }).catch((err)=>console.error('❌ Erro de rede ao enviar feedback para o paciente:', err));
-      // 2. Envia notificação para o FISIOTERAPEUTA
-      if (professional?.phone) {
-        const statusMessage = isConfirmation ? '✅ CONFIRMADA' : '❌ CANCELADA';
-        const physioMessage = `*ATUALIZAÇÃO DE CONSULTA* ${statusMessage}\n\n👤 *Paciente:* ${patientData.full_name}\n📅 *Data:* ${appointmentDateFormatted}\n🕐 *Horário:* ${appointmentToUpdate.time}\n\nO paciente respondeu via WhatsApp.`;
-        const physioPhone = '55' + professional.phone.replace(/\D/g, '');
-        fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+      
+      console.log('📤 Enviando feedback para paciente:', {
+        phone: patientPhone,
+        message: patientFeedbackMessage.substring(0, 50) + '...',
+        apiUrl: `${settings.base_url}/message/sendText/${settings.instance_name}`
+      });
+      
+      try {
+        const patientResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'apikey': settings.api_key
           },
           body: JSON.stringify({
-            number: physioPhone,
-            text: physioMessage
+            number: patientPhone,
+            text: patientFeedbackMessage
           })
-        }).then((res)=>{
-          if (res.ok) console.log('✅ Fisioterapeuta notificado com sucesso.');
-          else console.error('⚠️ Falha ao notificar fisioterapeuta.');
-        }).catch((err)=>console.error('❌ Erro de rede ao notificar fisioterapeuta:', err));
+        });
+        
+        const patientResponseData = await patientResponse.json();
+        
+        if (patientResponse.ok) {
+          console.log('✅ Feedback enviado para o paciente com sucesso:', patientResponseData);
+          
+          // Registrar feedback enviado ao paciente no whatsapp_logs
+          const messageId = patientResponseData?.key?.id || patientResponseData?.message?.key?.id;
+          await supabase.from('whatsapp_logs').insert({
+            appointment_id: appointmentToUpdate.id,
+            patient_phone: cleanPhone,
+            message_type: isConfirmation ? 'confirmation_feedback' : 'cancellation_feedback',
+            message_content: patientFeedbackMessage,
+            status: 'delivered',
+            evolution_message_id: messageId,
+            sent_at: new Date().toISOString(),
+            clinic_id: patientData.clinic_id
+          });
+          console.log('✅ Feedback ao paciente registrado no log');
+        } else {
+          console.error('⚠️ Falha ao enviar feedback para o paciente. Status:', patientResponse.status, 'Resposta:', patientResponseData);
+        }
+      } catch (err) {
+        console.error('❌ Erro de rede ao enviar feedback para o paciente:', err);
+      }
+      
+      // 2. Envia notificação para o FISIOTERAPEUTA
+      if (professional?.phone) {
+        const statusMessage = isConfirmation ? '✅ CONFIRMADA' : '❌ CANCELADA';
+        const physioMessage = `*ATUALIZAÇÃO DE CONSULTA* ${statusMessage}\n\n👤 *Paciente:* ${patientData.full_name}\n📅 *Data:* ${appointmentDateFormatted}\n🕐 *Horário:* ${appointmentToUpdate.time}\n\nO paciente respondeu via WhatsApp.`;
+        const physioPhone = '55' + professional.phone.replace(/\D/g, '');
+        
+        console.log('📤 Enviando notificação para fisioterapeuta:', {
+          phone: physioPhone,
+          professional: professional.full_name
+        });
+        
+        try {
+          const physioResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': settings.api_key
+            },
+            body: JSON.stringify({
+              number: physioPhone,
+              text: physioMessage
+            })
+          });
+          
+          const physioResponseData = await physioResponse.json();
+          
+          if (physioResponse.ok) {
+            console.log('✅ Fisioterapeuta notificado com sucesso:', physioResponseData);
+            
+            // Registrar notificação ao fisioterapeuta no whatsapp_logs
+            const messageId = physioResponseData?.key?.id || physioResponseData?.message?.key?.id;
+            await supabase.from('whatsapp_logs').insert({
+              appointment_id: appointmentToUpdate.id,
+              patient_phone: professional.phone.replace(/\D/g, ''), // Telefone do profissional
+              message_type: 'professional_notification',
+              message_content: physioMessage,
+              status: 'delivered',
+              evolution_message_id: messageId,
+              sent_at: new Date().toISOString(),
+              clinic_id: patientData.clinic_id
+            });
+            console.log('✅ Notificação ao fisioterapeuta registrada no log');
+          } else {
+            console.error('⚠️ Falha ao notificar fisioterapeuta. Status:', physioResponse.status, 'Resposta:', physioResponseData);
+          }
+        } catch (err) {
+          console.error('❌ Erro de rede ao notificar fisioterapeuta:', err);
+        }
       }
     }
     /* // Bloco de log que estava dando erro, desativado conforme solicitado.

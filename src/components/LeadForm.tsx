@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClinic } from "@/contexts/ClinicContext";
+import { normalizePhone, isValidPhone } from '@/utils/formatters';
+import { toast } from 'sonner';
 
 interface LeadFormProps {
   onSave: () => void;
@@ -51,14 +53,22 @@ export function LeadForm({ onSave, onCancel }: LeadFormProps) {
     e.preventDefault();
     
     if (!formData.name || !formData.email || !formData.phone || !formData.source) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      toast.error('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+    
+    // Normalize and validate phone
+    const normalizedPhone = normalizePhone(formData.phone);
+    
+    if (!isValidPhone(normalizedPhone)) {
+      toast.error('Telefone inválido. Use o formato: (66) 99999-9999');
       return;
     }
     
     const leadData = {
       name: formData.name,
       email: formData.email,
-      phone: formData.phone,
+      phone: normalizedPhone, // Use normalized phone
       source: formData.source as 'google_ads' | 'facebook_ads' | 'instagram_ads' | 'indicacao' | 'site' | 'outros',
       status: formData.status as 'novo' | 'contato_inicial' | 'agendamento' | 'avaliacao' | 'proposta' | 'cliente' | 'perdido',
       treatmentInterest: formData.treatmentInterest,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Eye, EyeOff, UserPlus, ArrowLeft, Building2, Mail, Lock, User, Phone, MapPin, Briefcase } from 'lucide-react';
+import { normalizePhone, isValidPhone } from '@/utils/formatters';
 
 export function SignUpPage() {
   const { signUp, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
@@ -19,15 +19,37 @@ export function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [signupSuccess, setSignupSuccess] = useState(false);
-  const [clinicData, setClinicData] = useState<any>(null);
+  const [signupSuccess, setSignupSuccess] = useState(() => {
+    return localStorage.getItem('signup_success') === 'true';
+  });
+  const [clinicData, setClinicData] = useState<any>(() => {
+    const saved = localStorage.getItem('signup_success_data');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  // Flag para forçar renderização da tela de sucesso
+  const [forceSuccessScreen, setForceSuccessScreen] = useState(false);
 
-  // Redirect if already logged in
+  // Log de re-renders para debug
+  console.log('🔄 SignUpPage render:', { 
+    signupSuccess, 
+    hasClinicData: !!clinicData, 
+    authLoading, 
+    loading,
+    hasUser: !!user,
+    forceSuccessScreen,
+    localStorageSuccess: localStorage.getItem('signup_success'),
+    localStorageData: !!localStorage.getItem('signup_success_data')
+  });
+
+  // Redirect if already logged in (mas não durante o processo de signup)
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && !signupSuccess && !loading) {
       console.log('✅ Usuário já logado, redirecionando...', {
         email: user.email,
-        redirectTo
+        redirectTo,
+        signupSuccess,
+        loading
       });
       
       // Prioridade: redirectTo > Dashboard padrão
@@ -39,7 +61,39 @@ export function SignUpPage() {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, authLoading, navigate, redirectTo, clearRedirectTo]);
+  }, [user, authLoading, navigate, redirectTo, clearRedirectTo, signupSuccess, loading]);
+
+  // Monitor mudanças em clinicData para debug
+  useEffect(() => {
+    if (clinicData) {
+      console.log('🔄 clinicData atualizado:', clinicData);
+      console.log('🔄 clinic_code disponível:', clinicData?.clinic?.clinic_code);
+    }
+  }, [clinicData]);
+
+  // Verificar localStorage a cada render para sincronizar estados
+  useEffect(() => {
+    const localSuccess = localStorage.getItem('signup_success') === 'true';
+    const localData = localStorage.getItem('signup_success_data');
+    
+    if (localSuccess && localData && (!signupSuccess || !clinicData)) {
+      console.log('🔄 Sincronizando estados com localStorage');
+      setSignupSuccess(true);
+      setClinicData(JSON.parse(localData));
+    }
+  }, [signupSuccess, clinicData]);
+
+  // Verificação inicial na montagem do componente
+  useEffect(() => {
+    const localSuccess = localStorage.getItem('signup_success') === 'true';
+    const localData = localStorage.getItem('signup_success_data');
+    
+    if (localSuccess && localData) {
+      console.log('🚀 Carregamento inicial: dados encontrados no localStorage');
+      setSignupSuccess(true);
+      setClinicData(JSON.parse(localData));
+    }
+  }, []); // Executa apenas uma vez na montagem
 
   const [signUpForm, setSignUpForm] = useState({
     fullName: '',
@@ -50,8 +104,44 @@ export function SignUpPage() {
     role: '',
     clinicName: '',
     clinicAddress: '',
-    clinicPhone: ''
+    clinicPhone: '',
+    clinicCode: '' // Adicionar campo para código da clínica
   });
+
+  // Estado para controlar se é um cadastro via convite
+  const [isInvitedSignup, setIsInvitedSignup] = useState(false);
+  const [invitationData, setInvitationData] = useState<any>(null);
+
+  // Carregar dados do convite pendente, se houver
+  useEffect(() => {
+    const pendingInvite = localStorage.getItem('pendingInvitation');
+    
+    if (pendingInvite) {
+      try {
+        const inviteData = JSON.parse(pendingInvite);
+        console.log('📧 Convite pendente detectado:', inviteData);
+        
+        setIsInvitedSignup(true);
+        setInvitationData(inviteData);
+        
+        // Preencher automaticamente os campos do formulário
+        setSignUpForm(prev => ({
+          ...prev,
+          email: inviteData.email || '',
+          clinicCode: inviteData.clinicCode || '',
+          role: inviteData.role || '',
+        }));
+
+        // Mostrar toast informativo
+        toast.success(
+          `Bem-vindo! Você foi convidado para ${inviteData.clinicName}`,
+          { duration: 5000 }
+        );
+      } catch (error) {
+        console.error('Erro ao processar convite:', error);
+      }
+    }
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +161,22 @@ export function SignUpPage() {
       return;
     }
 
+    // Normalize and validate phone numbers
+    const normalizedPhone = normalizePhone(signUpForm.phone);
+    const normalizedClinicPhone = normalizePhone(signUpForm.clinicPhone);
+
+    if (signUpForm.phone && !isValidPhone(normalizedPhone)) {
+      toast.error('Telefone pessoal inválido. Use o formato: (66) 99999-9999');
+      setLoading(false);
+      return;
+    }
+
+    if (signUpForm.clinicPhone && !isValidPhone(normalizedClinicPhone)) {
+      toast.error('Telefone da clínica inválido. Use o formato: (66) 99999-9999');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -85,11 +191,11 @@ export function SignUpPage() {
         signUpForm.password, 
         {
           fullName: signUpForm.fullName,
-          phone: signUpForm.phone,
+          phone: normalizedPhone,
           role: signUpForm.role || 'admin',
           clinicName: signUpForm.clinicName,
           clinicAddress: signUpForm.clinicAddress,
-          clinicPhone: signUpForm.clinicPhone
+          clinicPhone: normalizedClinicPhone
         }
       );
 
@@ -97,11 +203,32 @@ export function SignUpPage() {
         throw error;
       }
       
+      // Debug: Verificar estrutura dos dados retornados
+      console.log('🔍 Dados completos retornados pelo signUp:', data);
+      console.log('🔍 Estrutura da clínica:', data?.clinic);
+      console.log('🔍 Código da clínica recebido:', data?.clinic?.clinic_code);
+      
       // Armazenar dados da clínica e mostrar tela de sucesso
+      console.log('📝 ANTES - Estados:', { signupSuccess, clinicData: !!clinicData });
+      console.log('📝 Definindo clinicData:', data);
+      
+      // Persistir no localStorage para sobreviver a re-renders
+      localStorage.setItem('signup_success_data', JSON.stringify(data));
+      localStorage.setItem('signup_success', 'true');
+      
+      console.log('📝 DEPOIS - localStorage definido');
+      console.log('✅ Clínica criada com sucesso, código:', data?.clinic?.clinic_code);
+      
+      // Estratégia: redirecionar imediatamente evitando re-renders do AuthContext
       setClinicData(data);
       setSignupSuccess(true);
+      setForceSuccessScreen(true);
       
-      console.log('✅ Clínica criada com sucesso:', data?.clinic?.clinic_code);
+      // Forçar reload da página para garantir que os dados sejam carregados
+      setTimeout(() => {
+        console.log('🔄 Recarregando página para exibir dados...');
+        window.location.reload();
+      }, 100);
     } catch (error: any) {
       console.error('❌ Erro no cadastro:', error);
       const errorMessage = error?.message || 'Erro ao criar conta';
@@ -127,8 +254,32 @@ export function SignUpPage() {
     );
   }
 
+  // Debug: Verificar estados antes da renderização
+  console.log('🔍 Estados atuais:', {
+    signupSuccess,
+    clinicData: !!clinicData,
+    authLoading,
+    loading
+  });
+
   // Tela de sucesso após cadastro
-  if (signupSuccess && clinicData) {
+  if ((signupSuccess && clinicData) || forceSuccessScreen) {
+    // Se forceSuccessScreen está ativo mas clinicData não existe, tentar recuperar do localStorage
+    const currentClinicData = clinicData || (() => {
+      const saved = localStorage.getItem('signup_success_data');
+      return saved ? JSON.parse(saved) : null;
+    })();
+    console.log('🎯 Renderizando tela de sucesso - currentClinicData:', currentClinicData);
+    console.log('🎯 Código na renderização:', currentClinicData?.clinic?.clinic_code);
+    console.log('🎯 ForceSuccessScreen ativo:', forceSuccessScreen);
+    
+    // Garantir que o clinic_code seja extraído corretamente
+    const clinicCode = currentClinicData?.clinic?.clinic_code;
+    const displayCode = clinicCode || 'Erro: Código não encontrado';
+    
+    console.log('🎯 Código extraído para exibição:', clinicCode);
+    console.log('🎯 Display code final:', displayCode);
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50 p-4">
         <Card className="w-full max-w-lg bg-white border-0 shadow-2xl">
@@ -147,7 +298,7 @@ export function SignUpPage() {
                   Código da Clínica
                 </h3>
                 <div className="text-3xl font-bold text-green-600 tracking-wider">
-                  {clinicData?.clinic?.clinic_code}
+                  {displayCode}
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
                   Guarde este código para adicionar outros usuários à sua clínica
@@ -156,13 +307,13 @@ export function SignUpPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-800 mb-2">
-                  {clinicData?.clinic?.name}
+                  {currentClinicData?.clinic?.name}
                 </h4>
                 <p className="text-sm text-gray-600">
-                  Administrador: {clinicData?.user?.full_name}
+                  Administrador: {currentClinicData?.user?.full_name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Email: {clinicData?.user?.email}
+                  Email: {currentClinicData?.user?.email}
                 </p>
               </div>
 
@@ -177,6 +328,11 @@ export function SignUpPage() {
             <div className="flex flex-col gap-3">
               <Button 
                 onClick={() => {
+                  // Limpar dados de sucesso do localStorage
+                  localStorage.removeItem('signup_success');
+                  localStorage.removeItem('signup_success_data');
+                  setForceSuccessScreen(false);
+                  
                   if (redirectTo) {
                     navigate(redirectTo, { replace: true });
                     clearRedirectTo();
@@ -192,12 +348,61 @@ export function SignUpPage() {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  navigator.clipboard.writeText(clinicData?.clinic?.clinic_code);
-                  toast.success('Código copiado para área de transferência!');
+                  if (clinicCode) {
+                    navigator.clipboard.writeText(clinicCode);
+                    toast.success('Código copiado para área de transferência!');
+                  } else {
+                    toast.error('Código não disponível para copiar');
+                  }
                 }}
                 className="w-full"
+                disabled={!clinicCode}
               >
                 Copiar Código da Clínica
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Tela de sucesso alternativa se clinicData não estiver definido
+  if (signupSuccess && !clinicData) {
+    console.log('⚠️ signupSuccess é true mas clinicData está undefined');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-4">
+        <Card className="w-full max-w-lg bg-white border-0 shadow-2xl">
+          <CardHeader className="text-center pb-6">
+            <div className="mx-auto w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+              <Building2 className="w-10 h-10 text-yellow-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-800">
+              Clínica Criada! ⚠️
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="text-center space-y-4">
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  Dados em Carregamento
+                </h3>
+                <p className="text-sm text-gray-600">
+                  A clínica foi criada com sucesso, mas os dados estão sendo processados.
+                  Verifique o console para mais detalhes.
+                </p>
+              </div>
+              <Button 
+                onClick={() => {
+                  // Limpar dados de sucesso do localStorage
+                  localStorage.removeItem('signup_success');
+                  localStorage.removeItem('signup_success_data');
+                  setForceSuccessScreen(false);
+                  navigate('/dashboard', { replace: true });
+                }}
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700"
+              >
+                Ir para Dashboard
               </Button>
             </div>
           </CardContent>
