@@ -18,7 +18,11 @@ import {
   Calendar,
   MessageSquare,
   DollarSign,
-  UserCog
+  UserCog,
+  BarChart,
+  HardDrive,
+  CreditCard,
+  Building
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import UserPermissionsManager from './UserPermissionsManager';
@@ -27,39 +31,61 @@ import InviteUserForm from './InviteUserForm';
 // Função para traduzir permissões
 const translatePermission = (permissionName: string): { label: string; description: string; icon: any } => {
   const translations: { [key: string]: { label: string; description: string; icon: any } } = {
-    'patients.view': { label: 'Visualizar Pacientes', description: 'Ver lista e detalhes de pacientes', icon: Users },
+    // Pacientes
+    'patients.read': { label: 'Visualizar Pacientes', description: 'Ver lista e detalhes de pacientes', icon: Users },
     'patients.create': { label: 'Cadastrar Pacientes', description: 'Criar novos registros de pacientes', icon: Users },
     'patients.update': { label: 'Editar Pacientes', description: 'Modificar dados de pacientes', icon: Users },
     'patients.delete': { label: 'Excluir Pacientes', description: 'Remover pacientes do sistema', icon: Users },
     'patients.manage': { label: 'Gerenciar Pacientes', description: 'Acesso total aos pacientes', icon: Users },
     
-    'professionals.view': { label: 'Visualizar Profissionais', description: 'Ver lista de profissionais', icon: UserCog },
+    // Profissionais
+    'professionals.read': { label: 'Visualizar Profissionais', description: 'Ver lista de profissionais', icon: UserCog },
     'professionals.create': { label: 'Cadastrar Profissionais', description: 'Adicionar novos profissionais', icon: UserCog },
     'professionals.update': { label: 'Editar Profissionais', description: 'Modificar dados de profissionais', icon: UserCog },
     'professionals.delete': { label: 'Excluir Profissionais', description: 'Remover profissionais', icon: UserCog },
     'professionals.manage': { label: 'Gerenciar Profissionais', description: 'Acesso total aos profissionais', icon: UserCog },
     
-    'appointments.view': { label: 'Visualizar Agenda', description: 'Ver agendamentos', icon: Calendar },
+    // Agendamentos
+    'appointments.read': { label: 'Visualizar Agenda', description: 'Ver agendamentos', icon: Calendar },
     'appointments.create': { label: 'Criar Agendamentos', description: 'Marcar novas consultas', icon: Calendar },
     'appointments.update': { label: 'Editar Agendamentos', description: 'Modificar consultas', icon: Calendar },
     'appointments.delete': { label: 'Cancelar Agendamentos', description: 'Remover consultas', icon: Calendar },
     'appointments.manage': { label: 'Gerenciar Agenda', description: 'Acesso total à agenda', icon: Calendar },
     
-    'financial.view': { label: 'Visualizar Financeiro', description: 'Ver dados financeiros', icon: DollarSign },
+    // Financeiro
+    'financial.read': { label: 'Visualizar Financeiro', description: 'Ver dados financeiros', icon: DollarSign },
     'financial.create': { label: 'Criar Lançamentos', description: 'Adicionar receitas/despesas', icon: DollarSign },
     'financial.update': { label: 'Editar Financeiro', description: 'Modificar lançamentos', icon: DollarSign },
     'financial.delete': { label: 'Excluir Lançamentos', description: 'Remover registros financeiros', icon: DollarSign },
     'financial.manage': { label: 'Gerenciar Financeiro', description: 'Acesso total ao financeiro', icon: DollarSign },
     
-    'reports.view': { label: 'Visualizar Relatórios', description: 'Ver relatórios do sistema', icon: FileText },
+    // Dashboard
+    'dashboard.read': { label: 'Visualizar Dashboard', description: 'Ver dashboard principal', icon: BarChart },
+    
+    // Relatórios
+    'reports.read': { label: 'Visualizar Relatórios', description: 'Ver relatórios do sistema', icon: FileText },
     'reports.manage': { label: 'Gerenciar Relatórios', description: 'Acesso total aos relatórios', icon: FileText },
     
-    'whatsapp.view': { label: 'Visualizar WhatsApp', description: 'Ver mensagens e configurações', icon: MessageSquare },
-    'whatsapp.send': { label: 'Enviar WhatsApp', description: 'Enviar mensagens', icon: MessageSquare },
-    'whatsapp.manage': { label: 'Gerenciar WhatsApp', description: 'Acesso total ao WhatsApp', icon: MessageSquare },
+    // WhatsApp
+    'whatsapp.read': { label: 'Visualizar Confirmações', description: 'Ver mensagens e configurações do WhatsApp', icon: MessageSquare },
+    'whatsapp.manage': { label: 'Gerenciar Confirmações', description: 'Acesso total ao WhatsApp', icon: MessageSquare },
     
-    'settings.view': { label: 'Visualizar Configurações', description: 'Ver configurações', icon: Settings },
+    // Configurações
+    'settings.read': { label: 'Visualizar Configurações', description: 'Ver configurações', icon: Settings },
+    'settings.update': { label: 'Editar Configurações', description: 'Modificar configurações básicas', icon: Settings },
     'settings.manage': { label: 'Gerenciar Configurações', description: 'Acesso total às configurações', icon: Settings },
+    
+    // Super Admin
+    'superadmin.manage_users': { label: 'Gerenciar Usuários', description: 'Gerenciar usuários de todas as clínicas', icon: Users },
+    'superadmin.manage_permissions': { label: 'Gerenciar Permissões', description: 'Gerenciar sistema de permissões', icon: Shield },
+    'superadmin.database_access': { label: 'Acesso ao Banco', description: 'Acesso direto ao banco de dados', icon: Database },
+    'superadmin.system_logs': { label: 'Logs do Sistema', description: 'Acessar logs do sistema', icon: FileText },
+    'superadmin.backup_restore': { label: 'Backup/Restore', description: 'Realizar backup e restore do sistema', icon: HardDrive },
+    
+    // Sistema
+    'system.manage_billing': { label: 'Gerenciar Cobrança', description: 'Gerenciar cobrança e assinaturas das clínicas', icon: CreditCard },
+    'system.create_clinics': { label: 'Criar Clínicas', description: 'Criar novas clínicas no sistema', icon: Building },
+    'system.manage_all_clinics': { label: 'Gerenciar Todas Clínicas', description: 'Acesso a todas as clínicas do sistema', icon: Building },
   };
   
   return translations[permissionName] || { 
