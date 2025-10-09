@@ -173,7 +173,8 @@ serve(async (req) => {
         message_type: 'confirmation',
         message_content: physioMessage,
         status: 'sent',
-        evolution_message_id: whatsappResult.key?.id || 'test_' + Date.now()
+        evolution_message_id: whatsappResult.key?.id || 'test_' + Date.now(),
+        clinic_id: appointmentData.clinic_id
       });
 
     if (logError) {

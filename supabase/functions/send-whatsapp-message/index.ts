@@ -364,7 +364,8 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
         message_content: message,
         status: deliveryStatus,
         evolution_message_id: messageId,
-        error_message: deliveryStatus === 'failed' ? 'Erro na API WhatsApp' : null
+        error_message: deliveryStatus === 'failed' ? 'Erro na API WhatsApp' : null,
+        clinic_id: appointment.clinic_id
       });
 
     if (logError) {

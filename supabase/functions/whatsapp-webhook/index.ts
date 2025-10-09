@@ -170,7 +170,8 @@ serve(async (req) => {
                   message_type: result.action === 'confirmed' ? 'confirmation_notification' : 'cancellation_notification',
                   message_content: physioMessage,
                   status: 'sent',
-                  evolution_message_id: physioResult.key?.id || null
+                  evolution_message_id: physioResult.key?.id || null,
+                  clinic_id: result.clinic_id
                 });
 
               console.log(`🎉 Fisioterapeuta notificado sobre ${result.action} com sucesso`);

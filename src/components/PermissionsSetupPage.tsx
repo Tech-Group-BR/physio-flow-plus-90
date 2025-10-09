@@ -66,9 +66,11 @@ const translatePermission = (permissionName: string): { label: string; descripti
     'reports.read': { label: 'Visualizar Relatórios', description: 'Ver relatórios do sistema', icon: FileText },
     'reports.manage': { label: 'Gerenciar Relatórios', description: 'Acesso total aos relatórios', icon: FileText },
     
-    // WhatsApp
+    // Confirmações (antigo WhatsApp)
     'whatsapp.read': { label: 'Visualizar Confirmações', description: 'Ver mensagens e configurações do WhatsApp', icon: MessageSquare },
     'whatsapp.manage': { label: 'Gerenciar Confirmações', description: 'Acesso total ao WhatsApp', icon: MessageSquare },
+    'confirmations.read': { label: 'Visualizar Confirmações', description: 'Ver logs e configurações de confirmações WhatsApp', icon: MessageSquare },
+    'confirmations.manage': { label: 'Gerenciar Confirmações', description: 'Acesso completo às confirmações WhatsApp', icon: MessageSquare },
     
     // Configurações
     'settings.read': { label: 'Visualizar Configurações', description: 'Ver configurações', icon: Settings },
@@ -193,7 +195,7 @@ export function PermissionsSetupPage() {
                     Acesso completo a todas as funcionalidades do sistema
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {['patients.manage', 'professionals.manage', 'appointments.manage', 'financial.manage', 'reports.manage', 'whatsapp.manage', 'settings.manage'].map(perm => {
+                    {['patients.manage', 'professionals.manage', 'appointments.manage', 'financial.manage', 'reports.manage', 'confirmations.manage', 'settings.manage'].map(perm => {
                       const trans = translatePermission(perm);
                       const Icon = trans.icon;
                       return (
@@ -217,7 +219,7 @@ export function PermissionsSetupPage() {
                     Acesso à agenda, pacientes e prontuários
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {['patients.view', 'patients.create', 'patients.update', 'appointments.view', 'appointments.create', 'appointments.update'].map(perm => {
+                    {['patients.read', 'patients.create', 'patients.update', 'appointments.read', 'appointments.create', 'appointments.update'].map(perm => {
                       const trans = translatePermission(perm);
                       const Icon = trans.icon;
                       return (
@@ -241,7 +243,7 @@ export function PermissionsSetupPage() {
                     Gerenciamento de pacientes, agenda e financeiro básico
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {['patients.view', 'patients.create', 'patients.update', 'appointments.view', 'appointments.create', 'appointments.update', 'financial.view', 'financial.create'].map(perm => {
+                    {['patients.read', 'patients.create', 'patients.update', 'appointments.read', 'appointments.create', 'appointments.update', 'financial.read', 'financial.create'].map(perm => {
                       const trans = translatePermission(perm);
                       const Icon = trans.icon;
                       return (
@@ -265,7 +267,7 @@ export function PermissionsSetupPage() {
                     Visualização de informações dos pacientes vinculados
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {['patients.view', 'appointments.view'].map(perm => {
+                    {['patients.read', 'appointments.read'].map(perm => {
                       const trans = translatePermission(perm);
                       const Icon = trans.icon;
                       return (

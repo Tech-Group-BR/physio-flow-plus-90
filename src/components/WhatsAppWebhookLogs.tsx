@@ -1,29 +1,49 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, RefreshCw, Trash2, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useClinic } from "@/contexts/ClinicContext";
 
 export function WhatsAppWebhookLogs() {
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [messageTypeFilter, setMessageTypeFilter] = useState<string>('all');
+  const { user } = useAuth();
+  const { currentUser } = useClinic();
 
   useEffect(() => {
     loadLogs();
-  }, []);
+  }, [messageTypeFilter]);
 
   const loadLogs = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const clinicId = currentUser?.clinicId || user?.user_metadata?.clinic_id;
+      
+      if (!clinicId) {
+        setLogs([]);
+        return;
+      }
+
+      let query = supabase
         .from('whatsapp_logs')
         .select('*')
+        .eq('clinic_id', clinicId)
         .order('sent_at', { ascending: false })
         .limit(50);
+
+      // Aplicar filtro por tipo de mensagem se não for "all"
+      if (messageTypeFilter !== 'all') {
+        query = query.eq('message_type', messageTypeFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setLogs(data || []);
@@ -37,10 +57,17 @@ export function WhatsAppWebhookLogs() {
 
   const clearLogs = async () => {
     try {
+      const clinicId = currentUser?.clinicId || user?.user_metadata?.clinic_id;
+      
+      if (!clinicId) {
+        toast.error('Erro: Clínica não identificada');
+        return;
+      }
+
       const { error } = await supabase
         .from('whatsapp_logs')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .eq('clinic_id', clinicId);
 
       if (error) throw error;
 
@@ -55,8 +82,10 @@ export function WhatsAppWebhookLogs() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'sent': return 'bg-green-100 text-green-800';
+      case 'delivered': return 'bg-blue-100 text-blue-800';
       case 'received': return 'bg-blue-100 text-blue-800';
       case 'error': return 'bg-red-100 text-red-800';
+      case 'failed': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -66,8 +95,12 @@ export function WhatsAppWebhookLogs() {
       case 'confirmation': return 'Confirmação';
       case 'reminder': return 'Lembrete';
       case 'response_received': return 'Resposta Recebida';
+      case 'professional_notification': return 'Notificação Profissional';
       case 'confirmation_notification': return 'Notificação Confirmação';
       case 'cancellation_notification': return 'Notificação Cancelamento';
+      case 'confirmation_feedback': return 'Feedback Confirmação';
+      case 'cancellation_feedback': return 'Feedback Cancelamento';
+      case 'notification': return 'Notificação';
       default: return type;
     }
   };
@@ -77,8 +110,25 @@ export function WhatsAppWebhookLogs() {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <CardTitle className="text-xl sm:text-2xl font-bold">Logs do Webhook WhatsApp</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold">Logs de Confirmações WhatsApp</CardTitle>
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+              <Select value={messageTypeFilter} onValueChange={setMessageTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filtrar por tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="confirmation">Confirmação</SelectItem>
+                  <SelectItem value="reminder">Lembrete</SelectItem>
+                  <SelectItem value="response_received">Resposta Recebida</SelectItem>
+                  <SelectItem value="professional_notification">Notificação Profissional</SelectItem>
+                  <SelectItem value="confirmation_notification">Notificação Confirmação</SelectItem>
+                  <SelectItem value="cancellation_notification">Notificação Cancelamento</SelectItem>
+                  <SelectItem value="confirmation_feedback">Feedback Confirmação</SelectItem>
+                  <SelectItem value="cancellation_feedback">Feedback Cancelamento</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 onClick={loadLogs}
                 disabled={isLoading}
@@ -149,11 +199,23 @@ export function WhatsAppWebhookLogs() {
                         <div><strong>ID:</strong> {log.id}</div>
                         <div><strong>Appointment ID:</strong> {log.appointment_id || 'N/A'}</div>
                         <div><strong>Evolution Message ID:</strong> {log.evolution_message_id || 'N/A'}</div>
+                        <div><strong>Clínica ID:</strong> {log.clinic_id || 'N/A'}</div>
+                        {log.error_message && (
+                          <div><strong>Erro:</strong> <span className="text-red-600">{log.error_message}</span></div>
+                        )}
                         {log.response_content && (
                           <div>
                             <strong>Response Content:</strong>
                             <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
-                              {JSON.stringify(JSON.parse(log.response_content), null, 2)}
+                              {(() => {
+                                try {
+                                  // Tenta fazer parse do JSON se for uma string JSON válida
+                                  return JSON.stringify(JSON.parse(log.response_content), null, 2);
+                                } catch (error) {
+                                  // Se não for JSON válido, mostra como texto simples
+                                  return log.response_content;
+                                }
+                              })()}
                             </pre>
                           </div>
                         )}
