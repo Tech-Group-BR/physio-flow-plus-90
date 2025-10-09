@@ -54,6 +54,8 @@ const Index = () => {
                 <Route path="/agenda" element={<AgendaPageWithRecurrence />} />
                 <Route path="/pacientes" element={<PatientsPage />} />
                 <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
+                <Route path="/pacientes/:id/anamnese" element={<PatientDetailsPage />} />
+                <Route path="/pacientes/:id/evolucao" element={<PatientDetailsPage />} />
                 {/* <Route path="/prontuarios" element={<MedicalRecordsPage />} /> */}
                 <Route path="/prontuario/:patientId" element={<AnamnesisDetailsPage />} />
                 <Route path="/prontuario/evolucao/:evoId" element={<EvolutionDetailsPage />} />

@@ -5,11 +5,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { getStatusColor } from "@/utils/agendaUtils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2 } from "lucide-react";
+import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2, BookOpen, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppointmentEditForm } from "./AppointmentEditForm";
 import { Link } from "react-router-dom";
+import { useClinic } from "@/contexts/ClinicContext";
+import { MedicalRecordForm } from "../MedicalRecordForm";
+import { EvolutionForm } from "../EvolutionForm";
 
 interface AppointmentDetailsModalProps {
   appointment: any;
@@ -37,8 +40,16 @@ export function AppointmentDetailsModal({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp' | null, title: string, description: string }>({ action: null, title: '', description: '' });
+  const [showAnamneseForm, setShowAnamneseForm] = useState(false);
+  const [showEvolutionForm, setShowEvolutionForm] = useState(false);
+  const [creatingBasicRecord, setCreatingBasicRecord] = useState(false);
+  const { medicalRecords, addMedicalRecord } = useClinic();
 
   if (!appointment || !patient) return null;
+
+  // Verificar se o paciente já tem anamnese (medical record)
+  const patientMedicalRecord = medicalRecords.find(record => record.patientId === patient.id);
+  const hasAnamnese = !!patientMedicalRecord;
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -91,6 +102,54 @@ export function AppointmentDetailsModal({
   const showConfirmDialog = (action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp', title: string, description: string) => {
     setConfirmAction({ action, title, description });
   };
+
+  const createBasicMedicalRecord = async () => {
+    try {
+      setCreatingBasicRecord(true);
+      
+      const basicRecord = {
+        patientId: patient.id,
+        anamnesis: {
+          chiefComplaint: 'Registro criado automaticamente para evolução',
+          historyOfPresentIllness: '',
+          pastMedicalHistory: '',
+          medications: '',
+          allergies: '',
+          socialHistory: ''
+        },
+        evolutions: [],
+        files: []
+      };
+
+      await addMedicalRecord(basicRecord);
+      
+      // Aguardar um pouco para o contexto atualizar
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao criar registro médico básico:', error);
+      toast.error('Erro ao criar registro médico. Tente novamente.');
+      return false;
+    } finally {
+      setCreatingBasicRecord(false);
+    }
+  };
+
+  const handleEvolutionButtonClick = async () => {
+    if (patientMedicalRecord) {
+      // Se já tem medical record, abrir direto
+      setShowEvolutionForm(true);
+    } else {
+      // Se não tem medical record, criar um básico primeiro
+      const created = await createBasicMedicalRecord();
+      if (created) {
+        setShowEvolutionForm(true);
+      }
+    }
+  };
+
+
 
   const handleConfirmedAction = () => {
     switch (confirmAction.action) {
@@ -200,17 +259,64 @@ export function AppointmentDetailsModal({
 
           {/* Informações do Paciente */}
           <div className="border rounded-lg p-4 space-y-3">
-            <h3 className="font-semibold flex items-center space-x-2">
-              <User className="h-4 w-4" />
-              <span>Paciente</span>
-              <Link
-                to={`/pacientes/${patient.id}`}
-                className="ml-2 text-blue-600 underline text-xs"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Ver ficha
-              </Link>
+            <h3 className="font-semibold flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <User className="h-4 w-4" />
+                <span>Paciente</span>
+                <Link
+                  to={`/pacientes/${patient.id}`}
+                  className="ml-2 text-blue-600 underline text-xs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver ficha
+                </Link>
+              </div>
+              <div className="flex items-center space-x-2">
+                {hasAnamnese ? (
+                  // Se já tem anamnese, mostrar botão para ver anamnese (ir para página do paciente)
+                  <Link
+                    to={`/pacientes/${patient.id}`}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ClipboardList className="h-3 w-3" />
+                    <span>Ver Anamnese</span>
+                  </Link>
+                ) : (
+                  // Se não tem anamnese, mostrar botão para criar
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors border-0 h-auto"
+                    onClick={() => setShowAnamneseForm(true)}
+                  >
+                    <ClipboardList className="h-3 w-3" />
+                    <span>Criar Anamnese</span>
+                  </Button>
+                )}
+                {/* Sempre mostrar botão de evolução */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="flex items-center space-x-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors border-0 h-auto"
+                  onClick={handleEvolutionButtonClick}
+                  disabled={creatingBasicRecord}
+                >
+                  {creatingBasicRecord ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Preparando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="h-3 w-3" />
+                      <span>Nova Evolução</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -426,6 +532,73 @@ export function AppointmentDetailsModal({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Modal de Anamnese */}
+    <Dialog open={showAnamneseForm} onOpenChange={setShowAnamneseForm}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center space-x-2">
+              <ClipboardList className="h-5 w-5" />
+              <span>Anamnese - {patient.fullName}</span>
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAnamneseForm(false)}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
+        </DialogHeader>
+        <MedicalRecordForm
+          patient={patient}
+          onSave={() => {
+            setShowAnamneseForm(false);
+            toast.success('Anamnese salva com sucesso!');
+          }}
+          onCancel={() => setShowAnamneseForm(false)}
+        />
+      </DialogContent>
+    </Dialog>
+
+    {/* Modal de Evolução */}
+    <Dialog open={showEvolutionForm} onOpenChange={setShowEvolutionForm}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span className="flex items-center space-x-2">
+              <BookOpen className="h-5 w-5" />
+              <span>Evolução - {patient.fullName}</span>
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEvolutionForm(false)}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </DialogTitle>
+        </DialogHeader>
+        {patientMedicalRecord ? (
+          <EvolutionForm
+            record={patientMedicalRecord}
+            onSave={() => {
+              setShowEvolutionForm(false);
+              toast.success('Evolução salva com sucesso!');
+            }}
+            onCancel={() => setShowEvolutionForm(false)}
+          />
+        ) : (
+          <div className="p-4 text-center">
+            <p className="text-gray-600 mb-4">Preparando formulário de evolução...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

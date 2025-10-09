@@ -36,7 +36,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
-import { normalizePhone, isValidPhone } from '@/utils/formatters';
+import { normalizePhone, isValidPhone, formatLocalDate } from '@/utils/formatters';
 
 interface ProfessionalStats {
   totalAppointments: number;
@@ -630,7 +630,7 @@ export function ProfessionalDetailsPage() {
                               {patient?.fullName || 'Paciente não encontrado'}
                             </Link>
                             <p className="text-sm text-gray-600">
-                              {format(new Date(appointment.date), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                              {format(new Date(appointment.date + 'T' + appointment.time), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                             </p>
                           </div>
                         </div>
@@ -693,7 +693,7 @@ export function ProfessionalDetailsPage() {
                               </Badge>
                               {lastAppointment && (
                                 <span className="text-xs text-gray-500 truncate">
-                                  Última: {format(new Date(lastAppointment.date), 'dd/MM/yyyy')}
+                                  Última: {formatLocalDate(lastAppointment.date)}
                                 </span>
                               )}
                             </div>
@@ -746,7 +746,7 @@ export function ProfessionalDetailsPage() {
                               {patient?.fullName || 'Paciente não encontrado'}
                             </Link>
                             <p className="text-sm text-gray-600">
-                              {format(new Date(appointment.date), "dd/MM/yyyy 'às' HH:mm")}
+                              {format(new Date(appointment.date + 'T' + appointment.time), "dd/MM/yyyy 'às' HH:mm")}
                             </p>
                           </div>
                           <Badge 
@@ -871,7 +871,7 @@ export function ProfessionalDetailsPage() {
                           {patient?.fullName || 'Paciente não encontrado'}
                         </Link>
                         <p className="text-sm text-gray-600">
-                          {format(new Date(receivable.dueDate), 'dd/MM/yyyy')}
+                          {formatLocalDate(receivable.dueDate)}
                         </p>
                       </div>
                       <div className="text-right">

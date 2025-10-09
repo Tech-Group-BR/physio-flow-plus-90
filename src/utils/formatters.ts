@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+
 /**
  * Utilitários para formatação e normalização de dados
  */
@@ -161,4 +163,30 @@ export function isValidPhone(phone: string): boolean {
   // Telefone fixo: 10 dígitos (XX XXXX-XXXX)
   // Telefone celular: 11 dígitos (XX 9XXXX-XXXX)
   return cleaned.length === 10 || cleaned.length === 11;
+}
+
+/**
+ * Formata data evitando problemas de fuso horário
+ * Interpreta a data como local em vez de UTC para evitar deslocamento de um dia
+ * 
+ * @param dateString - String de data (YYYY-MM-DD ou ISO)
+ * @param formatStr - Formato desejado (padrão: 'dd/MM/yyyy')
+ * @param locale - Locale para formatação (padrão: ptBR)
+ * @returns Data formatada
+ * 
+ * @example
+ * formatLocalDate("2023-12-25") // "25/12/2023"
+ * formatLocalDate("2023-12-25T10:30:00", 'dd/MM/yyyy HH:mm') // "25/12/2023 10:30"
+ */
+export function formatLocalDate(dateString: string, formatStr: string = 'dd/MM/yyyy', locale: any = undefined): string {
+  if (!dateString) return '';
+  
+  // Se a data contém 'T' (tem horário), usar como está
+  if (dateString.includes('T')) {
+    return format(new Date(dateString), formatStr, { locale });
+  }
+  
+  // Se é apenas data (YYYY-MM-DD), adicionar horário para evitar problemas de fuso
+  const dateWithTime = dateString + 'T12:00:00';
+  return format(new Date(dateWithTime), formatStr, { locale });
 }

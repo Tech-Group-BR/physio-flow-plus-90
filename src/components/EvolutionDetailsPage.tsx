@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useClinic } from '@/contexts/ClinicContext';
 import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatLocalDate } from '@/utils/formatters';
 
 export function EvolutionDetailsPage() {
   const { evoId } = useParams<{ evoId: string }>();
@@ -60,7 +61,7 @@ export function EvolutionDetailsPage() {
         <div>
           <h1 className="text-3xl font-bold">Detalhes da Evolução</h1>
           <p className="text-muted-foreground">
-            Registrado em {format(new Date(evolution.date), 'dd/MM/yyyy')}
+            Registrado em {formatLocalDate(evolution.date)}
             {professional && ` por ${professional.name}`}
           </p>
         </div>

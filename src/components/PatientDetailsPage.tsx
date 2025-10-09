@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,9 @@ import {
 import { Patient, MedicalRecord, Evolution } from "@/types";
 import { useClinic } from '@/contexts/ClinicContext';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import { formatLocalDate } from '@/utils/formatters';
 import { MedicalRecordForm } from './MedicalRecordForm';
 import { EvolutionForm } from './EvolutionForm';
 import { toast } from "sonner";
@@ -37,6 +39,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { 
     patients, 
     medicalRecords, 
@@ -76,6 +79,15 @@ export function PatientDetailsPage() {
   const patientMedicalRecord = medicalRecords.find(mr => mr.patientId === id);
   const patientEvolutions = evolutions.filter(e => e.recordId === patientMedicalRecord?.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
+  // Detectar rota e abrir modais automaticamente
+  useEffect(() => {
+    if (location.pathname.includes('/anamnese')) {
+      setShowMedicalRecordForm(true);
+    } else if (location.pathname.includes('/evolucao')) {
+      setShowEvolutionForm(true);
+    }
+  }, [location.pathname]);
+
   // Função helper para determinar status dos agendamentos
   const getAppointmentStatus = (appointment: any) => {
     return appointment.status || 'marcado';
@@ -235,13 +247,37 @@ export function PatientDetailsPage() {
   const handleSaveMedicalRecord = () => {
     setShowMedicalRecordForm(false);
     fetchMedicalRecords();
+    // Se veio de uma rota específica, voltar para a página do paciente
+    if (location.pathname.includes('/anamnese')) {
+      navigate(`/pacientes/${id}`);
+    }
     toast.success('Anamnese salva com sucesso!');
   };
 
   const handleSaveEvolution = () => {
     setShowEvolutionForm(false);
     fetchEvolutions();
+    // Se veio de uma rota específica, voltar para a página do paciente
+    if (location.pathname.includes('/evolucao')) {
+      navigate(`/pacientes/${id}`);
+    }
     toast.success('Evolução salva com sucesso!');
+  };
+
+  const handleCancelMedicalRecord = () => {
+    setShowMedicalRecordForm(false);
+    // Se veio de uma rota específica, voltar para a página do paciente
+    if (location.pathname.includes('/anamnese')) {
+      navigate(`/pacientes/${id}`);
+    }
+  };
+
+  const handleCancelEvolution = () => {
+    setShowEvolutionForm(false);
+    // Se veio de uma rota específica, voltar para a página do paciente
+    if (location.pathname.includes('/evolucao')) {
+      navigate(`/pacientes/${id}`);
+    }
   };
 
   if (isLoading) {
@@ -389,29 +425,42 @@ export function PatientDetailsPage() {
                 <MedicalRecordForm 
                   patient={patient}
                   onSave={handleSaveMedicalRecord}
-                  onCancel={() => setShowMedicalRecordForm(false)}
+                  onCancel={handleCancelMedicalRecord}
                 />
               </DialogContent>
             </Dialog>
           )}
           
-          {patientMedicalRecord && (
-            <Dialog open={showEvolutionForm} onOpenChange={setShowEvolutionForm}>
-              <DialogTrigger asChild>
-                <Button className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Evolução
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <EvolutionForm 
-                  record={patientMedicalRecord}
-                  onSave={handleSaveEvolution}
-                  onCancel={() => setShowEvolutionForm(false)}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
+          <Dialog open={showEvolutionForm} onOpenChange={setShowEvolutionForm}>
+            <DialogTrigger asChild>
+              <Button className="w-full" variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Evolução
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <EvolutionForm 
+                record={patientMedicalRecord || {
+                  id: 'temp-' + patient.id,
+                  patientId: patient.id,
+                  anamnesis: {
+                    chiefComplaint: '',
+                    historyOfPresentIllness: '',
+                    pastMedicalHistory: '',
+                    medications: '',
+                    allergies: '',
+                    socialHistory: ''
+                  },
+                  evolutions: [],
+                  files: [],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }}
+                onSave={handleSaveEvolution}
+                onCancel={handleCancelEvolution}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -435,7 +484,7 @@ export function PatientDetailsPage() {
                 {renderDetail("Telefone", patient.phone)}
                 {renderDetail("Email", patient.email)}
                 {renderDetail("CPF", patient.cpf)}
-                {patient.birth_date && renderDetail("Data de nascimento", format(new Date(patient.birth_date), 'dd/MM/yyyy'))}
+                {patient.birth_date && renderDetail("Data de nascimento", formatLocalDate(patient.birth_date))}
                 {renderDetail("Gênero", patient.gender)}
               </CardContent>
             </Card>
@@ -533,7 +582,7 @@ export function PatientDetailsPage() {
                         <div key={evolution.id} className="border-l-4 border-blue-500 pl-4">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                             <span className="font-medium text-sm">
-                              {format(new Date(evolution.date), 'dd/MM/yyyy')}
+                              {formatLocalDate(evolution.date)}
                             </span>
                             <Link 
                               to={`/prontuario/evolucao/${evolution.id}`}
@@ -739,7 +788,7 @@ export function PatientDetailsPage() {
                         <div className="flex-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                           <div>
                             <div className="font-medium">
-                              {format(new Date(appointment.date), 'dd/MM/yyyy')} às {appointment.time}
+                              {format(new Date(appointment.date + 'T' + appointment.time), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                             </div>
                             <div className="text-sm text-gray-600">
                               {appointment.treatmentType || 'Consulta'}
@@ -934,8 +983,8 @@ export function PatientDetailsPage() {
                               )}
                             </div>
                             <div className="text-sm text-gray-600 space-y-1">
-                              <p>Comprado em: {format(new Date(pkg.purchase_date), 'dd/MM/yyyy')}</p>
-                              <p>Válido até: {format(new Date(pkg.expiry_date), 'dd/MM/yyyy')}</p>
+                              <p>Comprado em: {formatLocalDate(pkg.purchase_date)}</p>
+                              <p>Válido até: {formatLocalDate(pkg.expiry_date)}</p>
                               <p className="font-medium">
                                 Valor: R$ {parseFloat(packageDetails.price).toFixed(2).replace('.', ',')}
                               </p>
@@ -1045,7 +1094,7 @@ export function PatientDetailsPage() {
                           <div>
                             <div className="font-medium">{receivable.description}</div>
                             <div className="text-sm text-gray-600">
-                              Vencimento: {format(new Date(receivable.dueDate), 'dd/MM/yyyy')}
+                              Vencimento: {formatLocalDate(receivable.dueDate)}
                             </div>
                           </div>
                           <div className="text-left sm:text-right">

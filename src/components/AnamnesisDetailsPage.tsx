@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Evolution } from '@/types';
 import { ArrowLeft, FilePlus, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatLocalDate } from '@/utils/formatters';
 import { useClinic } from '@/contexts/ClinicContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EvolutionForm } from './EvolutionForm';
@@ -118,7 +119,7 @@ export function AnamnesisDetailsPage() {
                      <div className="border-l-2 border-primary pl-4 cursor-pointer hover:bg-muted/50 transition-colors duration-200">
                        <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-1">
                          <Calendar className="h-3 w-3" />
-                         <span>{format(new Date(evo.date), 'dd/MM/yyyy')}</span>
+                         <span>{formatLocalDate(evo.date)}</span>
                        </div>
                        <p className="text-sm line-clamp-2">{evo.observations}</p>
                      </div>

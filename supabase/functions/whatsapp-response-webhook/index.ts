@@ -51,8 +51,108 @@ serve(async (req)=>{
         }
       });
     }
-    const isConfirmation = messageText === '1';
-    const isCancellation = messageText === '2';
+ const normalizarTexto = (messageText: any) => {
+  return messageText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+};
+
+const confirmacoes = new Set([
+  '1', 'sim', 's', 'ok', 'confirmo', 'confirmado', 'confirma', 'certo',
+  'combinado', 'fechado', 'positivo', 'afirmativo', 'isso', 'correto',
+  'exato', 'exatamente',
+
+  // Formais / Educados
+  'confirmo sim', 'sim confirmo', 'sim confirmado', 'confirmado, obrigado',
+  'está confirmado', 'eu confirmo', 'quero confirmar sim', 'pode confirmar',
+  'presença confirmada', 'confirmo a presença', 'de acordo',
+
+  // Informais / Gírias
+  'blz', 'blza', 'beleza', 'fmz', 'firmeza', 'pdc', 'pode crer', 'demorou',
+  'ja e', 'já é', 'fechou', 'show', 'top', 'joia', 'joinha', 'claro', 'com certeza',
+  'certeza', 'sem duvida', 'pode pa', 'ta certo', 'ta ok', 'tá ok', 'tá certo',
+  'pode contar', 'tamo junto',
+
+  // Respostas a perguntas de confirmação
+  'vou', 'quero', 'irei', 'comparecerei', 'estarei presente', 'estarei aí', 'estarei ai',
+
+  // Variações com erros de digitação comuns
+  'sin', 'si', 'simm', 'confimado', 'comfirmado', 'okey', 'ok,', 'concerteza',
+  'confermo', 'confirnado', 'beleca', 'belza', 'fechadooo',
+  'vlw', '👍', '👍🏻', '👍🏼', '👍🏽', '👍🏾', '👍🏿', '👌', '👌🏻', '👌🏼', '👌🏽', '👌🏾', '👌🏿',
+  '✅', '✔️', '🆗', '✔', '☑', '🤙', '😉', '😊', '🙂', '😃', '😄'
+]);
+
+const cancelamentos = new Set([
+'2', 'não', 'nao', 'n', 'cancelo', 'cancelar', 'cancelado', 'errado',
+  'incorreto', 'negativo', 'jamais',
+
+  // Formais / Educados
+  'quero cancelar', 'pode cancelar', 'não poderei ir', 'nao poderei ir',
+  'infelizmente não poderei', 'infelizmente nao poderei', 'solicito o cancelamento',
+  'peço para cancelar', 'gostaria de cancelar',
+
+  // Informais
+  'não vou', 'nao vou', 'não quero', 'nao quero', 'não vai dar', 'nao vai dar',
+  'deixa pra proxima', 'deixa para a próxima', 'foi mal', 'nem rola', 'sem chance',
+  'dispenso', 'não, obrigado', 'nao, obrigado',
+
+  // Relacionados a imprevistos
+  'imprevisto', 'tive um imprevisto', 'não consigo', 'nao consigo', 'não posso',
+  'nao posso', 'não poderei comparecer', 'nao poderei comparecer',
+
+  // Variações com erros de digitação
+  'naum', 'ñ', 'nao posso ir', 'canselar', 'cancelá', 'cançelar', 'cancelado',
+  'nao vai da', 'imprevisto',
+
+  // Emojis
+  '👎', '👎🏻', '👎🏼', '👎🏽', '👎🏾', '👎🏿', // Joinha para baixo
+  '❌', '✖', '❎', '✖️',                   // Xis / Errado
+  '🚫',                                  // Proibido
+]);
+
+const mensagemPaciente = messageText; // Sua variável com a mensagem
+const mensagemNormalizada = normalizarTexto(mensagemPaciente);
+
+let isConfirmation = confirmacoes.has(mensagemNormalizada);
+let isCancellation = cancelamentos.has(mensagemNormalizada);
+
+if (!isConfirmation && !isCancellation) {
+  // Verifica se a frase contém palavras-chave
+  const contemConfirmacao = [
+  'confirmo',
+  'confirmado',
+  'confirma',  // A raiz 'confirm' é ótima
+  'estarei presente',
+  'estarei ai',
+  'com certeza',
+  'pode contar',
+  'tudo certo',
+  'presença confirmada',
+  'manter o agendamento', // Captura frases como "gostaria de manter o agendamento"
+  'ta combinado',
+  'ta fechado'
+].some(palavra => mensagemNormalizada.includes(palavra));
+  const contemCancelamento = [
+  'cancelar',   // A raiz 'cancel' é a mais importante
+  'cancela',
+  'desmarcar',
+  'remarcar',  // "Remarcar" implica o cancelamento do horário atual
+  'nao posso ir',
+  'nao poderei',
+  'nao consigo',
+  'nao vai dar',
+  'nao tenho como ir',
+  'outro dia',
+  'outra data',
+  'tive um imprevisto',
+  'nao comparecerei'
+].some(palavra => mensagemNormalizada.includes(palavra));
+
+  if (contemConfirmacao && !contemCancelamento) {
+      isConfirmation = true;
+  } else if (contemCancelamento && !contemConfirmacao) {
+      isCancellation = true;
+  }
+}
     if (!isConfirmation && !isCancellation) {
       console.log('⚠️ Resposta inválida, não é 1 ou 2:', messageText);
       return new Response(JSON.stringify({
