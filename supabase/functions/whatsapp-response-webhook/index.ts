@@ -167,10 +167,50 @@ if (!isConfirmation && !isCancellation) {
     }
     console.log(`✅ Resposta válida recebida: "${messageText}"`);
     // --- Início do Processamento da Lógica Principal ---
-    // Limpa o número de telefone do remetente para o formato usado no banco de dados
+    // Extrai o número de telefone do remetente, priorizando senderPn para grupos/listas
     const remoteJid = payload.data.key.remoteJid;
-    const phoneWithCountryCode = remoteJid.match(/\d+/)?.[0] || '';
+    const senderPn = payload.data.key.senderPn;
+    
+    console.log('📞 Identificando telefone do remetente:', {
+      remoteJid,
+      senderPn,
+      isGroup: remoteJid?.includes('@g.us'),
+      isList: remoteJid?.includes('@lid')
+    });
+    
+    let phoneSource = '';
+    let phoneWithCountryCode = '';
+    
+    // Priorizar senderPn quando disponível (para grupos/listas)
+    if (senderPn) {
+      phoneWithCountryCode = senderPn.match(/\d+/)?.[0] || '';
+      phoneSource = 'senderPn';
+      console.log('📱 Usando senderPn como fonte do telefone:', phoneWithCountryCode);
+    } else if (remoteJid?.includes('@lid')) {
+      // Para listas sem senderPn, não conseguimos identificar o remetente
+      console.log('⚠️ Mensagem de lista sem senderPn - não é possível identificar o remetente.');
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Mensagem de lista sem identificação do remetente.'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    } else {
+      phoneWithCountryCode = remoteJid.match(/\d+/)?.[0] || '';
+      phoneSource = 'remoteJid';
+      console.log('📱 Usando remoteJid como fonte do telefone:', phoneWithCountryCode);
+    }
+    
     let cleanPhone = phoneWithCountryCode.startsWith('55') ? phoneWithCountryCode.substring(2) : phoneWithCountryCode;
+    
+    console.log('🧹 Telefone limpo extraído:', {
+      original: phoneWithCountryCode,
+      clean: cleanPhone,
+      source: phoneSource
+    });
     // Gera variações do número para busca
     const variations = new Set();
     variations.add(cleanPhone);
@@ -185,7 +225,8 @@ if (!isConfirmation && !isCancellation) {
     }
     // Adiciona variações com 55
     for (const v of Array.from(variations)){
-      if (!v.startsWith('55')) variations.add('55' + v);
+      const vStr = String(v);
+      if (!vStr.startsWith('55')) variations.add('55' + vStr);
     }
     // --- SOLUÇÃO 3: Busca TODOS os pacientes com aquele telefone ---
     console.log('🔍 SOLUÇÃO 3: Buscando TODOS os pacientes com as variações de telefone...');
@@ -208,6 +249,7 @@ if (!isConfirmation && !isCancellation) {
     
     console.log('👥 Pacientes encontrados com este telefone:', {
       total: allPatientsFound.length,
+      variacoesTentadas: Array.from(variations),
       pacientes: allPatientsFound.map((p: any) => ({
         id: p.id,
         nome: p.full_name,
@@ -216,7 +258,10 @@ if (!isConfirmation && !isCancellation) {
     });
     
     if (allPatientsFound.length === 0) {
-      console.error('⚠️ Nenhum paciente encontrado no banco de dados (testadas variações):', Array.from(variations).join(', '), patientError);
+      console.error('⚠️ Nenhum paciente encontrado no banco de dados');
+      console.error('📞 Fonte do telefone:', phoneSource);
+      console.error('🔍 Variações testadas:', Array.from(variations).join(', '));
+      console.error('💾 Erro da consulta:', patientError);
       return new Response(JSON.stringify({
         success: false,
         message: 'Paciente não encontrado.'
@@ -235,54 +280,70 @@ if (!isConfirmation && !isCancellation) {
     let patientData = null;
     let foundAppointments = null;
     
-    // Definir datas de busca
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
-    
-    const searchUntil = new Date();
-    searchUntil.setDate(searchUntil.getDate() + 14);
-    const dateLimit = searchUntil.toISOString().split('T')[0];
-    
-    console.log(`⏰ Filtro temporal: Hoje: ${today} ${currentTime}, Até: ${dateLimit}`);
+    // Definir datas de busca - usando horário de Cuiabá (UTC-4)
+  // Cálculo seguro para timezone de Cuiabá (UTC-4)
+  const now = new Date();
+  const utcTimestamp = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const cuiabaOffsetMs = -4 * 60 * 60 * 1000; // UTC-4
+  const nowCuiaba = new Date(utcTimestamp + cuiabaOffsetMs);
+  const today = nowCuiaba.toISOString().split('T')[0];
+  const currentTime = nowCuiaba.toTimeString().split(' ')[0].substring(0, 5);
+
+  const searchUntil = new Date(nowCuiaba);
+  searchUntil.setDate(searchUntil.getDate() + 14);
+  const dateLimit = searchUntil.toISOString().split('T')[0];
+
+  console.log(`⏰ Filtro temporal (Cuiabá): Hoje: ${today} ${currentTime}, Até: ${dateLimit}`);
     
     for (const patient of allPatientsFound) {
       console.log(`🔍 Testando paciente: ${patient.full_name} (ID: ${patient.id}, Clínica: ${patient.clinic_id})`);
       
-      // Busca agendamentos para este paciente
+      // Busca agendamentos para este paciente (apenas os que tiveram confirmação enviada)
       const { data: patientAppointments, error: appointmentError } = await supabase
         .from('appointments')
-        .select('id, date, time, professional_id, clinic_id, status')
+        .select('id, date, time, professional_id, clinic_id, status, confirmation_sent_at')
         .eq('patient_id', patient.id)
         .gte('date', today)
         .lte('date', dateLimit)
         .eq('status', 'marcado')
+        .not('confirmation_sent_at', 'is', null)
         .order('date', { ascending: true })
         .order('time', { ascending: true });
       
-      // Filtrar apenas agendamentos futuros (considerando data E hora)
+      // Filtrar apenas agendamentos futuros (considerando data E hora) e que tiveram confirmação enviada
       const futureAppointments = patientAppointments?.filter((apt: any) => {
         const aptDateTime = `${apt.date} ${apt.time}`;
         const nowDateTime = `${today} ${currentTime}`;
-        return aptDateTime > nowDateTime;
+        return aptDateTime > nowDateTime && apt.confirmation_sent_at !== null;
       }) || [];
+      
+      // Pegar apenas o PRIMEIRO agendamento (mais próximo) para evitar confirmações múltiplas
+      const nextAppointment = futureAppointments.length > 0 ? [futureAppointments[0]] : [];
         
       console.log(`📋 Agendamentos encontrados para ${patient.full_name}:`, {
         total: futureAppointments.length,
         todosAgendamentos: patientAppointments?.length || 0,
+        proximoAgendamento: nextAppointment.length > 0 ? {
+          id: nextAppointment[0].id,
+          date: nextAppointment[0].date,
+          time: nextAppointment[0].time,
+          clinic_id: nextAppointment[0].clinic_id,
+          confirmation_sent_at: nextAppointment[0].confirmation_sent_at
+        } : null,
         agendamentosFuturos: futureAppointments.map((apt: any) => ({
           id: apt.id,
           date: apt.date,
           time: apt.time,
-          clinic_id: apt.clinic_id
+          clinic_id: apt.clinic_id,
+          confirmation_sent_at: apt.confirmation_sent_at
         }))
       });
       
-      // Se encontrou agendamentos FUTUROS para este paciente, usa ele
-      if (futureAppointments.length > 0) {
+      // Se encontrou o PRÓXIMO agendamento FUTURO para este paciente, usa ele
+      if (nextAppointment.length > 0) {
         patientData = patient;
-        foundAppointments = futureAppointments;
-        console.log(`✅ Paciente com agendamentos futuros encontrado: ${patient.full_name} (${futureAppointments.length} agendamentos)`);
+        foundAppointments = nextAppointment; // Apenas o próximo agendamento
+        console.log(`✅ Paciente com próximo agendamento encontrado: ${patient.full_name} - Agendamento: ${nextAppointment[0].date} ${nextAppointment[0].time}`);
         break;
       } else if (patientAppointments && patientAppointments.length > 0) {
         console.log(`⚠️ Paciente ${patient.full_name} tem agendamentos, mas todos já passaram`);
@@ -311,7 +372,13 @@ if (!isConfirmation && !isCancellation) {
       id: patientData.id,
       name: patientData.full_name,
       clinic_id: patientData.clinic_id,
-      appointmentsFound: foundAppointments.length
+      appointmentsFound: foundAppointments.length,
+      nextAppointment: {
+        id: foundAppointments[0].id,
+        date: foundAppointments[0].date,
+        time: foundAppointments[0].time,
+        confirmation_sent_at: foundAppointments[0].confirmation_sent_at
+      }
     });
 
     // Usa os agendamentos já encontrados
@@ -321,11 +388,11 @@ if (!isConfirmation && !isCancellation) {
     const newStatus = isConfirmation ? 'confirmado' : 'cancelado';
     console.log(`🔄 Atualizando agendamento [${appointmentToUpdate.id}] para status: ${newStatus}`);
     // Atualiza o agendamento no banco de dados
-    const { error: updateError } = await supabase.from('appointments').update({
+    const { data: updatedAppointment, error: updateError } = await supabase.from('appointments').update({
       status: newStatus,
       whatsapp_confirmed: isConfirmation,
       patient_confirmed_at: new Date().toISOString()
-    }).eq('id', appointmentToUpdate.id);
+    }).eq('id', appointmentToUpdate.id).select().single();
     if (updateError) {
       console.error('❌ Erro ao atualizar agendamento:', updateError);
       return new Response(JSON.stringify({
@@ -339,7 +406,7 @@ if (!isConfirmation && !isCancellation) {
         }
       });
     }
-    console.log('✅ Agendamento atualizado com sucesso no banco de dados.');
+    console.log('✅ Agendamento atualizado com sucesso no banco de dados.', { updatedAppointment });
     
     // Registrar mensagem recebida do paciente no whatsapp_logs
     console.log('📝 Registrando mensagem recebida do paciente no log...');
@@ -409,12 +476,12 @@ if (!isConfirmation && !isCancellation) {
         
         const patientResponseData = await patientResponse.json();
         
-        if (patientResponse.ok) {
+          if (patientResponse.ok) {
           console.log('✅ Feedback enviado para o paciente com sucesso:', patientResponseData);
-          
-          // Registrar feedback enviado ao paciente no whatsapp_logs
+
+          // Registrar feedback enviado ao paciente no whatsapp_logs (captura de erro)
           const messageId = patientResponseData?.key?.id || patientResponseData?.message?.key?.id;
-          await supabase.from('whatsapp_logs').insert({
+          const { data: feedbackLogData, error: feedbackLogError } = await supabase.from('whatsapp_logs').insert({
             appointment_id: appointmentToUpdate.id,
             patient_phone: cleanPhone,
             message_type: isConfirmation ? 'confirmation_feedback' : 'cancellation_feedback',
@@ -423,8 +490,12 @@ if (!isConfirmation && !isCancellation) {
             evolution_message_id: messageId,
             sent_at: new Date().toISOString(),
             clinic_id: patientData.clinic_id
-          });
-          console.log('✅ Feedback ao paciente registrado no log');
+          }).select();
+          if (feedbackLogError) {
+            console.warn('⚠️ Erro ao registrar feedback ao paciente no log:', feedbackLogError);
+          } else {
+            console.log('✅ Feedback ao paciente registrado no log', { feedbackLogData });
+          }
         } else {
           console.error('⚠️ Falha ao enviar feedback para o paciente. Status:', patientResponse.status, 'Resposta:', patientResponseData);
         }
@@ -458,12 +529,12 @@ if (!isConfirmation && !isCancellation) {
           
           const physioResponseData = await physioResponse.json();
           
-          if (physioResponse.ok) {
+            if (physioResponse.ok) {
             console.log('✅ Fisioterapeuta notificado com sucesso:', physioResponseData);
-            
-            // Registrar notificação ao fisioterapeuta no whatsapp_logs
+
+            // Registrar notificação ao fisioterapeuta no whatsapp_logs (captura de erro)
             const messageId = physioResponseData?.key?.id || physioResponseData?.message?.key?.id;
-            await supabase.from('whatsapp_logs').insert({
+            const { data: physioLogData, error: physioLogError } = await supabase.from('whatsapp_logs').insert({
               appointment_id: appointmentToUpdate.id,
               patient_phone: professional.phone.replace(/\D/g, ''), // Telefone do profissional
               message_type: 'professional_notification',
@@ -472,8 +543,12 @@ if (!isConfirmation && !isCancellation) {
               evolution_message_id: messageId,
               sent_at: new Date().toISOString(),
               clinic_id: patientData.clinic_id
-            });
-            console.log('✅ Notificação ao fisioterapeuta registrada no log');
+            }).select();
+            if (physioLogError) {
+              console.warn('⚠️ Erro ao registrar notificação ao fisioterapeuta no log:', physioLogError);
+            } else {
+              console.log('✅ Notificação ao fisioterapeuta registrada no log', { physioLogData });
+            }
           } else {
             console.error('⚠️ Falha ao notificar fisioterapeuta. Status:', physioResponse.status, 'Resposta:', physioResponseData);
           }
