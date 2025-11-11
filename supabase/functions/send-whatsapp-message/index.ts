@@ -281,12 +281,12 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
 
     try {
       console.log('🚀 Sending to WhatsApp API:', {
-        url: `${settings.base_url}/message/sendText/${settings.instance_name}`,
+        url: `${settings.base_url}message/sendText/${settings.instance_name}`,
         number: formattedPhone,
         messageLength: message.length
       });
 
-      const apiResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+      const apiResponse = await fetch(`${settings.base_url}message/sendText/${settings.instance_name}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +321,7 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
         error: apiError.message,
         stack: apiError.stack,
         formattedPhone,
-        fullUrl: `${settings.base_url}/message/sendText/${settings.instance_name}`,
+        fullUrl: `${settings.base_url}message/sendText/${settings.instance_name}`,
         requestBody: JSON.stringify({
           number: formattedPhone,
           text: message
@@ -344,7 +344,7 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
           message: `Erro no envio da mensagem: ${apiError.message}`,
           status: 'failed',
           debug: {
-            url: `${settings.base_url}/message/sendText/${settings.instance_name}`,
+            url: `${settings.base_url}message/sendText/${settings.instance_name}`,
             phone: formattedPhone,
             apiKeyExists: !!settings.api_key,
             error: apiError.message
