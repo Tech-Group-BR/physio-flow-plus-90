@@ -124,21 +124,12 @@ serve(async (req: any) => {
     let payment: any = null
 
     if (isAnnualPlan) {
-      // 💳 ANUAL: Usar API de PAYMENTS com 12 parcelas (installmentCount)
-      console.log('[ANNUAL] Plano ANUAL detectado - Criando payment com 12 parcelas no Asaas...')
+      // 💳 ANUAL PARCELADO: Tokenizar cartão e cobrar 1ª parcela, depois seu sistema cobra as outras 11
+      console.log('[ANNUAL] Plano ANUAL detectado - Tokenizando cartão e criando 1ª parcela...')
       
-      const paymentData: any = {
-        customer: customerId,
-        billingType: billingType,
-        value: Number(value),
-        dueDate: dueDate,
-        description: description || 'Assinatura Anual PhysioFlow Plus - 12x',
-        externalReference: externalReference,
-        installmentCount: 12, // 12 parcelas para plano anual
-        installmentValue: Number((value / 12).toFixed(2))
-      }
-
-      // Se for cartão de crédito, incluir dados do cartão
+      let cardToken = null
+      
+      // Se for cartão de crédito, TOKENIZAR primeiro (não enviar dados crus)
       if (billingType === 'CREDIT_CARD' && creditCard && creditCardHolderInfo) {
         if (!creditCardHolderInfo.name || !creditCardHolderInfo.cpfCnpj) {
           console.log('[WARNING] Cartão sem dados completos para antifraude', { creditCardHolderInfo })
@@ -147,11 +138,53 @@ serve(async (req: any) => {
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
+
+        // TOKENIZAR CARTÃO (Asaas guarda o cartão criptografado e retorna token)
+        console.log('[TOKENIZATION] Tokenizando cartão no Asaas...')
+        const tokenizeResponse = await fetch(`${asaasBaseUrl}/creditCard/tokenize`, {
+          method: 'POST',
+          headers: {
+            'access_token': asaasApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customer: customerId,
+            creditCard: creditCard,
+            creditCardHolderInfo: creditCardHolderInfo
+          })
+        })
+
+        if (tokenizeResponse.ok) {
+          const tokenData = await tokenizeResponse.json()
+          cardToken = tokenData.creditCardToken
+          console.log('[SUCCESS] Cartão tokenizado:', cardToken)
+        } else {
+          const errorText = await tokenizeResponse.text()
+          console.error('[ERROR] Erro ao tokenizar cartão:', errorText)
+        }
+      }
+
+      // Criar pagamento apenas da 1ª parcela (valor total / 12)
+      const monthlyValue = Number((value / 12).toFixed(2))
+      const paymentData: any = {
+        customer: customerId,
+        billingType: billingType,
+        value: monthlyValue, // Apenas 1ª parcela
+        dueDate: dueDate,
+        description: description || 'Assinatura Anual PhysioFlow Plus - Parcela 1/12',
+        externalReference: externalReference
+      }
+
+      // Se tiver token, usar ele (mais seguro)
+      if (cardToken && billingType === 'CREDIT_CARD') {
+        paymentData.creditCardToken = cardToken
+      } else if (billingType === 'CREDIT_CARD' && creditCard) {
+        // Fallback: enviar dados do cartão diretamente
         paymentData.creditCard = creditCard
         paymentData.creditCardHolderInfo = creditCardHolderInfo
       }
 
-      // Chamar API de PAYMENTS do Asaas (não subscriptions!)
+      // Chamar API de PAYMENTS do Asaas (apenas 1ª parcela!)
       const paymentResponse = await fetch(`${asaasBaseUrl}/payments`, {
         method: 'POST',
         headers: {
@@ -168,7 +201,13 @@ serve(async (req: any) => {
       }
 
       payment = await paymentResponse.json()
-      console.log('[SUCCESS] Payment anual com 12 parcelas criado no Asaas:', payment.id)
+      console.log('[SUCCESS] 1ª parcela criada no Asaas:', payment.id)
+      
+      // Guardar token para cobranças futuras
+      if (cardToken) {
+        payment.cardToken = cardToken
+        console.log('[INFO] Token será guardado para cobranças mensais automáticas')
+      }
       
     } else {
       // 🔄 TRIMESTRAL/SEMESTRAL: Usar API de SUBSCRIPTIONS (recorrência nativa)
@@ -289,6 +328,9 @@ serve(async (req: any) => {
     }
 
     // Salvar pagamento no Supabase com todos os campos corretos
+    const monthlyValue = isAnnualPlan ? Number((value / 12).toFixed(2)) : value
+    const nextChargeDate = isAnnualPlan ? new Date(new Date(dueDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
+    
     console.log('[DB] Salvando pagamento com:', {
       asaas_payment_id: payment.id,
       asaas_subscription_id: asaasSubscription?.id || null,
@@ -297,7 +339,10 @@ serve(async (req: any) => {
       customer_id: customerId,
       plan_id: productId,
       is_installment_plan: isAnnualPlan,
-      installment_count: isAnnualPlan ? 12 : 1
+      installment_count: isAnnualPlan ? 12 : 1,
+      asaas_card_token: payment.cardToken || null,
+      auto_charge_enabled: isAnnualPlan && !!payment.cardToken,
+      next_charge_date: nextChargeDate
     })
     
     const { error: dbError } = await supabaseClient
@@ -309,15 +354,18 @@ serve(async (req: any) => {
         clinic_id: resolvedClinicId,
         customer_id: customerId,
         plan_id: productId,
-        value: value,
+        value: monthlyValue, // Valor mensal para planos anuais
         status: payment.status,
         billing_type: billingType.toLowerCase(),
         due_date: dueDate,
-        description: description || (isAnnualPlan ? 'Assinatura Anual PhysioFlow Plus - 12x' : 'Assinatura PhysioFlow Plus'),
+        description: description || (isAnnualPlan ? 'Assinatura Anual PhysioFlow Plus - Parcela 1/12' : 'Assinatura PhysioFlow Plus'),
         pix_payload: null, // Será preenchido depois se for PIX
         is_installment_plan: isAnnualPlan, // True se for plano anual
         installment_count: isAnnualPlan ? 12 : 1, // 12 parcelas se anual, 1 se não
         current_installment: 1, // Primeira parcela
+        asaas_card_token: payment.cardToken || null, // TOKEN do cartão (NÃO dados reais)
+        auto_charge_enabled: isAnnualPlan && !!payment.cardToken, // Auto-charge habilitado se tiver token
+        next_charge_date: nextChargeDate, // Próxima cobrança daqui 30 dias
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
