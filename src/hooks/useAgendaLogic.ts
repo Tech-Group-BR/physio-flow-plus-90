@@ -63,24 +63,17 @@ export const useAgendaLogic = () => {
     return dateMatch && physioMatch && roomMatch;
   });
 
-  const getAppointmentForSlot = (date: Date, slotStart: string, excludeAppointmentId?: string) => {
-    // slotStart: "08:00", "08:30", etc
+  const getAppointmentForSlot = (dateString: string | Date, slotStart: string, excludeAppointmentId?: string) => {
+    // Converter para string "YYYY-MM-DD" se for Date
+    const slotDateStr = typeof dateString === 'string' ? dateString : dateString.toISOString().split('T')[0];
+    
+    // Extrair hora e minuto do slot (ex: "11:30" -> [11, 30])
     const [slotHour, slotMinute] = slotStart.split(':').map(Number);
-    const slotStartDate = new Date(date);
-    slotStartDate.setHours(slotHour, slotMinute, 0, 0);
-
-    // Slot dura 30 minutos
-    const slotEndDate = new Date(slotStartDate);
-    slotEndDate.setMinutes(slotEndDate.getMinutes() + 30);
-
-    // Normalizar data do slot para comparação (sem hora)
-    const slotDateOnly = new Date(date);
-    slotDateOnly.setHours(0, 0, 0, 0);
     
     console.log('🔎 getAppointmentForSlot - Buscando conflito:', {
-      date: date.toISOString(),
-      slotDateOnly: slotDateOnly.toISOString(),
+      dateString: slotDateStr,
       slotStart,
+      slotTime: `${slotHour}:${slotMinute}`,
       excludeAppointmentId,
       totalAppointments: filteredAppointments.length
     });
@@ -94,36 +87,37 @@ export const useAgendaLogic = () => {
         return false;
       }
 
-      // Constrói a data da consulta
-      const [year, month, day] = apt.date.split('-').map(Number);
-      const aptDateOnly = new Date(year, month - 1, day);
-      aptDateOnly.setHours(0, 0, 0, 0);
-
-      console.log('📅 Comparando datas:', {
-        slotDate: slotDateOnly.toISOString(),
-        aptDate: aptDateOnly.toISOString(),
-        slotTimestamp: slotDateOnly.getTime(),
-        aptTimestamp: aptDateOnly.getTime()
-      });
-
-      // PRIMEIRO verifica se é o mesmo dia (sem considerar hora)
-      const sameDay = aptDateOnly.getTime() === slotDateOnly.getTime();
+      // PRIMEIRO verifica se é o mesmo dia (comparação simples de strings)
+      const sameDay = apt.date === slotDateStr;
       
-      console.log('📅 Mesmo dia?', sameDay);
+      console.log('📅 Comparando datas:', {
+        slotDate: slotDateStr,
+        aptDate: apt.date,
+        sameDay
+      });
       
       if (!sameDay) {
+        console.log('✅ Dias diferentes, sem conflito');
         return false; // Se não for o mesmo dia, não há conflito
       }
 
-      // Se for o mesmo dia, então verifica se há conflito de horário
+      // Se for o mesmo dia, verifica conflito de horário
+      // Extrair hora e minuto do agendamento (ex: "11:30:00" -> [11, 30])
       const [aptHour, aptMinute] = apt.time.split(':').map(Number);
-      const aptDate = new Date(year, month - 1, day, aptHour, aptMinute, 0, 0);
-      const inSlot = aptDate >= slotStartDate && aptDate < slotEndDate;
+      
+      // Converter tudo para minutos desde meia-noite para facilitar comparação
+      const aptTimeInMinutes = aptHour * 60 + aptMinute;
+      const slotStartInMinutes = slotHour * 60 + slotMinute;
+      const slotEndInMinutes = slotStartInMinutes + 30; // Slot dura 30 minutos
+      
+      // Verifica se o horário do agendamento está dentro do slot
+      const inSlot = aptTimeInMinutes >= slotStartInMinutes && aptTimeInMinutes < slotEndInMinutes;
 
       console.log('⏰ Conflito de horário?', inSlot, {
-        aptDateTime: aptDate.toISOString(),
-        slotStart: slotStartDate.toISOString(),
-        slotEnd: slotEndDate.toISOString()
+        aptTime: `${aptHour}:${aptMinute}`,
+        aptTimeInMinutes,
+        slotStartInMinutes,
+        slotEndInMinutes
       });
 
       return inSlot;
@@ -140,10 +134,9 @@ export const useAgendaLogic = () => {
       
       // Verificar conflitos de horário se data/hora foram alterados
       if (updates.date && updates.time) {
-        const appointmentDate = new Date(updates.date);
         console.log('🔍 Verificando conflito - Data:', updates.date, 'Hora:', updates.time, 'ID excluído:', appointmentId);
         
-        const conflictingAppointment = getAppointmentForSlot(appointmentDate, updates.time, appointmentId);
+        const conflictingAppointment = getAppointmentForSlot(updates.date, updates.time, appointmentId);
         
         console.log('🔍 Agendamento conflitante encontrado:', conflictingAppointment);
         
