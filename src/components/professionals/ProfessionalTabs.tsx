@@ -13,11 +13,11 @@ import {
   Star
 } from "lucide-react";
 import { Professional, Patient, Appointment } from "@/types";
-import { ProfessionalOverviewTab } from "./components/ProfessionalOverviewTab";
-import { ProfessionalPatientsTab } from "./components/ProfessionalPatientsTab";
-import { ProfessionalAppointmentsTab } from "./components/ProfessionalAppointmentsTab";
-import { ProfessionalFinancialTab } from "./components/ProfessionalFinancialTab";
-import { ProfessionalAnalyticsTab } from "./components/ProfessionalAnalyticsTab";
+import { ProfessionalOverviewTab } from "./ProfessionalOverviewTab";
+import { ProfessionalPatientsTab } from "./ProfessionalPatientsTab";
+import { ProfessionalAppointmentsTab } from "./ProfessionalAppointmentsTab";
+import { ProfessionalFinancialTab } from "./ProfessionalFinancialTab";
+import { ProfessionalAnalyticsTab } from "./ProfessionalAnalyticsTab";
 
 interface Stats {
   totalAppointments: number;
