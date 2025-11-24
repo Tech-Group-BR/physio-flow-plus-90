@@ -1,602 +1,211 @@
-// Importa as funções necessárias do Deno e do Supabase
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
-// Define os headers de CORS para permitir que a API seja chamada de qualquer origem
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-};
-// Inicia o servidor da Edge Function, que escutará por requisições
-serve(async (req)=>{
-  // Loga a chegada de qualquer requisição para fins de debug
-  console.log('🔌 Webhook recebido:', req.method, req.url);
-  // O navegador envia uma requisição OPTIONS antes de um POST para verificar as permissões de CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: corsHeaders
-    });
-  }
-  try {
-    // Inicializa o cliente do Supabase para interagir com o banco de dados
-    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    // Lê e interpreta o corpo da requisição como JSON
-    const payload = await req.json();
-    console.log('📨 Payload recebido:', JSON.stringify(payload, null, 2));
-    // --- Início das Validações e Filtros Essenciais ---
-    // Filtro 1: Ignora qualquer evento que não seja uma nova mensagem (`messages.upsert`)
-    // ou qualquer mensagem que tenha sido enviada por você mesmo (`fromMe: true`)
-    if (payload.event !== 'messages.upsert' || payload.data.key.fromMe) {
-      console.log('⚠️ Evento ignorado - não é uma nova mensagem de usuário.');
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Evento ignorado.'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    // Filtro 2: Extrai o texto da mensagem de forma segura e ignora se estiver vazia
-    const messageText = (payload.data.message?.conversation || payload.data.message?.extendedTextMessage?.text || '').trim();
-    if (!messageText) {
-      console.log('⚠️ Mensagem recebida sem conteúdo de texto.');
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Mensagem sem texto.'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
- const normalizarTexto = (messageText: any) => {
-  return messageText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const confirmacoes = new Set([
-  '1', 'sim', 's', 'ok', 'confirmo', 'confirmado', 'confirma', 'certo',
-  'combinado', 'fechado', 'positivo', 'afirmativo', 'isso', 'correto',
-  'exato', 'exatamente',
-
-  // Formais / Educados
-  'confirmo sim', 'sim confirmo', 'sim confirmado', 'confirmado, obrigado',
-  'está confirmado', 'eu confirmo', 'quero confirmar sim', 'pode confirmar',
-  'presença confirmada', 'confirmo a presença', 'de acordo',
-
-  // Informais / Gírias
-  'blz', 'blza', 'beleza', 'fmz', 'firmeza', 'pdc', 'pode crer', 'demorou',
-  'ja e', 'já é', 'fechou', 'show', 'top', 'joia', 'joinha', 'claro', 'com certeza',
-  'certeza', 'sem duvida', 'pode pa', 'ta certo', 'ta ok', 'tá ok', 'tá certo',
-  'pode contar', 'tamo junto',
-
-  // Respostas a perguntas de confirmação
-  'vou', 'quero', 'irei', 'comparecerei', 'estarei presente', 'estarei aí', 'estarei ai',
-
-  // Variações com erros de digitação comuns
-  'sin', 'si', 'simm', 'confimado', 'comfirmado', 'okey', 'ok,', 'concerteza',
-  'confermo', 'confirnado', 'beleca', 'belza', 'fechadooo',
-  'vlw', '👍', '👍🏻', '👍🏼', '👍🏽', '👍🏾', '👍🏿', '👌', '👌🏻', '👌🏼', '👌🏽', '👌🏾', '👌🏿',
-  '✅', '✔️', '🆗', '✔', '☑', '🤙', '😉', '😊', '🙂', '😃', '😄'
-]);
-
-const cancelamentos = new Set([
-'2', 'não', 'nao', 'n', 'cancelo', 'cancelar', 'cancelado', 'errado',
-  'incorreto', 'negativo', 'jamais',
-
-  // Formais / Educados
-  'quero cancelar', 'pode cancelar', 'não poderei ir', 'nao poderei ir',
-  'infelizmente não poderei', 'infelizmente nao poderei', 'solicito o cancelamento',
-  'peço para cancelar', 'gostaria de cancelar',
-
-  // Informais
-  'não vou', 'nao vou', 'não quero', 'nao quero', 'não vai dar', 'nao vai dar',
-  'deixa pra proxima', 'deixa para a próxima', 'foi mal', 'nem rola', 'sem chance',
-  'dispenso', 'não, obrigado', 'nao, obrigado',
-
-  // Relacionados a imprevistos
-  'imprevisto', 'tive um imprevisto', 'não consigo', 'nao consigo', 'não posso',
-  'nao posso', 'não poderei comparecer', 'nao poderei comparecer',
-
-  // Variações com erros de digitação
-  'naum', 'ñ', 'nao posso ir', 'canselar', 'cancelá', 'cançelar', 'cancelado',
-  'nao vai da', 'imprevisto',
-
-  // Emojis
-  '👎', '👎🏻', '👎🏼', '👎🏽', '👎🏾', '👎🏿', // Joinha para baixo
-  '❌', '✖', '❎', '✖️',                   // Xis / Errado
-  '🚫',                                  // Proibido
-]);
-
-const mensagemPaciente = messageText; // Sua variável com a mensagem
-const mensagemNormalizada = normalizarTexto(mensagemPaciente);
-
-let isConfirmation = confirmacoes.has(mensagemNormalizada);
-let isCancellation = cancelamentos.has(mensagemNormalizada);
-
-if (!isConfirmation && !isCancellation) {
-  // Verifica se a frase contém palavras-chave
-  const contemConfirmacao = [
-  'confirmo',
-  'confirmado',
-  'confirma',  // A raiz 'confirm' é ótima
-  'estarei presente',
-  'estarei ai',
-  'com certeza',
-  'pode contar',
-  'tudo certo',
-  'presença confirmada',
-  'manter o agendamento', // Captura frases como "gostaria de manter o agendamento"
-  'ta combinado',
-  'ta fechado'
-].some(palavra => mensagemNormalizada.includes(palavra));
-  const contemCancelamento = [
-  'cancelar',   // A raiz 'cancel' é a mais importante
-  'cancela',
-  'desmarcar',
-  'remarcar',  // "Remarcar" implica o cancelamento do horário atual
-  'nao posso ir',
-  'nao poderei',
-  'nao consigo',
-  'nao vai dar',
-  'nao tenho como ir',
-  'outro dia',
-  'outra data',
-  'tive um imprevisto',
-  'nao comparecerei'
-].some(palavra => mensagemNormalizada.includes(palavra));
-
-  if (contemConfirmacao && !contemCancelamento) {
-      isConfirmation = true;
-  } else if (contemCancelamento && !contemConfirmacao) {
-      isCancellation = true;
-  }
+interface EvolutionWebhookMessage {
+  event: string;
+  instance: string;
+  data: {
+    key: {
+      remoteJid: string;
+      fromMe: boolean;
+      id: string;
+    };
+    message: {
+      conversation?: string;
+      extendedTextMessage?: {
+        text: string;
+      };
+    };
+    messageTimestamp: number;
+    pushName: string;
+  };
 }
-    if (!isConfirmation && !isCancellation) {
-      console.log('⚠️ Resposta inválida, não é 1 ou 2:', messageText);
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Resposta não processável.'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    console.log(`✅ Resposta válida recebida: "${messageText}"`);
-    // --- Início do Processamento da Lógica Principal ---
-    // Extrai o número de telefone do remetente, priorizando senderPn para grupos/listas
-    const remoteJid = payload.data.key.remoteJid;
-    const senderPn = payload.data.key.senderPn;
-    
-    console.log('📞 Identificando telefone do remetente:', {
-      remoteJid,
-      senderPn,
-      isGroup: remoteJid?.includes('@g.us'),
-      isList: remoteJid?.includes('@lid')
-    });
-    
-    let phoneSource = '';
-    let phoneWithCountryCode = '';
-    
-    // Priorizar senderPn quando disponível (para grupos/listas)
-    if (senderPn) {
-      phoneWithCountryCode = senderPn.match(/\d+/)?.[0] || '';
-      phoneSource = 'senderPn';
-      console.log('📱 Usando senderPn como fonte do telefone:', phoneWithCountryCode);
-    } else if (remoteJid?.includes('@lid')) {
-      // Para listas sem senderPn, não conseguimos identificar o remetente
-      console.log('⚠️ Mensagem de lista sem senderPn - não é possível identificar o remetente.');
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Mensagem de lista sem identificação do remetente.'
-      }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    } else {
-      phoneWithCountryCode = remoteJid.match(/\d+/)?.[0] || '';
-      phoneSource = 'remoteJid';
-      console.log('📱 Usando remoteJid como fonte do telefone:', phoneWithCountryCode);
-    }
-    
-    let cleanPhone = phoneWithCountryCode.startsWith('55') ? phoneWithCountryCode.substring(2) : phoneWithCountryCode;
-    
-    console.log('🧹 Telefone limpo extraído:', {
-      original: phoneWithCountryCode,
-      clean: cleanPhone,
-      source: phoneSource
-    });
-    // Gera variações do número para busca
-    const variations = new Set();
-    variations.add(cleanPhone);
-    // Adiciona/remover 9 após DDD (para celulares)
-    if (cleanPhone.length === 10) {
-      // Ex: 6696525791 → 66996525791
-      variations.add(cleanPhone.slice(0, 2) + '9' + cleanPhone.slice(2));
-    }
-    if (cleanPhone.length === 11 && cleanPhone[2] === '9') {
-      // Ex: 66996525791 → 6696525791
-      variations.add(cleanPhone.slice(0, 2) + cleanPhone.slice(3));
-    }
-    // Adiciona variações com 55
-    for (const v of Array.from(variations)){
-      const vStr = String(v);
-      if (!vStr.startsWith('55')) variations.add('55' + vStr);
-    }
-    // --- SOLUÇÃO 3: Busca TODOS os pacientes com aquele telefone ---
-    console.log('🔍 SOLUÇÃO 3: Buscando TODOS os pacientes com as variações de telefone...');
-    
-    let allPatientsFound = [];
-    let patientError = null;
-    
-    // Busca todos os pacientes com qualquer variação do telefone
-    for (const phone of variations) {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('id, full_name, clinic_id')
-        .eq('phone', phone);
-        
-      if (data && data.length > 0) {
-        allPatientsFound.push(...data);
-      }
-      if (error) patientError = error;
-    }
-    
-    console.log('👥 Pacientes encontrados com este telefone:', {
-      total: allPatientsFound.length,
-      variacoesTentadas: Array.from(variations),
-      pacientes: allPatientsFound.map((p: any) => ({
-        id: p.id,
-        nome: p.full_name,
-        clinic_id: p.clinic_id
-      }))
-    });
-    
-    if (allPatientsFound.length === 0) {
-      console.error('⚠️ Nenhum paciente encontrado no banco de dados');
-      console.error('📞 Fonte do telefone:', phoneSource);
-      console.error('🔍 Variações testadas:', Array.from(variations).join(', '));
-      console.error('💾 Erro da consulta:', patientError);
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'Paciente não encontrado.'
-      }), {
-        status: 404,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
-    }
-    
-    // Agora tenta encontrar qual paciente tem agendamentos pendentes
-    console.log('🔄 Testando cada paciente para encontrar agendamentos pendentes...');
-    
-    let patientData = null;
-    let foundAppointments = null;
-    
-    // Definir datas de busca - usando horário de Cuiabá (UTC-4)
-  // Cálculo seguro para timezone de Cuiabá (UTC-4)
-  const now = new Date();
-  const utcTimestamp = now.getTime() + (now.getTimezoneOffset() * 60000);
-  const cuiabaOffsetMs = -4 * 60 * 60 * 1000; // UTC-4
-  const nowCuiaba = new Date(utcTimestamp + cuiabaOffsetMs);
-  const today = nowCuiaba.toISOString().split('T')[0];
-  const currentTime = nowCuiaba.toTimeString().split(' ')[0].substring(0, 5);
 
-  const searchUntil = new Date(nowCuiaba);
-  searchUntil.setDate(searchUntil.getDate() + 14);
-  const dateLimit = searchUntil.toISOString().split('T')[0];
 
-  console.log(`⏰ Filtro temporal (Cuiabá): Hoje: ${today} ${currentTime}, Até: ${dateLimit}`);
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const webhookData: EvolutionWebhookMessage = await req.json();
     
-    for (const patient of allPatientsFound) {
-      console.log(`🔍 Testando paciente: ${patient.full_name} (ID: ${patient.id}, Clínica: ${patient.clinic_id})`);
-      
-      // Busca agendamentos para este paciente (apenas os que tiveram confirmação enviada)
-      const { data: patientAppointments, error: appointmentError } = await supabase
-        .from('appointments')
-        .select('id, date, time, professional_id, clinic_id, status, confirmation_sent_at')
-        .eq('patient_id', patient.id)
-        .gte('date', today)
-        .lte('date', dateLimit)
-        .eq('status', 'marcado')
-        .not('confirmation_sent_at', 'is', null)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
-      
-      // Filtrar apenas agendamentos futuros (considerando data E hora) e que tiveram confirmação enviada
-      const futureAppointments = patientAppointments?.filter((apt: any) => {
-        const aptDateTime = `${apt.date} ${apt.time}`;
-        const nowDateTime = `${today} ${currentTime}`;
-        return aptDateTime > nowDateTime && apt.confirmation_sent_at !== null;
-      }) || [];
-      
-      // Pegar apenas o PRIMEIRO agendamento (mais próximo) para evitar confirmações múltiplas
-      const nextAppointment = futureAppointments.length > 0 ? [futureAppointments[0]] : [];
-        
-      console.log(`📋 Agendamentos encontrados para ${patient.full_name}:`, {
-        total: futureAppointments.length,
-        todosAgendamentos: patientAppointments?.length || 0,
-        proximoAgendamento: nextAppointment.length > 0 ? {
-          id: nextAppointment[0].id,
-          date: nextAppointment[0].date,
-          time: nextAppointment[0].time,
-          clinic_id: nextAppointment[0].clinic_id,
-          confirmation_sent_at: nextAppointment[0].confirmation_sent_at
-        } : null,
-        agendamentosFuturos: futureAppointments.map((apt: any) => ({
-          id: apt.id,
-          date: apt.date,
-          time: apt.time,
-          clinic_id: apt.clinic_id,
-          confirmation_sent_at: apt.confirmation_sent_at
-        }))
-      });
-      
-      // Se encontrou o PRÓXIMO agendamento FUTURO para este paciente, usa ele
-      if (nextAppointment.length > 0) {
-        patientData = patient;
-        foundAppointments = nextAppointment; // Apenas o próximo agendamento
-        console.log(`✅ Paciente com próximo agendamento encontrado: ${patient.full_name} - Agendamento: ${nextAppointment[0].date} ${nextAppointment[0].time}`);
-        break;
-      } else if (patientAppointments && patientAppointments.length > 0) {
-        console.log(`⚠️ Paciente ${patient.full_name} tem agendamentos, mas todos já passaram`);
-      }
+    console.log('Webhook received:', JSON.stringify(webhookData, null, 2));
+
+    // Verificar se é uma mensagem de texto recebida (não enviada por nós)
+    if (webhookData.event !== 'messages.upsert' || webhookData.data.key.fromMe) {
+      return new Response(
+        JSON.stringify({ message: 'Evento não processado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-    
-    if (!patientData || !foundAppointments) {
-      console.log('⚠️ Nenhum dos pacientes encontrados possui agendamentos pendentes no período.');
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'Nenhum agendamento pendente encontrado para este telefone.',
-        debug: {
-          patientsFound: allPatientsFound.length,
-          searchPeriod: `${today} a ${dateLimit}`
-        }
-      }), {
-        status: 404,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
+
+    // Extrair texto da mensagem
+    const messageText = webhookData.data.message?.conversation || 
+                       webhookData.data.message?.extendedTextMessage?.text || '';
+
+    if (!messageText) {
+      return new Response(
+        JSON.stringify({ message: 'Mensagem sem texto' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Extrair número do telefone
+    const remoteJid = webhookData.data.key.remoteJid;
+    const phoneNumber = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
     
-    console.log('✅ Paciente selecionado para processamento:', {
-      id: patientData.id,
-      name: patientData.full_name,
-      clinic_id: patientData.clinic_id,
-      appointmentsFound: foundAppointments.length,
-      nextAppointment: {
-        id: foundAppointments[0].id,
-        date: foundAppointments[0].date,
-        time: foundAppointments[0].time,
-        confirmation_sent_at: foundAppointments[0].confirmation_sent_at
-      }
+    // Limpar número (remover código do país se presente)
+    let cleanPhone = phoneNumber.replace(/^\+?55/, '');
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('55')) {
+      cleanPhone = cleanPhone.substring(2);
+    }
+
+    console.log('Processing message from:', cleanPhone, 'Text:', messageText);
+
+    // Processar confirmação usando a função do banco
+    const { data: result, error } = await supabase.rpc('process_whatsapp_confirmation', {
+      p_phone: cleanPhone,
+      p_message_content: messageText,
+      p_evolution_message_id: webhookData.data.key.id
     });
 
-    // Usa os agendamentos já encontrados
-    const appointments = foundAppointments;
-    // Pega o agendamento mais próximo da lista para evitar ambiguidade
-    const appointmentToUpdate = appointments[0];
-    const newStatus = isConfirmation ? 'confirmado' : 'cancelado';
-    console.log(`🔄 Atualizando agendamento [${appointmentToUpdate.id}] para status: ${newStatus}`);
-    // Atualiza o agendamento no banco de dados
-    const { data: updatedAppointment, error: updateError } = await supabase.from('appointments').update({
-      status: newStatus,
-      whatsapp_confirmed: isConfirmation,
-      patient_confirmed_at: new Date().toISOString()
-    }).eq('id', appointmentToUpdate.id).select().single();
-    if (updateError) {
-      console.error('❌ Erro ao atualizar agendamento:', updateError);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Erro ao atualizar agendamento.'
-      }), {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      });
+    if (error) {
+      console.error('Error processing confirmation:', error);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao processar confirmação' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-    console.log('✅ Agendamento atualizado com sucesso no banco de dados.', { updatedAppointment });
-    
-    // Registrar mensagem recebida do paciente no whatsapp_logs
-    console.log('📝 Registrando mensagem recebida do paciente no log...');
-    const { error: logReceivedError } = await supabase.from('whatsapp_logs').insert({
-      appointment_id: appointmentToUpdate.id,
-      patient_phone: cleanPhone,
-      message_type: 'response_received',
-      message_content: `Resposta do paciente: ${messageText}`,
-      status: 'delivered',
-      response_content: isConfirmation ? 'Confirmado' : 'Cancelado',
-      sent_at: new Date().toISOString(),
-      clinic_id: patientData.clinic_id
-    });
-    
-    if (logReceivedError) {
-      console.warn('⚠️ Erro ao registrar mensagem recebida no log:', logReceivedError);
-    } else {
-      console.log('✅ Mensagem recebida registrada no log');
-    }
-    
-    // --- Início do Envio de Notificações de Feedback ---
-    // Busca dados do profissional e configurações da API em paralelo para maior eficiência
-    console.log(`🔍 Buscando configurações WhatsApp para a clínica: ${patientData.clinic_id}`);
-    const [professionalResult, settingsResult] = await Promise.all([
-      supabase.from('professionals').select('full_name, phone').eq('id', appointmentToUpdate.professional_id).single(),
-      supabase.from('whatsapp_settings').select('base_url, instance_name, api_key').eq('clinic_id', patientData.clinic_id).eq('is_active', true).single()
-    ]);
-    const professional = professionalResult.data;
-    const settings = settingsResult.data;
-    
-    console.log('📄 Resultados da busca:', {
-      professional: professional ? { name: professional.full_name, hasPhone: !!professional.phone } : 'Não encontrado',
-      settings: settings ? { hasApiKey: !!settings.api_key, instance: settings.instance_name } : 'Não encontrado',
-      professionalError: professionalResult.error,
-      settingsError: settingsResult.error
-    });
-    
-    // Apenas tenta enviar mensagens se houver uma configuração de API ativa
-    if (settings?.api_key) {
-      const appointmentDateFormatted = new Date(appointmentToUpdate.date).toLocaleDateString('pt-BR');
-      
-      // 1. Envia feedback para o PACIENTE
-      const patientFeedbackMessage = isConfirmation 
-        ? `✅ Obrigado! \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} está *CONFIRMADA*.` 
-        : `✅ Entendido. \n Sua consulta para ${appointmentDateFormatted} às ${appointmentToUpdate.time} foi *CANCELADA*.`;
-      
-      const patientPhone = '55' + cleanPhone;
-      
-      console.log('📤 Enviando feedback para paciente:', {
-        phone: patientPhone,
-        message: patientFeedbackMessage.substring(0, 50) + '...',
-        apiUrl: `${settings.base_url}/message/sendText/${settings.instance_name}`
-      });
-      
-      try {
-        const patientResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': settings.api_key
-          },
-          body: JSON.stringify({
-            number: patientPhone,
-            text: patientFeedbackMessage
-          })
-        });
-        
-        const patientResponseData = await patientResponse.json();
-        
-          if (patientResponse.ok) {
-          console.log('✅ Feedback enviado para o paciente com sucesso:', patientResponseData);
 
-          // Registrar feedback enviado ao paciente no whatsapp_logs (captura de erro)
-          const messageId = patientResponseData?.key?.id || patientResponseData?.message?.key?.id;
-          const { data: feedbackLogData, error: feedbackLogError } = await supabase.from('whatsapp_logs').insert({
-            appointment_id: appointmentToUpdate.id,
-            patient_phone: cleanPhone,
-            message_type: isConfirmation ? 'confirmation_feedback' : 'cancellation_feedback',
-            message_content: patientFeedbackMessage,
-            status: 'delivered',
-            evolution_message_id: messageId,
-            sent_at: new Date().toISOString(),
-            clinic_id: patientData.clinic_id
-          }).select();
-          if (feedbackLogError) {
-            console.warn('⚠️ Erro ao registrar feedback ao paciente no log:', feedbackLogError);
-          } else {
-            console.log('✅ Feedback ao paciente registrado no log', { feedbackLogData });
+    console.log('Confirmation processed:', result);
+
+    // Se o agendamento foi confirmado ou cancelado, notificar o fisioterapeuta
+    if (result?.success && (result?.action === 'confirmed' || result?.action === 'cancelled')) {
+      console.log('🔔 Processando notificação para fisioterapeuta...', result);
+      
+      if (result.physio_phone && result.clinic_id) {
+        // Buscar configurações da clínica específica para enviar para fisioterapeuta
+        const { data: settings, error: settingsError } = await supabase
+          .from('whatsapp_settings')
+          .select('*')
+          .eq('clinic_id', result.clinic_id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        console.log('⚙️ Settings encontradas:', settings, 'Error:', settingsError);
+
+        if (settings) {
+          // Preparar mensagem adequada
+          let physioMessage = '';
+          
+          if (result.action === 'confirmed') {
+            physioMessage = `✅ *CONSULTA CONFIRMADA*\n\n👤 Paciente: ${result.patient_name}\n📅 Data: ${new Date(result.appointment_date).toLocaleDateString('pt-BR')}\n🕐 Horário: ${result.appointment_time}\n\n✅ O paciente CONFIRMOU a presença!`;
+          } else if (result.action === 'cancelled') {
+            physioMessage = `❌ *CONSULTA CANCELADA*\n\n👤 Paciente: ${result.patient_name}\n📅 Data: ${new Date(result.appointment_date).toLocaleDateString('pt-BR')}\n🕐 Horário: ${result.appointment_time}\n\n❌ O paciente CANCELOU a consulta!`;
+          }
+
+          const physioPhone = result.physio_phone.replace(/\D/g, '');
+          let formattedPhysioPhone = physioPhone;
+          
+          // Formatação do número para WhatsApp
+          if (physioPhone.length === 11) {
+            formattedPhysioPhone = `55${physioPhone}`;
+          } else if (physioPhone.length === 9) {
+            formattedPhysioPhone = `5566${physioPhone}`;
+          } else if (!physioPhone.startsWith('55')) {
+            formattedPhysioPhone = `55${physioPhone}`;
+          }
+
+          console.log('📱 Enviando para fisioterapeuta:', {
+            phone: formattedPhysioPhone,
+            message: physioMessage.substring(0, 50) + '...'
+          });
+
+          try {
+            const physioResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': settings.api_key
+              },
+              body: JSON.stringify({
+                number: formattedPhysioPhone,
+                text: physioMessage
+              })
+            });
+
+            console.log('📡 Response status:', physioResponse.status, physioResponse.statusText);
+
+            if (physioResponse.ok) {
+              const physioResult = await physioResponse.json();
+              console.log('✅ Mensagem enviada para fisioterapeuta:', physioResult);
+              
+              // Atualizar que fisioterapeuta foi notificado
+              await supabase
+                .from('appointments')
+                .update({
+                  physio_message_id: physioResult.key?.id || null,
+                  physio_notified_at: new Date().toISOString()
+                })
+                .eq('id', result.appointment_id);
+
+              // Log da notificação
+              await supabase
+                .from('whatsapp_logs')
+                .insert({
+                  appointment_id: result.appointment_id,
+                  patient_phone: formattedPhysioPhone,
+                  message_type: result.action === 'confirmed' ? 'confirmation_notification' : 'cancellation_notification',
+                  message_content: physioMessage,
+                  status: 'sent',
+                  evolution_message_id: physioResult.key?.id || null,
+                  clinic_id: result.clinic_id
+                });
+
+              console.log(`🎉 Fisioterapeuta notificado sobre ${result.action} com sucesso`);
+            } else {
+              const errorText = await physioResponse.text();
+              console.error('❌ Erro na resposta da API:', errorText);
+            }
+          } catch (error) {
+            console.error('❌ Erro ao notificar fisioterapeuta:', error);
           }
         } else {
-          console.error('⚠️ Falha ao enviar feedback para o paciente. Status:', patientResponse.status, 'Resposta:', patientResponseData);
+          console.error('❌ Configurações do WhatsApp não encontradas');
         }
-      } catch (err) {
-        console.error('❌ Erro de rede ao enviar feedback para o paciente:', err);
+      } else {
+        console.error('❌ Telefone do fisioterapeuta não encontrado no resultado');
       }
-      
-      // 2. Envia notificação para o FISIOTERAPEUTA
-      if (professional?.phone) {
-        const statusMessage = isConfirmation ? '✅ CONFIRMADA' : '❌ CANCELADA';
-        const physioMessage = `*ATUALIZAÇÃO DE CONSULTA* ${statusMessage}\n\n👤 *Paciente:* ${patientData.full_name}\n📅 *Data:* ${appointmentDateFormatted}\n🕐 *Horário:* ${appointmentToUpdate.time}\n\nO paciente respondeu via WhatsApp.`;
-        const physioPhone = '55' + professional.phone.replace(/\D/g, '');
-        
-        console.log('📤 Enviando notificação para fisioterapeuta:', {
-          phone: physioPhone,
-          professional: professional.full_name
-        });
-        
-        try {
-          const physioResponse = await fetch(`${settings.base_url}/message/sendText/${settings.instance_name}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': settings.api_key
-            },
-            body: JSON.stringify({
-              number: physioPhone,
-              text: physioMessage
-            })
-          });
-          
-          const physioResponseData = await physioResponse.json();
-          
-            if (physioResponse.ok) {
-            console.log('✅ Fisioterapeuta notificado com sucesso:', physioResponseData);
-
-            // Registrar notificação ao fisioterapeuta no whatsapp_logs (captura de erro)
-            const messageId = physioResponseData?.key?.id || physioResponseData?.message?.key?.id;
-            const { data: physioLogData, error: physioLogError } = await supabase.from('whatsapp_logs').insert({
-              appointment_id: appointmentToUpdate.id,
-              patient_phone: professional.phone.replace(/\D/g, ''), // Telefone do profissional
-              message_type: 'professional_notification',
-              message_content: physioMessage,
-              status: 'delivered',
-              evolution_message_id: messageId,
-              sent_at: new Date().toISOString(),
-              clinic_id: patientData.clinic_id
-            }).select();
-            if (physioLogError) {
-              console.warn('⚠️ Erro ao registrar notificação ao fisioterapeuta no log:', physioLogError);
-            } else {
-              console.log('✅ Notificação ao fisioterapeuta registrada no log', { physioLogData });
-            }
-          } else {
-            console.error('⚠️ Falha ao notificar fisioterapeuta. Status:', physioResponse.status, 'Resposta:', physioResponseData);
-          }
-        } catch (err) {
-          console.error('❌ Erro de rede ao notificar fisioterapeuta:', err);
-        }
-      }
+    } else {
+      console.log('ℹ️ Não é uma confirmação/cancelamento válida para notificar fisioterapeuta');
     }
-    /* // Bloco de log que estava dando erro, desativado conforme solicitado.
-    // Para reativar, corrija o valor de 'message_type' para um que seja aceito
-    // pela sua tabela 'whatsapp_logs'.
-    const logMessageType = isConfirmation ? 'confirmation_response' : 'cancellation_response';
-    const actionTaken = isConfirmation ? 'confirmed' : 'cancelled';
-    const { error: logError } = await supabase.from('whatsapp_logs').insert({
-        appointment_id: appointmentToUpdate.id,
-        patient_phone: cleanPhone,
-        message_type: logMessageType,
-        message_content: messageText,
-        status: 'processed',
-        evolution_message_id: payload.data.key.id,
-        response_content: actionTaken
-    });
-    if (logError) { console.error('⚠️ Erro ao salvar log (não crítico):', logError); }
-    */ // --- Finalização ---
-    console.log('🎉 Processamento do webhook concluído com sucesso!');
-    // Retorna uma resposta de sucesso para a Evolution API, finalizando a requisição.
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Agendamento ${newStatus} com sucesso.`
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        processed: result?.success || false,
+        action: result?.action || 'none'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    // Se ocorrer qualquer erro inesperado não tratado, ele será capturado aqui.
-    console.error('❌ Erro crítico no webhook:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Erro interno do servidor.'
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
-    });
+    console.error('Error in whatsapp-webhook:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
-
