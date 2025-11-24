@@ -103,10 +103,20 @@ export const useAgendaLogic = () => {
       // Verificar conflitos de horário se data/hora foram alterados
       if (updates.date && updates.time) {
         const appointmentDate = new Date(updates.date);
+        console.log('🔍 Verificando conflito - Data:', updates.date, 'Hora:', updates.time, 'ID excluído:', appointmentId);
+        
         const conflictingAppointment = getAppointmentForSlot(appointmentDate, updates.time, appointmentId);
+        
+        console.log('🔍 Agendamento conflitante encontrado:', conflictingAppointment);
         
         if (conflictingAppointment) {
           const patient = patients.find(p => p.id === conflictingAppointment.patientId);
+          console.log('❌ CONFLITO! Agendamento existente:', {
+            id: conflictingAppointment.id,
+            date: conflictingAppointment.date,
+            time: conflictingAppointment.time,
+            patient: patient?.fullName
+          });
           throw new Error(`Conflito de horário: já existe um agendamento para ${patient?.fullName || 'um paciente'} neste horário`);
         }
       }
