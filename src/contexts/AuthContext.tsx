@@ -634,10 +634,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('🚀 AuthContext useEffect executando - Provider (re)montado');
     
-    // Carregar redirectTo do localStorage
+    // Carregar redirectTo do localStorage PRIMEIRO
     const savedRedirectTo = localStorage.getItem('auth_redirect_to');
+    console.log('🔍 Verificando redirectTo salvo no localStorage:', savedRedirectTo);
     if (savedRedirectTo) {
+      console.log('✅ Carregando redirectTo do localStorage:', savedRedirectTo);
       setRedirectToState(savedRedirectTo);
+    } else {
+      console.log('ℹ️ Nenhum redirectTo encontrado no localStorage');
     }
 
     let subscription: any = null;

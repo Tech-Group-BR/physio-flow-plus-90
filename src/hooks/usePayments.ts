@@ -8,6 +8,7 @@ interface PaymentCustomer {
   cpfCnpj: string
   phone?: string
   profileId?: string
+  clinicId?: string
 }
 
 interface CreditCardData {
@@ -68,6 +69,8 @@ export function usePayments() {
     try {
       setLoading(true)
 
+      console.log('📤 Enviando para create-asaas-customer:', JSON.stringify(customerData, null, 2))
+
       const { data, error } = await supabase.functions.invoke('create-asaas-customer', {
         body: {
           ...customerData,
@@ -75,7 +78,21 @@ export function usePayments() {
         }
       })
 
-      if (error) throw error
+      console.log('📥 Resposta create-asaas-customer:', { data, error })
+
+      if (error) {
+        // Tentar ler o erro do response body
+        if (error.context?.body) {
+          try {
+            const errorBody = await error.context.body.text()
+            console.error('❌ Erro detalhado do Edge Function:', errorBody)
+            throw new Error(errorBody)
+          } catch (e) {
+            console.error('❌ Erro ao ler body:', e)
+          }
+        }
+        throw error
+      }
 
       return data
     } catch (error: any) {

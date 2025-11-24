@@ -35,8 +35,12 @@ export function PaymentPage() {
   // Debug: verificar user.profile
   console.log('👤 PaymentPage - User completo:', user)
   console.log('🏥 PaymentPage - User clinic_id:', user?.profile?.clinic_id)
+  console.log('🔄 PaymentPage - Loading states:', { authLoading, productsLoading, periodsLoading })
+  console.log('📦 PaymentPage - Products count:', products.length)
+  console.log('💳 PaymentPage - Payment states:', { paymentCompleted, hasPaymentData: !!paymentData })
   
   const planId = searchParams.get('plan') || ''
+  console.log('🎯 PaymentPage - Plan ID from URL:', planId)
   
   // Buscar plano selecionado usando cache
   const selectedPlan = useMemo(() => {
@@ -67,6 +71,15 @@ export function PaymentPage() {
     
     return plan
   }, [planId, products, getProductById, getProductByName])
+
+  // Limpar redirectTo quando a página montar (usuário chegou aqui com sucesso)
+  useEffect(() => {
+    const redirectTo = localStorage.getItem('auth_redirect_to');
+    if (redirectTo) {
+      console.log('🧹 PaymentPage: Limpando redirectTo após montagem:', redirectTo);
+      localStorage.removeItem('auth_redirect_to');
+    }
+  }, []); // Executar apenas uma vez na montagem
 
   // Persistir período selecionado
   useEffect(() => {
@@ -109,6 +122,7 @@ export function PaymentPage() {
 
   // Loading inicial
   if (authLoading || productsLoading) {
+    console.log('🔄 EARLY RETURN: Loading state - authLoading:', authLoading, 'productsLoading:', productsLoading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 to-white">
         <div className="text-center">
@@ -121,6 +135,7 @@ export function PaymentPage() {
 
   // Usuário não logado
   if (!user) {
+    console.log('🚫 EARLY RETURN: No user')
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
         <Card className="w-full max-w-md">
@@ -182,6 +197,7 @@ export function PaymentPage() {
 
   // Plano não encontrado
   if (!selectedPlan && planId) {
+    console.log('❌ EARLY RETURN: Plan not found - planId:', planId, 'selectedPlan:', selectedPlan)
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
         <Card className="w-full max-w-md">
@@ -206,6 +222,7 @@ export function PaymentPage() {
 
   // Aguardar seleção de plano
   if (!selectedPlan) {
+    console.log('⚠️ EARLY RETURN: No plan selected - planId:', planId, 'selectedPlan:', selectedPlan, 'products:', products.length)
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
         <Card className="w-full max-w-md">
@@ -259,7 +276,7 @@ export function PaymentPage() {
 
   // Exibir PIX ou Boleto gerado (aguardando pagamento)
   if (paymentData && !paymentCompleted) {
-    
+    console.log('💳 EARLY RETURN: Payment data waiting - paymentData:', paymentData)
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
         <div className="w-full max-w-2xl space-y-6">
@@ -316,6 +333,7 @@ export function PaymentPage() {
 
   // Pagamento completado com sucesso (apenas cartão de crédito)
   if (paymentCompleted) {
+    console.log('✅ EARLY RETURN: Payment completed')
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 to-white">
         <Card className="w-full max-w-md">
@@ -367,6 +385,7 @@ export function PaymentPage() {
 
   // Formulário de pagamento
   // Calcular valores baseado no período selecionado
+  console.log('✨ MAIN RENDER: Showing payment form for plan:', selectedPlan?.name)
   const periodsWithPrices = getAllPeriodsWithPrices(selectedPlan.price)
   const currentPeriod = periodsWithPrices.find(p => p.period === selectedPeriod)
   const finalValue = currentPeriod?.totalPrice || selectedPlan.price

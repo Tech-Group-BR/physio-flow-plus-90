@@ -118,7 +118,8 @@ export function PaymentSystem({
           email: data.email,
           cpfCnpj: data.cpfCnpj.replace(/\D/g, ''),
           phone: data.phone?.replace(/\D/g, ''),
-          profileId: user?.id
+          profileId: user?.id,
+          clinicId: clinicId // Adicionar clinicId ao customer
         },
         billingType: paymentMethod,
         value,
@@ -130,6 +131,7 @@ export function PaymentSystem({
       }
       
       console.log('💳 Payment request sendo enviado:', paymentRequest)
+      console.log('👤 Customer data:', JSON.stringify(paymentRequest.customer, null, 2))
 
       const result = await createPayment(paymentRequest)
       

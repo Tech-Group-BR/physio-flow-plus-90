@@ -28,11 +28,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    const { name, cpfCnpj, email, phone, profileId } = await req.json()
+    const { name, cpfCnpj, email, phone, profileId, clinicId } = await req.json()
+
+    console.log('📥 Dados recebidos:', { name, cpfCnpj, email, phone, profileId, clinicId })
 
     if (!name || !cpfCnpj || !email) {
       return new Response(
         JSON.stringify({ error: 'Dados obrigatórios: name, cpfCnpj, email' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (!clinicId) {
+      return new Response(
+        JSON.stringify({ error: 'clinicId é obrigatório' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -53,32 +65,41 @@ serve(async (req) => {
 
     const searchData = await searchResponse.json()
     
-    // Se cliente já existe, verificar se existe na tabela local
+    // Se cliente já existe no Asaas, verificar se existe na tabela clients
     if (searchData.data && searchData.data.length > 0) {
       console.log('Cliente já existe no Asaas:', searchData.data[0].id)
       
-      // Verificar se já existe na tabela clients local
-      const { data: existingClient } = await supabaseClient
+      // Verificar se já existe na tabela clients
+      const { data: existingClient, error: searchError } = await supabaseClient
         .from('clients')
         .select('*')
         .eq('asaas_customer_id', searchData.data[0].id)
         .maybeSingle()
-        
-      if (!existingClient && profileId) {
-        // Salvar cliente na tabela local se não existir
-        const { error: clientError } = await supabaseClient
+      
+      if (searchError) {
+        console.error('Erro ao buscar cliente:', searchError)
+      }
+      
+      // Se não existe na tabela clients, criar
+      if (!existingClient) {
+        const { data: newClient, error: insertError } = await supabaseClient
           .from('clients')
           .insert({
+            clinic_id: clinicId,
             profile_id: profileId,
             asaas_customer_id: searchData.data[0].id,
-            cpf_cnpj: cpfCnpj,
             name: name,
             email: email,
+            cpf_cnpj: cpfCnpj,
             phone: phone || null
           })
+          .select()
+          .single()
           
-        if (clientError) {
-          console.error('Erro ao salvar cliente na tabela local:', clientError)
+        if (insertError) {
+          console.error('Erro ao criar cliente na tabela local:', insertError)
+        } else {
+          console.log('Cliente criado na tabela local:', newClient.id)
         }
       }
       
@@ -135,25 +156,26 @@ serve(async (req) => {
 
     console.log('Cliente criado no Asaas:', responseData.id)
 
-    // Salvar cliente na tabela local do Supabase
-    if (profileId) {
-      const { error: clientError } = await supabaseClient
-        .from('clients')
-        .insert({
-          profile_id: profileId,
-          asaas_customer_id: responseData.id,
-          cpf_cnpj: cpfCnpj,
-          name: name,
-          email: email,
-          phone: phone || null
-        })
-        
-      if (clientError) {
-        console.error('Erro ao salvar cliente na tabela local:', clientError)
-        // Não falhar a requisição se houver erro ao salvar localmente
-      } else {
-        console.log('Cliente salvo na tabela local com sucesso')
-      }
+    // Salvar cliente na tabela clients
+    const { data: newClient, error: insertError } = await supabaseClient
+      .from('clients')
+      .insert({
+        clinic_id: clinicId,
+        profile_id: profileId,
+        asaas_customer_id: responseData.id,
+        name: name,
+        email: email,
+        cpf_cnpj: cpfCnpj,
+        phone: phone || null
+      })
+      .select()
+      .single()
+      
+    if (insertError) {
+      console.error('Erro ao criar cliente na tabela local:', insertError)
+      // Não falhar a requisição se houver erro ao salvar localmente
+    } else {
+      console.log('Cliente salvo na tabela local:', newClient.id)
     }
 
     return new Response(

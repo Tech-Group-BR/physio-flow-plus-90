@@ -37,11 +37,20 @@ export function LandingPage() {
   const handlePayment = (planId: string) => {
     // Se usuário está logado, vai direto para pagamento
     if (user) {
-      navigate(`/pagamento?plan=${planId}`);
+      console.log('✅ Usuário logado, indo direto para pagamento:', planId);
+      navigate(`/payment?plan=${planId}`);
     } else {
       // Se não está logado, armazena a intenção e vai para login
-      console.log('👤 Usuário não logado, armazenando intenção de compra:', planId);
-      setRedirectTo(`/pagamento?plan=${planId}`);
+      const redirectPath = `/payment?plan=${planId}`;
+      console.log('👤 Usuário não logado, armazenando intenção de compra:', redirectPath);
+      setRedirectTo(redirectPath);
+      
+      // Verificar se foi salvo corretamente
+      setTimeout(() => {
+        const saved = localStorage.getItem('auth_redirect_to');
+        console.log('🔍 Verificando se redirectTo foi salvo no localStorage:', saved);
+      }, 100);
+      
       navigate('/login');
     }
   };

@@ -74,7 +74,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Componente para rotas públicas (impedir acesso se já logado)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, redirectTo, clearRedirectTo } = useAuth();
   
   // Se está loading, mostrar loading
   if (loading) {
@@ -88,8 +88,56 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // Se já está logado, redirecionar para dashboard
+  // Se já está logado, verificar se há redirectTo antes de ir para dashboard
   if (user) {
+    // Verificar redirectTo no contexto E no localStorage como fallback
+    const storedRedirectTo = localStorage.getItem('auth_redirect_to');
+    const targetRedirect = redirectTo || storedRedirectTo;
+    
+    const currentPath = window.location.pathname + window.location.search;
+    
+    console.log('🔀 PublicRoute: Usuário logado detectado', {
+      contextRedirectTo: redirectTo,
+      storedRedirectTo: storedRedirectTo,
+      targetRedirect: targetRedirect,
+      hasRedirectTo: !!targetRedirect,
+      currentPath,
+      pathname: window.location.pathname
+    });
+    
+    // Se tem redirectTo, verificar se já não estamos nessa rota
+    if (targetRedirect) {
+      // Extrair pathname do targetRedirect
+      let targetPath: string;
+      try {
+        // Se targetRedirect é uma URL completa ou path relativo
+        const url = new URL(targetRedirect, window.location.origin);
+        targetPath = url.pathname;
+      } catch {
+        // Se falhar, assumir que é só o path
+        targetPath = targetRedirect.split('?')[0];
+      }
+      
+      console.log('🔍 PublicRoute: Comparando rotas', {
+        currentPathname: window.location.pathname,
+        targetPath,
+        areEqual: window.location.pathname === targetPath
+      });
+      
+      // Se já estamos na rota de destino, apenas renderizar (a página de destino limpará o redirectTo)
+      if (window.location.pathname === targetPath) {
+        console.log('✅ PublicRoute: Já estamos na rota de destino, renderizando sem redirecionar');
+        // NÃO limpar o redirectTo aqui para evitar re-render
+        // A página de destino (PaymentPage) limpará quando montar
+        return <>{children}</>;
+      }
+      
+      console.log('🎯 PublicRoute: Redirecionando para redirectTo:', targetRedirect);
+      // NÃO limpar o redirectTo aqui - deixar o LoginPage fazer isso após navegar
+      return <Navigate to={targetRedirect} replace />;
+    }
+    
+    console.log('📊 PublicRoute: Redirecionando para dashboard (sem redirectTo)');
     return <Navigate to="/dashboard" replace />;
   }
   

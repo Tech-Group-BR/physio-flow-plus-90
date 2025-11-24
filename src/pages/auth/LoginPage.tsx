@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ArrowLeft, Building2, Mail, Lock, Hash } from 'lucide-react';
 
 export function LoginPage() {
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,12 +19,37 @@ export function LoginPage() {
 
   // Redirect if already logged in
   useEffect(() => {
+    console.log('🔄 LoginPage useEffect executado', {
+      hasUser: !!user,
+      authLoading,
+      redirectTo,
+      userEmail: user?.email
+    });
+    
     // ✅ CORREÇÃO: Não verificar loading local, apenas authLoading
     if (user && !authLoading) {
       console.log('✅ Usuário já logado, redirecionando...', {
         email: user.email,
-        role: user.profile?.role
+        role: user.profile?.role,
+        redirectTo: redirectTo,
+        hasRedirectTo: !!redirectTo,
+        redirectToType: typeof redirectTo
       });
+      
+      // Verificar redirectTo no localStorage também como fallback
+      const storedRedirectTo = localStorage.getItem('auth_redirect_to');
+      console.log('🔍 Verificando localStorage diretamente:', storedRedirectTo);
+      
+      const targetRedirect = redirectTo || storedRedirectTo;
+      console.log('🎯 Target redirect final:', targetRedirect);
+      
+      // Se existe redirectTo (usuário veio da landing para pagamento), usar isso
+      if (targetRedirect) {
+        console.log('🎯 Redirecionando para intenção salva:', targetRedirect);
+        navigate(targetRedirect, { replace: true });
+        clearRedirectTo();
+        return;
+      }
       
       // Redirecionar baseado no role
       if (user.profile?.role === 'super' && user.profile?.clinic_code === '000000') {
@@ -35,7 +60,7 @@ export function LoginPage() {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, redirectTo, clearRedirectTo]);
 
   const [loginForm, setLoginForm] = useState({
     email: '',

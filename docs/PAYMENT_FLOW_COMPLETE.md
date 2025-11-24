@@ -484,7 +484,7 @@ async function handlePaymentConfirmed(supabase: any, payload: any) {
   }
 
   // Marcar webhook como processado
-  await supabase
+  await supabase  
     .from('payment_webhooks')
     .update({ processed: true, processed_at: new Date().toISOString() })
     .eq('asaas_payment_id', paymentId);
