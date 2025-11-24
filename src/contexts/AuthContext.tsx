@@ -4,7 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { globalCache } from '@/lib/globalCache';
-import { clearAllCaches } from '@/utils/cacheCleanup';
+import { clearAllCaches } from '@/utils/dev/cacheCleanup';
 
 // --- TIPAGEM ---
 type Profile = Database['public']['Tables']['profiles']['Row'];

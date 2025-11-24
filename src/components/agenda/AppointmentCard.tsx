@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { getStatusColor } from "@/utils/agendaUtils";
+import { getStatusColor } from "@/shared/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MapPin, User, Loader2 } from "lucide-react";

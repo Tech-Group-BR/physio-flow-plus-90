@@ -128,7 +128,7 @@ export interface AccountsReceivable {
   amount: number;
   dueDate: string;
   receivedDate?: string;
-  status: 'pendente' | 'recebido' | 'vencido' | 'cancelado';
+  status: 'pendente' | 'pago' | 'vencido' | 'cancelado';
   method?: Database['public']['Enums']['payment_method_enum'];
   notes?: string;
   createdAt: string;
@@ -147,7 +147,7 @@ export interface Lead {
   email: string;
   phone: string;
   source: 'google_ads' | 'facebook_ads' | 'instagram_ads' | 'indicacao' | 'site' | 'outros';
-  status: 'novo' | 'contato_inicial' | 'agendamento' | 'avaliacao' | 'proposta' | 'cliente' | 'perdido';
+  status: 'novo' | 'contatado' | 'interessado' | 'agendado' | 'cliente' | 'perdido';
   treatmentInterest?: string;
   notes?: string;
   lastContact?: string;

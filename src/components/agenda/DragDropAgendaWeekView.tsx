@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { timeSlots } from "@/utils/agendaUtils";
+import { timeSlots } from "@/shared/utils";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";

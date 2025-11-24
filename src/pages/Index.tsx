@@ -4,29 +4,29 @@ import { Routes, Route, useLocation } from "react-router-dom";
 // Componentes da UI e Layout
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Dashboard } from "@/components/Dashboard";
+import { LazyWrapper, LoadingSpinner } from "@/components/common/LazyWrapper";
 
-// Componentes das Páginas
-import { PatientsPage } from "@/components/PatientsPage";
-import { AgendaPageWithRecurrence } from "@/components/AgendaPageWithRecurrence";
-// import { MedicalRecordsPage } from "@/components/MedicalRecordsPage";
-import { FinancialPage } from "@/components/FinancialPage";
-import { ReportsPage } from "@/components/ReportsPage";
-import { WhatsAppPage } from "@/components/WhatsAppPage";
-import { PackagesPage } from "@/components/PackagesPage";
-import { ProfessionalsPage } from "@/components/ProfessionalsPage";
-import { ConfigurationsPage } from "@/components/ConfigurationsPage";
-
-import { SalesPage } from "@/components/SalesPage";
-// import { CRMPage } from "@/components/CRMPage";
-import { GuardianPortal } from "@/components/GuardianPortal";
-import { PatientFinancialReport } from "@/components/PatientFinancialReport";
-import { PatientDetailsPage } from "@/components/PatientDetailsPage";
-import { ProfessionalDetailsPage } from "@/components/ProfessionalDetailsPage";
-import { EvolutionDetailsPage } from "@/components/EvolutionDetailsPage";
-import { AnamnesisDetailsPage } from "@/components/AnamnesisDetailsPage";
-import { FinancialReports } from "@/components/FinancialReports";
-import { RoomsManager } from "@/components/RoomsManager";
+// Lazy loading dos componentes das páginas
+import {
+  Dashboard,
+  PatientsPage,
+  AgendaPageWithRecurrence,
+  FinancialPage,
+  ReportsPage,
+  WhatsAppPage,
+  PackagesPage,
+  ProfessionalsPage,
+  ConfigurationsPage,
+  SalesPage,
+  GuardianPortal,
+  PatientFinancialReport,
+  PatientDetailsPage,
+  ProfessionalDetailsPage,
+  EvolutionDetailsPage,
+  AnamnesisDetailsPage,
+  FinancialReports,
+  RoomsManager
+} from "@/utils/lazyComponents";
 
 const Index = () => {
   const location = useLocation();
@@ -50,29 +50,106 @@ const Index = () => {
           <main className="flex-1 overflow-auto">
             <div className="p-3 sm:p-4 md:p-6 max-w-full">
               <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/agenda" element={<AgendaPageWithRecurrence />} />
-                <Route path="/pacientes" element={<PatientsPage />} />
-                <Route path="/pacientes/:id" element={<PatientDetailsPage />} />
-                <Route path="/pacientes/:id/anamnese" element={<PatientDetailsPage />} />
-                <Route path="/pacientes/:id/evolucao" element={<PatientDetailsPage />} />
-                {/* <Route path="/prontuarios" element={<MedicalRecordsPage />} /> */}
-                <Route path="/prontuario/:patientId" element={<AnamnesisDetailsPage />} />
-                <Route path="/prontuario/evolucao/:evoId" element={<EvolutionDetailsPage />} />
-                <Route path="/financeiro" element={<FinancialPage />} />
-                <Route path="/pacotes" element={<PackagesPage />} />
-                <Route path="/whatsapp" element={<WhatsAppPage />} />
-                <Route path="/relatorios" element={<ReportsPage />} />
-                <Route path="/relatorios/financeiro" element={<FinancialReports />} />
-                <Route path="/relatorios/pacientes" element={<PatientFinancialReport />} />
-                <Route path="/salas" element={<RoomsManager />} />
-                <Route path="/fisioterapeutas" element={<ProfessionalsPage />} />
-                <Route path="/profissionais/:id" element={<ProfessionalDetailsPage />} />
-                <Route path="/configuracoes" element={<ConfigurationsPage />} />
-                {/* <Route path="/vendas" element={<SalesPage />} /> */}
-                {/* <Route path="/crm" element={<CRMPage />} /> */}
-                <Route path="/portal-responsavel" element={<GuardianPortal />} />
-                <Route path="*" element={<Dashboard />} />
+                <Route path="/dashboard" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando dashboard..." />}>
+                    <Dashboard />
+                  </LazyWrapper>
+                } />
+                <Route path="/agenda" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando agenda..." />}>
+                    <AgendaPageWithRecurrence />
+                  </LazyWrapper>
+                } />
+                <Route path="/pacientes" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando pacientes..." />}>
+                    <PatientsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/pacientes/:id" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando detalhes do paciente..." />}>
+                    <PatientDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/pacientes/:id/anamnese" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando anamnese..." />}>
+                    <PatientDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/pacientes/:id/evolucao" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando evolução..." />}>
+                    <PatientDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/prontuario/:patientId" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando prontuário..." />}>
+                    <AnamnesisDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/prontuario/evolucao/:evoId" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando detalhes da evolução..." />}>
+                    <EvolutionDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/financeiro" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando módulo financeiro..." />}>
+                    <FinancialPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/pacotes" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando pacotes..." />}>
+                    <PackagesPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/whatsapp" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando WhatsApp..." />}>
+                    <WhatsAppPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/relatorios" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando relatórios..." />}>
+                    <ReportsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/relatorios/financeiro" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando relatórios financeiros..." />}>
+                    <FinancialReports />
+                  </LazyWrapper>
+                } />
+                <Route path="/relatorios/pacientes" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando relatório de pacientes..." />}>
+                    <PatientFinancialReport />
+                  </LazyWrapper>
+                } />
+                <Route path="/salas" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando gerenciador de salas..." />}>
+                    <RoomsManager />
+                  </LazyWrapper>
+                } />
+                <Route path="/fisioterapeutas" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando profissionais..." />}>
+                    <ProfessionalsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/profissionais/:id" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando detalhes do profissional..." />}>
+                    <ProfessionalDetailsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/configuracoes" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando configurações..." />}>
+                    <ConfigurationsPage />
+                  </LazyWrapper>
+                } />
+                <Route path="/portal-responsavel" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando portal do responsável..." />}>
+                    <GuardianPortal />
+                  </LazyWrapper>
+                } />
+                <Route path="*" element={
+                  <LazyWrapper fallback={<LoadingSpinner message="Carregando dashboard..." />}>
+                    <Dashboard />
+                  </LazyWrapper>
+                } />
               </Routes>
             </div>
           </main>

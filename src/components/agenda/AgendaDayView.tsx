@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { timeSlots } from "@/utils/agendaUtils";
+import { timeSlots } from "@/shared/utils";
 import { AppointmentCard } from "./AppointmentCard";
 
 interface AgendaDayViewProps {

@@ -1,7 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { LazyWrapper, LoadingSpinner } from "@/components/common/LazyWrapper";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ClinicProvider } from "@/contexts/ClinicContext";
 import { PermissionsProvider } from "@/contexts/PermissionsContext";
@@ -9,20 +11,22 @@ import { ProductsCacheProvider } from "@/contexts/ProductsCacheContext";
 import Index from "@/pages/Index";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/NotFound";
-import { LandingPage } from "@/components/LandingPage";
-import { LoginPage } from "@/components/LoginPage";
-import { RegisterPage } from "@/components/RegisterPage";
-import { SignUpPage } from "@/components/SignUpPage";
-import { PaymentPage } from "@/components/PaymentPage";
-import { AdminPage } from "@/components/AdminPage";
-import { RootRoute } from "@/components/RootRoute";
 import SuperAdminPage from "@/pages/SuperAdminPage";
 import AcceptInvitePage from "@/pages/AcceptInvitePage";
+import { 
+  LandingPage,
+  LoginPage,
+  RegisterPage,
+  SignUpPage,
+  PaymentPage,
+  AdminPage,
+  RootRoute
+} from "@/utils/lazyComponents";
 import { useState, useEffect } from "react";
 import "./App.css";
 
 // ✅ Importar comandos de debug para desenvolvimento
-import "@/utils/debugCommands";
+import "@/utils/dev/debugCommands";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +109,9 @@ function App() {
                     path="/" 
                     element={
                       <PublicRoute>
-                        <RootRoute />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando..." />}>
+                          <RootRoute />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />
@@ -113,7 +119,9 @@ function App() {
                     path="/landing" 
                     element={
                       <PublicRoute>
-                        <LandingPage />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando página inicial..." />}>
+                          <LandingPage />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />
@@ -121,7 +129,9 @@ function App() {
                     path="/login" 
                     element={
                       <PublicRoute>
-                        <LoginPage />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando página de login..." />}>
+                          <LoginPage />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />
@@ -129,7 +139,9 @@ function App() {
                     path="/register" 
                     element={
                       <PublicRoute>
-                        <RegisterPage />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando página de registro..." />}>
+                          <RegisterPage />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />
@@ -137,7 +149,9 @@ function App() {
                     path="/signup" 
                     element={
                       <PublicRoute>
-                        <SignUpPage />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando cadastro..." />}>
+                          <SignUpPage />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />
@@ -145,7 +159,9 @@ function App() {
                     path="/payment" 
                     element={
                       <PublicRoute>
-                        <PaymentPage />
+                        <LazyWrapper fallback={<LoadingSpinner message="Carregando página de pagamento..." />}>
+                          <PaymentPage />
+                        </LazyWrapper>
                       </PublicRoute>
                     } 
                   />

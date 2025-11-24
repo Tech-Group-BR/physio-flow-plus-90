@@ -2,17 +2,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { getStatusColor } from "@/utils/agendaUtils";
+import { getStatusColor } from "@/shared/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2, BookOpen, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AppointmentEditForm } from "./AppointmentEditForm";
+import { AppointmentEditForm } from "@/components/forms/appointments/AppointmentEditForm";
 import { Link } from "react-router-dom";
 import { useClinic } from "@/contexts/ClinicContext";
-import { MedicalRecordForm } from "../MedicalRecordForm";
-import { EvolutionForm } from "../EvolutionForm";
+import { MedicalRecordForm } from "@/components/forms/medical/MedicalRecordForm";
+import { EvolutionForm } from "@/components/forms/medical/EvolutionForm";
 
 interface AppointmentDetailsModalProps {
   appointment: any;
