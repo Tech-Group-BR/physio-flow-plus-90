@@ -932,6 +932,7 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
       if (updates.treatmentType !== undefined) updateData.treatment_type = updates.treatmentType;
       if (updates.status) updateData.status = updates.status;
       if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.price !== undefined) updateData.price = updates.price;
       if (updates.whatsappConfirmed !== undefined) updateData.whatsapp_confirmed = updates.whatsappConfirmed;
       if (updates.whatsappSentAt !== undefined) updateData.whatsapp_sent_at = updates.whatsappSentAt;
       updateData.clinic_id = clinicId; // <-- sempre envia
@@ -939,7 +940,8 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
       const { error } = await supabase
         .from('appointments')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('clinic_id', clinicId); // Adicionar filtro de clinic_id para RLS
       if (error) throw error;
       await fetchAppointments(clinicId);
       await fetchAccountsReceivable(clinicId);
@@ -954,7 +956,8 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
       const { error } = await supabase
         .from('appointments')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('clinic_id', clinicId); // Adicionar filtro de clinic_id para RLS
       if (error) throw error;
       await fetchAppointments(clinicId);
     } catch (error) {
