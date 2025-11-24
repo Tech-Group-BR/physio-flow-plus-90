@@ -76,10 +76,21 @@ export const useAgendaLogic = () => {
     // Normalizar data do slot para comparação (sem hora)
     const slotDateOnly = new Date(date);
     slotDateOnly.setHours(0, 0, 0, 0);
+    
+    console.log('🔎 getAppointmentForSlot - Buscando conflito:', {
+      date: date.toISOString(),
+      slotDateOnly: slotDateOnly.toISOString(),
+      slotStart,
+      excludeAppointmentId,
+      totalAppointments: filteredAppointments.length
+    });
 
     return filteredAppointments.find(apt => {
+      console.log('🔎 Verificando agendamento:', { id: apt.id, date: apt.date, time: apt.time });
+      
       // Excluir o próprio agendamento que está sendo editado
       if (excludeAppointmentId && apt.id === excludeAppointmentId) {
+        console.log('✅ Ignorando agendamento sendo editado:', apt.id);
         return false;
       }
 
@@ -88,8 +99,17 @@ export const useAgendaLogic = () => {
       const aptDateOnly = new Date(year, month - 1, day);
       aptDateOnly.setHours(0, 0, 0, 0);
 
+      console.log('📅 Comparando datas:', {
+        slotDate: slotDateOnly.toISOString(),
+        aptDate: aptDateOnly.toISOString(),
+        slotTimestamp: slotDateOnly.getTime(),
+        aptTimestamp: aptDateOnly.getTime()
+      });
+
       // PRIMEIRO verifica se é o mesmo dia (sem considerar hora)
       const sameDay = aptDateOnly.getTime() === slotDateOnly.getTime();
+      
+      console.log('📅 Mesmo dia?', sameDay);
       
       if (!sameDay) {
         return false; // Se não for o mesmo dia, não há conflito
@@ -99,6 +119,12 @@ export const useAgendaLogic = () => {
       const [aptHour, aptMinute] = apt.time.split(':').map(Number);
       const aptDate = new Date(year, month - 1, day, aptHour, aptMinute, 0, 0);
       const inSlot = aptDate >= slotStartDate && aptDate < slotEndDate;
+
+      console.log('⏰ Conflito de horário?', inSlot, {
+        aptDateTime: aptDate.toISOString(),
+        slotStart: slotStartDate.toISOString(),
+        slotEnd: slotEndDate.toISOString()
+      });
 
       return inSlot;
     });
