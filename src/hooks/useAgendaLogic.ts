@@ -73,6 +73,10 @@ export const useAgendaLogic = () => {
     const slotEndDate = new Date(slotStartDate);
     slotEndDate.setMinutes(slotEndDate.getMinutes() + 30);
 
+    // Normalizar data do slot para comparação (sem hora)
+    const slotDateOnly = new Date(date);
+    slotDateOnly.setHours(0, 0, 0, 0);
+
     return filteredAppointments.find(apt => {
       // Excluir o próprio agendamento que está sendo editado
       if (excludeAppointmentId && apt.id === excludeAppointmentId) {
@@ -81,14 +85,22 @@ export const useAgendaLogic = () => {
 
       // Constrói a data da consulta
       const [year, month, day] = apt.date.split('-').map(Number);
+      const aptDateOnly = new Date(year, month - 1, day);
+      aptDateOnly.setHours(0, 0, 0, 0);
+
+      // PRIMEIRO verifica se é o mesmo dia (sem considerar hora)
+      const sameDay = aptDateOnly.getTime() === slotDateOnly.getTime();
+      
+      if (!sameDay) {
+        return false; // Se não for o mesmo dia, não há conflito
+      }
+
+      // Se for o mesmo dia, então verifica se há conflito de horário
       const [aptHour, aptMinute] = apt.time.split(':').map(Number);
       const aptDate = new Date(year, month - 1, day, aptHour, aptMinute, 0, 0);
-
-      // Consulta começa dentro do slot?
-      const sameDay = aptDate.toDateString() === slotStartDate.toDateString();
       const inSlot = aptDate >= slotStartDate && aptDate < slotEndDate;
 
-      return sameDay && inSlot;
+      return inSlot;
     });
   };
 
