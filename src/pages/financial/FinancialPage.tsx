@@ -1,8 +1,6 @@
 import { FinancialHeader } from "@/components/financial/FinancialHeader";
 import { FinancialTabs } from "@/components/financial/FinancialTabs";
 import { useFinancialData } from "@/hooks/financial/useFinancialData";
-import { AccountsReceivableForm } from "@/components/forms/financial/AccountsReceivableForm";
-import { AccountsPayableForm } from "@/components/forms/financial/AccountsPayableForm";
 
 export function FinancialPage() {
   const data = useFinancialData();
@@ -71,19 +69,6 @@ export function FinancialPage() {
         maxAmount={data.maxAmount}
         onMaxAmountChange={data.setMaxAmount}
       />
-      
-      {/* Forms */}
-      {data.showReceivableForm && (
-        <AccountsReceivableForm 
-          onClose={() => data.setShowReceivableForm(false)}
-        />
-      )}
-      
-      {data.showPayableForm && (
-        <AccountsPayableForm 
-          onClose={() => data.setShowPayableForm(false)}
-        />
-      )}
     </div>
   );
 }

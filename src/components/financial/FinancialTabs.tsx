@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FinancialReceivablesTab } from "../FinancialReceivablesTab";
-import { FinancialPayablesTab } from "../FinancialPayablesTab";
-import { FinancialReportsTab } from "../FinancialReportsTab";
+import { FinancialReceivablesTab } from "./FinancialReceivablesTab";
+import { FinancialPayablesTab } from "./FinancialPayablesTab";
+import { FinancialReportsTab } from "./FinancialReportsTab";
 import type { AccountsReceivable, AccountsPayable } from "@/types";
 
 interface FinancialTabsProps {
