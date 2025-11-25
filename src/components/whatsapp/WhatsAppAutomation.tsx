@@ -36,15 +36,66 @@ export function WhatsAppAutomation({ settings, onSettingsChange }: WhatsAppAutom
   };
 
   const runAutoConfirmations = async () => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('auto-send-confirmations');
       
       if (error) throw error;
       
-      toast.success(`Processamento concluído: ${data.successful} mensagens enviadas`);
+      toast.success(`Confirmações: ${data.totalSuccessful} mensagens enviadas com sucesso`);
     } catch (error) {
       console.error('Erro no envio automático:', error);
       toast.error('Erro no envio automático de confirmações');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runReminders = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-reminder-messages');
+      
+      if (error) throw error;
+      
+      toast.success(`Lembretes: ${data.successful} mensagens enviadas com sucesso`);
+    } catch (error) {
+      console.error('Erro no envio de lembretes:', error);
+      toast.error('Erro no envio de lembretes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runFollowups = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-followup-messages');
+      
+      if (error) throw error;
+      
+      toast.success(`Follow-ups: ${data.successful} mensagens enviadas com sucesso`);
+    } catch (error) {
+      console.error('Erro no envio de follow-ups:', error);
+      toast.error('Erro no envio de follow-ups');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runWelcomeMessages = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-welcome-messages');
+      
+      if (error) throw error;
+      
+      toast.success(`Boas-vindas: ${data.successful} mensagens enviadas com sucesso`);
+    } catch (error) {
+      console.error('Erro no envio de boas-vindas:', error);
+      toast.error('Erro no envio de boas-vindas');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -123,17 +174,59 @@ export function WhatsAppAutomation({ settings, onSettingsChange }: WhatsAppAutom
               />
             </div>
 
-            <div className="pt-4 border-t">
+            <div className="pt-4 border-t space-y-3">
+              <h3 className="font-medium text-lg mb-3">Executar Envios Manualmente</h3>
+              
               <Button
                 onClick={runAutoConfirmations}
+                disabled={isLoading}
                 className="w-full"
-                size="lg"
+                variant="default"
               >
                 <Send className="h-4 w-4 mr-2" />
-                Executar Envio Automático Agora
+                Enviar Confirmações (24h antes)
               </Button>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
+              <p className="text-xs text-muted-foreground text-center -mt-2">
                 Processa e envia confirmações para agendamentos de amanhã
+              </p>
+
+              <Button
+                onClick={runReminders}
+                disabled={isLoading || !settings.reminder_enabled}
+                className="w-full"
+                variant="outline"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Lembretes (2h antes)
+              </Button>
+              <p className="text-xs text-muted-foreground text-center -mt-2">
+                Envia lembretes para consultas confirmadas de hoje
+              </p>
+
+              <Button
+                onClick={runFollowups}
+                disabled={isLoading || !settings.followup_enabled}
+                className="w-full"
+                variant="outline"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Follow-ups Pós-Consulta
+              </Button>
+              <p className="text-xs text-muted-foreground text-center -mt-2">
+                Envia acompanhamento para consultas concluídas ontem
+              </p>
+
+              <Button
+                onClick={runWelcomeMessages}
+                disabled={isLoading || !settings.welcome_enabled}
+                className="w-full"
+                variant="outline"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Boas-vindas
+              </Button>
+              <p className="text-xs text-muted-foreground text-center -mt-2">
+                Envia mensagens de boas-vindas para pacientes novos (últimas 24h)
               </p>
             </div>
           </div>

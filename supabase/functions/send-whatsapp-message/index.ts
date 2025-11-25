@@ -146,9 +146,11 @@ console.log('✅ Professional found:', {
     if (recipientType === 'patient') {
       phoneNumber = patient.phone;
 
-      // Usar template de confirmação com nova formatação
+      // Usar template baseado no tipo de mensagem - SEMPRE do whatsapp_settings
       if (messageType === 'confirmation') {
-        templateToUse = 'Olá {nome}! \n\n Você tem consulta marcada para {data} às {horario} com {title} {fisioterapeuta}. \n\n 📝 Para confirmar sua presença: \n\n  Responda: \n  1️⃣ - para CONFIRMAR ✅ \n  2️⃣ - para CANCELAR ❌\n\n Aguardamos sua resposta!';
+        templateToUse = settings.confirmation_template;
+      } else if (messageType === 'reminder') {
+        templateToUse = settings.reminder_template;
       } else {
         templateToUse = settings.reminder_template;
       }
