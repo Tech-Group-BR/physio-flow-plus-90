@@ -861,6 +861,7 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
       .from('appointments')
       .select('*')
       .eq('clinic_id', clinicId) // <<< ADICIONADO O FILTRO AQUI
+      .is('deleted_at', null) // Filtrar agendamentos deletados
       .order('date', { ascending: true })
       .order('time', { ascending: true });
 
@@ -953,11 +954,16 @@ const fetchAppointments = async (clinicId: string) => { // <<< clinicId deve ser
 
   const deleteAppointment = async (id: string) => {
     try {
+      // Soft delete: marcar como cancelado e definir deleted_at
       const { error } = await supabase
         .from('appointments')
-        .delete()
+        .update({
+          status: 'cancelado',
+          deleted_at: new Date().toISOString()
+        })
         .eq('id', id)
-        .eq('clinic_id', clinicId); // Adicionar filtro de clinic_id para RLS
+        .eq('clinic_id', clinicId);
+      
       if (error) throw error;
       await fetchAppointments(clinicId);
     } catch (error) {

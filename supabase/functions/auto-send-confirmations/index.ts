@@ -59,6 +59,7 @@ serve(async (req) => {
         .eq('date', confirmationDate)
         .eq('status', 'marcado')
         .is('confirmation_sent_at', null)
+        .is('deleted_at', null)
         .eq('patients.is_active', true);
 
       if (appointmentsError) {

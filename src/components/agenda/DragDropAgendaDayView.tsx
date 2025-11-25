@@ -16,6 +16,7 @@ interface DragDropAgendaDayViewProps {
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
+  onDeleteAppointment?: (appointmentId: string) => void;
   onCreateAppointment?: (appointmentData: any) => void;
 }
 
@@ -29,6 +30,7 @@ export function DragDropAgendaDayView({
   onUpdateStatus,
   onSendWhatsApp,
   onUpdateAppointment,
+  onDeleteAppointment,
   onCreateAppointment
 }: DragDropAgendaDayViewProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
@@ -397,6 +399,7 @@ export function DragDropAgendaDayView({
           onUpdateStatus={onUpdateStatus}
           onSendWhatsApp={onSendWhatsApp}
           onUpdateAppointment={onUpdateAppointment}
+          onDelete={onDeleteAppointment}
         />
       )}
 

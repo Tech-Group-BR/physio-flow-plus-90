@@ -34,8 +34,13 @@ export function AgendaPageWithRecurrence() {
     navigateDate
   } = useAgendaLogic();
 
-  const { patients, professionals, rooms, fetchAppointments, addAppointment } = useClinic();
+  const { patients, professionals, rooms, fetchAppointments, addAppointment, deleteAppointment } = useClinic();
   const { clinicId, user } = useAuth();
+
+  // Função para excluir agendamento (soft delete)
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    await deleteAppointment(appointmentId);
+  };
 
   // Função para criar novo agendamento usando o useClinic
   const handleCreateAppointment = async (appointmentData: any) => {
@@ -167,6 +172,7 @@ export function AgendaPageWithRecurrence() {
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onDeleteAppointment={handleDeleteAppointment}
           onCreateAppointment={handleCreateAppointment}
         />
       ) : (
@@ -179,6 +185,7 @@ export function AgendaPageWithRecurrence() {
           onUpdateStatus={updateAppointmentStatus}
           onSendWhatsApp={sendWhatsAppConfirmation}
           onUpdateAppointment={updateAppointmentDetails}
+          onDeleteAppointment={handleDeleteAppointment}
           onCreateAppointment={handleCreateAppointment}
         />
       )}

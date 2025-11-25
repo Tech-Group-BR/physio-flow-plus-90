@@ -60,6 +60,7 @@ serve(async (req) => {
         .eq('date', targetDate)
         .eq('status', 'confirmado')
         .is('reminder_sent_at', null)
+        .is('deleted_at', null)
         .eq('patients.is_active', true);
 
       if (appointmentsError) {

@@ -5,7 +5,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { getStatusColor } from "@/shared/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2, BookOpen, ClipboardList } from "lucide-react";
+import { Calendar, Clock, Edit, FileText, Phone, User, X, Loader2, BookOpen, ClipboardList, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppointmentEditForm } from "@/components/forms/appointments/AppointmentEditForm";
@@ -24,6 +24,7 @@ interface AppointmentDetailsModalProps {
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
+  onDelete?: (appointmentId: string) => void;
 }
 
 export function AppointmentDetailsModal({
@@ -35,11 +36,12 @@ export function AppointmentDetailsModal({
   onClose,
   onUpdateStatus,
   onSendWhatsApp,
-  onUpdateAppointment
+  onUpdateAppointment,
+  onDelete
 }: AppointmentDetailsModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp' | null, title: string, description: string }>({ action: null, title: '', description: '' });
+  const [confirmAction, setConfirmAction] = useState<{ action: 'confirm' | 'realize' | 'miss' | 'cancel' | 'whatsapp' | 'delete' | null, title: string, description: string }>({ action: null, title: '', description: '' });
   const [showAnamneseForm, setShowAnamneseForm] = useState(false);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
   const [creatingBasicRecord, setCreatingBasicRecord] = useState(false);
@@ -151,6 +153,23 @@ export function AppointmentDetailsModal({
 
 
 
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    try {
+      setIsLoading(true);
+      await onDelete(appointment.id);
+      toast.success('Agendamento excluído com sucesso!');
+      onClose();
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error);
+      toast.error('Erro ao excluir agendamento. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+      setConfirmAction({ action: null, title: '', description: '' });
+    }
+  };
+
   const handleConfirmedAction = () => {
     switch (confirmAction.action) {
       case 'confirm':
@@ -164,6 +183,9 @@ export function AppointmentDetailsModal({
         break;
       case 'cancel':
         handleUpdateStatus('cancelado');
+        break;
+      case 'delete':
+        handleDelete();
         break;
       case 'whatsapp':
         handleSendWhatsApp();
@@ -233,15 +255,33 @@ export function AppointmentDetailsModal({
               <Calendar className="h-5 w-5" />
               <span>Detalhes do Agendamento</span>
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEdit}
-              className="flex items-center space-x-2"
-            >
-              <Edit className="h-4 w-4" />
-              <span>Editar</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmAction({ 
+                    action: 'delete', 
+                    title: 'Confirmar Exclusão', 
+                    description: `Tem certeza que deseja excluir este agendamento?\n\nPaciente: ${patient?.fullName}\nData: ${format(new Date(appointment.date), "dd/MM/yyyy", { locale: ptBR })}\nHorário: ${appointment.time}\n\nO agendamento será marcado como CANCELADO e não poderá ser recuperado.`
+                  })}
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  disabled={isLoading}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Excluir</span>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEdit}
+                className="flex items-center space-x-2"
+              >
+                <Edit className="h-4 w-4" />
+                <span>Editar</span>
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
 

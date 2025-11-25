@@ -198,7 +198,12 @@ export function usePatientDetails(patientId: string | undefined) {
 
   // Ações em massa para agendamentos
   const handleBulkDeleteAppointments = async () => {
-    if (!confirm(`Tem certeza que deseja excluir ${selectedAppointmentIds.size} agendamentos?`)) {
+    const count = selectedAppointmentIds.size;
+    const confirmMessage = count === 1
+      ? 'Tem certeza que deseja excluir este agendamento?\n\nO agendamento será marcado como CANCELADO e não poderá ser recuperado.'
+      : `Tem certeza que deseja excluir ${count} agendamentos?\n\nTodos serão marcados como CANCELADOS e não poderão ser recuperados.`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -208,7 +213,7 @@ export function usePatientDetails(patientId: string | undefined) {
         await deleteAppointment(id);
       }
       setSelectedAppointmentIds(new Set());
-      toast.success(`${idsArray.length} agendamentos excluídos com sucesso!`);
+      toast.success(`${idsArray.length} agendamento${idsArray.length > 1 ? 's' : ''} cancelado${idsArray.length > 1 ? 's' : ''} com sucesso!`);
     } catch (error) {
       console.error('Erro ao excluir agendamentos:', error);
       toast.error('Erro ao excluir agendamentos');

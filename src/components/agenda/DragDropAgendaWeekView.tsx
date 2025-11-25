@@ -18,6 +18,7 @@ interface DragDropAgendaWeekViewProps {
   onUpdateStatus: (appointmentId: string, status: 'confirmado' | 'faltante' | 'cancelado' | 'marcado' | 'realizado') => void;
   onSendWhatsApp: (appointmentId: string) => void;
   onUpdateAppointment: (appointmentId: string, updates: any) => void;
+  onDeleteAppointment?: (appointmentId: string) => void;
   onCreateAppointment?: (appointmentData: any) => void; // Para salvar o novo agendamento
 }
 
@@ -30,6 +31,7 @@ export function DragDropAgendaWeekView({
   onUpdateStatus,
   onSendWhatsApp,
   onUpdateAppointment,
+  onDeleteAppointment,
   onCreateAppointment
 }: DragDropAgendaWeekViewProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
@@ -246,6 +248,7 @@ export function DragDropAgendaWeekView({
           onUpdateStatus={onUpdateStatus}
           onSendWhatsApp={onSendWhatsApp}
           onUpdateAppointment={onUpdateAppointment}
+          onDelete={onDeleteAppointment}
         />
       )}
 

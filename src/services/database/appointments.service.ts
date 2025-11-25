@@ -24,6 +24,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('*')
       .eq('clinic_id', clinicId)
+      .is('deleted_at', null)
       .order('date', { ascending: false })
       .order('time', { ascending: true });
 
@@ -46,6 +47,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('*')
       .eq('clinic_id', clinicId)
+      .is('deleted_at', null)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: true })
@@ -157,19 +159,23 @@ export class AppointmentsService {
    * Delete an appointment
    */
   static async delete(id: string): Promise<void> {
-    console.log('🗑️ [AppointmentsService] Deleting appointment:', id);
+    console.log('🗑️ [AppointmentsService] Soft deleting appointment:', id);
     
+    // Soft delete: marcar como cancelado e definir deleted_at
     const { error } = await supabase
       .from('appointments')
-      .delete()
+      .update({
+        status: 'cancelado',
+        deleted_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (error) {
-      console.error('❌ [AppointmentsService] Error deleting appointment:', error);
+      console.error('❌ [AppointmentsService] Error soft deleting appointment:', error);
       throw new Error(`Failed to delete appointment: ${error.message}`);
     }
 
-    console.log('✅ [AppointmentsService] Appointment deleted');
+    console.log('✅ [AppointmentsService] Appointment soft deleted (status: cancelado, deleted_at set)');
   }
 
   /**
@@ -182,6 +188,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('*')
       .eq('patient_id', patientId)
+      .is('deleted_at', null)
       .order('date', { ascending: false });
 
     if (error) {
@@ -203,6 +210,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('*')
       .eq('professional_id', professionalId)
+      .is('deleted_at', null)
       .order('date', { ascending: false });
 
     if (error) {
