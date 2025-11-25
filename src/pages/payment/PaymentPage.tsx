@@ -51,7 +51,7 @@ export function PaymentPage() {
         const plan = getProductById(savedPlanId)
         if (plan) {
           console.log('📦 Plano restaurado do localStorage:', plan.name)
-          // Atualizar URL sem recarregar
+          // Atualizar URL substituindo histórico
           searchParams.set('plan', savedPlanId)
           setSearchParams(searchParams, { replace: true })
           return plan
@@ -95,7 +95,7 @@ export function PaymentPage() {
         console.log('🎯 Auto-selecionando plano:', defaultPlan.name)
         localStorage.setItem(SELECTED_PLAN_KEY, defaultPlan.id)
         searchParams.set('plan', defaultPlan.id)
-        setSearchParams(searchParams, { replace: true })
+        setSearchParams(searchParams)
       }
     }
   }, [products, planId, selectedPlan])
@@ -319,11 +319,17 @@ export function PaymentPage() {
           <div className="text-center space-y-2">
        
             <Button 
-              onClick={() => navigate('/')}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                localStorage.removeItem('physioflow_payment_data')
+                localStorage.removeItem('physioflow_selected_period')
+                window.location.href = '/'
+              }}
               variant="ghost"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar ao Início
+              Voltar
             </Button>
           </div>
         </div>
@@ -370,12 +376,18 @@ export function PaymentPage() {
             </Button>
             
             <Button 
-              onClick={() => navigate('/')}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                localStorage.removeItem('physioflow_payment_data')
+                localStorage.removeItem('physioflow_selected_period')
+                window.location.href = '/'
+              }}
               variant="outline"
               className="w-full"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar ao Início
+              Voltar
             </Button>
           </CardContent>
         </Card>
@@ -392,32 +404,63 @@ export function PaymentPage() {
   const monthlyValue = currentPeriod?.monthlyPrice || selectedPlan.price
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 space-y-6 bg-gradient-to-br from-sky-50 to-white">
-      <div className="text-center max-w-6xl w-full">
-        <h1 className="text-3xl font-bold mb-2">Finalizar Assinatura</h1>
-        <p className="text-xl text-muted-foreground mb-4">
-          {selectedPlan.name}
-        </p>
-        
-        {/* SSL Badge no topo */}
-        <div className="flex justify-center mb-4">
-          <SSLBadge variant="compact" />
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-white">
+      {/* Header com Logo */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-blue-100 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center p-1">
+              <img src="/favicon.ico" alt="GoPhysioTech Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              GoPhysioTech
+            </h1>
+          </div>
+          <Button 
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              // Limpar cache de pagamento ao voltar
+              localStorage.removeItem('physioflow_payment_data')
+              localStorage.removeItem('physioflow_selected_period')
+              window.location.href = '/'
+            }}
+            variant="ghost"
+            className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-200"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Seletor de Período */}
-      <div className="max-w-6xl w-full">
-        <SubscriptionPeriodSelector
-          basePrice={selectedPlan.price}
-          periods={periodsWithPrices}
-          selectedPeriod={selectedPeriod}
-          onPeriodChange={setSelectedPeriod}
-        />
-      </div>
+      {/* Conteúdo Principal */}
+      <div className="flex flex-col items-center justify-center p-4 pt-8 space-y-6">
+        <div className="text-center max-w-6xl w-full">
+          <h2 className="text-3xl font-bold mb-2">Finalizar Assinatura</h2>
+          <p className="text-xl text-muted-foreground mb-4">
+            {selectedPlan.name}
+          </p>
+          
+          {/* SSL Badge no topo */}
+          <div className="flex justify-center mb-4">
+            <SSLBadge variant="compact" />
+          </div>
+        </div>
 
-      {/* Formulário de Pagamento */}
-      <div className="max-w-2xl w-full">
-        <PaymentSystem
+        {/* Seletor de Período */}
+        <div className="max-w-6xl w-full">
+          <SubscriptionPeriodSelector
+            basePrice={selectedPlan.price}
+            periods={periodsWithPrices}
+            selectedPeriod={selectedPeriod}
+            onPeriodChange={setSelectedPeriod}
+          />
+        </div>
+
+        {/* Formulário de Pagamento */}
+        <div className="max-w-2xl w-full">
+          <PaymentSystem
           productId={selectedPlan.id}
           clinicId={user.profile?.clinic_id || undefined}
           value={finalValue}
@@ -428,15 +471,22 @@ export function PaymentPage() {
         />
       </div>
 
-      <div className="text-center space-y-2">
-        <Button 
-          onClick={() => navigate('/')}
-          variant="ghost"
-          size="sm"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar ao Início
-        </Button>
+        <div className="text-center space-y-2 pb-8">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              localStorage.removeItem('physioflow_payment_data')
+              localStorage.removeItem('physioflow_selected_period')
+              window.location.href = '/'
+            }}
+            variant="ghost"
+            size="sm"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar
+          </Button>
+        </div>
       </div>
     </div>
   )

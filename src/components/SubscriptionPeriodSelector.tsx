@@ -56,10 +56,10 @@ export function SubscriptionPeriodSelector({
             <Card
               key={period.period}
               className={cn(
-                "relative cursor-pointer transition-all hover:shadow-lg border-2",
+                "relative cursor-pointer transition-all hover:shadow-lg",
                 isSelected
-                  ? "border-blue-500 shadow-lg scale-105"
-                  : "border-gray-200 hover:border-blue-300"
+                  ? "border-2 border-blue-500 shadow-lg scale-105"
+                  : "hover:border-blue-300"
               )}
               onClick={() => onPeriodChange(period.period)}
             >
@@ -140,11 +140,6 @@ export function SubscriptionPeriodSelector({
                 <p className="text-xs text-muted-foreground pt-2 border-t">
                   {period.description}
                 </p>
-
-                {/* Indicador visual de seleção */}
-                {isSelected && (
-                  <div className="absolute inset-0 border-2 border-blue-500 rounded-lg pointer-events-none" />
-                )}
               </CardContent>
             </Card>
           )
