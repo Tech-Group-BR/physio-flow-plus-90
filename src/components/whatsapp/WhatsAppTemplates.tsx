@@ -36,6 +36,11 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
       id: 'welcome',
       name: 'Boas-vindas',
       message: settings.welcome_template
+    },
+    {
+      id: 'charge',
+      name: 'Cobrança de Pagamento',
+      message: settings.charge_template
     }
   ];
 
@@ -95,6 +100,8 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
                   onSettingsChange({ ...settings, followup_template: newValue });
                 } else if (template.id === 'welcome') {
                   onSettingsChange({ ...settings, welcome_template: newValue });
+                } else if (template.id === 'charge') {
+                  onSettingsChange({ ...settings, charge_template: newValue });
                 }
               }}
               rows={3}
@@ -103,6 +110,8 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
             <p className="text-xs text-muted-foreground">
               {template.id === 'welcome' 
                 ? `Variáveis disponíveis: {'{nome}'}, {'{clinica}'}`
+                : template.id === 'charge'
+                ? `Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{valor}'}, {'{fisioterapeuta}'}`
                 : `Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{fisioterapeuta}'}`
               }
             </p>

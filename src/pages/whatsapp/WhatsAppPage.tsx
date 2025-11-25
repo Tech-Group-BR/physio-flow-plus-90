@@ -27,6 +27,7 @@ interface WhatsAppSettings {
   reminder_template: string;
   followup_template: string;
   welcome_template: string;
+  charge_template?: string;
   reminder_hours_before: number;
   confirmation_hours_before: number;
   followup_hours_after: number;
@@ -52,6 +53,7 @@ export function WhatsAppPage() {
     reminder_template: 'Lembrete: Sua consulta é amanhã ({data}) às {horario}. Compareça pontualmente!',
     followup_template: 'Olá {nome}! Como você está se sentindo após a consulta? Lembre-se de seguir as orientações.',
     welcome_template: 'Olá {nome}! Bem-vindo(a) à nossa clínica. Estamos aqui para cuidar da sua saúde!',
+    charge_template: 'Olá {nome}! Identificamos que o pagamento da sua consulta do dia {data} às {horario} no valor de R$ {valor} ainda está pendente. Por favor, regularize sua situação.',
     reminder_hours_before: 2,
     confirmation_hours_before: 24,
     followup_hours_after: 24,
@@ -70,9 +72,19 @@ export function WhatsAppPage() {
     apt.date === format(addDays(new Date(), 1), 'yyyy-MM-dd')
   );
 
-  const pendingConfirmations = appointments.filter(apt => 
-    !apt.whatsappConfirmed && apt.status === 'marcado'
-  );
+  const pendingConfirmations = appointments.filter(apt => {
+    // Não mostrar se já foi confirmado via WhatsApp
+    if (apt.whatsappConfirmed) return false;
+    
+    // Não mostrar se o status não for 'marcado'
+    if (apt.status !== 'marcado') return false;
+    
+    // Apenas agendamentos de hoje em diante
+    const today = new Date().toISOString().split('T')[0];
+    if (apt.date < today) return false;
+    
+    return true;
+  });
 
   // Consultas concluídas (realizado) de ontem para follow-up
   const yesterday = new Date();
@@ -98,6 +110,28 @@ export function WhatsAppPage() {
   });
   
   console.log('👥 Total de pacientes novos:', newPatients.length);
+
+  // Agendamentos com pagamento pendente ou atrasado
+  const pendingPayments = appointments.filter(apt => {
+    // Não incluir agendamentos cancelados ou deletados
+    if (apt.status === 'cancelado') return false;
+    
+    // Verificar se tem preço definido
+    if (!apt.price || apt.price <= 0) return false;
+    
+    // Buscar se existe pagamento relacionado
+    // Por enquanto, vamos considerar todos os agendamentos com preço como pendentes
+    // TODO: Integrar com tabela de pagamentos quando disponível
+    return true;
+  });
+
+  console.log('💰 Agendamentos com pagamento pendente:', pendingPayments.length);
+  console.log('💰 Detalhes:', pendingPayments.map(a => ({ 
+    date: a.date, 
+    status: a.status, 
+    price: a.price,
+    patient: patients.find(p => p.id === a.patientId)?.fullName 
+  })));
 
   // Estatísticas calculadas
   const todayMessages = todayAppointments.filter(a => a.whatsappSentAt).length;
@@ -138,7 +172,7 @@ export function WhatsAppPage() {
     }
   };
 
-  const sendWhatsAppMessage = async (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup') => {
+  const sendWhatsAppMessage = async (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup' | 'payment') => {
     console.log('🔄 Sending WhatsApp message:', { appointmentId, type });
     const appointment = appointments.find(a => a.id === appointmentId);
     const patient = patients.find(p => p.id === appointment?.patientId);
@@ -230,7 +264,7 @@ export function WhatsAppPage() {
     }
   };
 
-  const sendBulkMessages = async (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => {
+  const sendBulkMessages = async (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup' | 'payment') => {
     for (const id of appointmentIds) {
       await sendWhatsAppMessage(id, type);
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -333,6 +367,7 @@ export function WhatsAppPage() {
             completedAppointments={completedAppointments}
             newPatients={newPatients}
             patients={patients}
+            pendingPayments={pendingPayments}
             onSendMessage={sendWhatsAppMessage}
             onSendBulkMessages={sendBulkMessages}
             onSendIndividualWelcome={sendIndividualWelcome}

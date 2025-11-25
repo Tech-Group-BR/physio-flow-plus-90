@@ -22,8 +22,9 @@ interface WhatsAppMessagesProps {
   completedAppointments: any[];
   newPatients: any[];
   patients: any[];
-  onSendMessage: (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup') => void;
-  onSendBulkMessages: (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => void;
+  pendingPayments: any[];
+  onSendMessage: (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup' | 'payment') => void;
+  onSendBulkMessages: (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup' | 'payment') => void;
   onSendIndividualWelcome: (patientId: string) => void;
   onSendBulkWelcome: () => void;
 }
@@ -33,7 +34,8 @@ export function WhatsAppMessages({
   tomorrowAppointments,
   completedAppointments,
   newPatients, 
-  patients, 
+  patients,
+  pendingPayments, 
   onSendMessage, 
   onSendBulkMessages,
   onSendIndividualWelcome,
@@ -42,9 +44,10 @@ export function WhatsAppMessages({
   const [confirmationDateFilter, setConfirmationDateFilter] = useState('');
   const [reminderDateFilter, setReminderDateFilter] = useState('');
   const [followupDateFilter, setFollowupDateFilter] = useState('');
+  const [paymentDateFilter, setPaymentDateFilter] = useState('');
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
-  const [bulkSendAction, setBulkSendAction] = useState<{ ids: string[], type: 'confirmation' | 'reminder' | 'followup' } | null>(null);
+  const [bulkSendAction, setBulkSendAction] = useState<{ ids: string[], type: 'confirmation' | 'reminder' | 'followup' | 'payment' } | null>(null);
   
   // Helper para formatar data sem problemas de timezone
   const formatDateFromInput = (dateString: string) => {
@@ -54,7 +57,7 @@ export function WhatsAppMessages({
   };
   
   // Função para abrir diálogo de confirmação
-  const handleBulkSendClick = (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => {
+  const handleBulkSendClick = (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup' | 'payment') => {
     setBulkSendAction({ ids: appointmentIds, type });
     setIsConfirmDialogOpen(true);
   };
@@ -102,6 +105,11 @@ export function WhatsAppMessages({
   const filteredCompletedAppointments = followupDateFilter 
     ? completedAppointments.filter(apt => apt.date === followupDateFilter)
     : completedAppointments;
+
+  // Filtrar pagamentos pendentes por data
+  const filteredPendingPayments = paymentDateFilter
+    ? pendingPayments.filter(apt => apt.date === paymentDateFilter)
+    : pendingPayments;
   
   return (
      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
@@ -424,6 +432,99 @@ export function WhatsAppMessages({
         </CardContent>
       </Card>
 
+      {/* Cobrança de Pagamentos Pendentes Card */}
+      <Card className="flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            💰 Cobranças de Pagamento
+          </CardTitle>
+          <CardDescription>
+            Agendamentos realizados com pagamento pendente ou atrasado
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-1 flex flex-col">
+          {/* Filtro por data */}
+          <div className="space-y-2">
+            <Label htmlFor="payment-date" className="text-sm font-medium flex items-center gap-1">
+              <Filter className="h-4 w-4" />
+              Filtrar por data:
+            </Label>
+            <Input
+              id="payment-date"
+              type="date"
+              value={paymentDateFilter}
+              onChange={(e) => setPaymentDateFilter(e.target.value)}
+              className="text-sm"
+            />
+            {paymentDateFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPaymentDateFilter('')}
+                className="text-xs h-6 px-2"
+              >
+                Limpar filtro
+              </Button>
+            )}
+          </div>
+          
+          {filteredPendingPayments.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4 flex-1 flex items-center justify-center">
+              {paymentDateFilter 
+                ? `Nenhum pagamento pendente para ${formatDateFromInput(paymentDateFilter)}`
+                : 'Nenhum pagamento pendente'
+              }
+            </p>
+          ) : (
+            <>
+              <div className="text-sm text-muted-foreground mb-2">
+                {filteredPendingPayments.length} agendamento(s) com pagamento pendente
+              </div>
+              <div className="space-y-2 flex-1 overflow-auto max-h-[400px] pr-2">
+                {filteredPendingPayments.map((appointment: any) => {
+                  const patient = patients.find((p: any) => p.id === appointment.patientId);
+                  const appointmentDate = format(new Date(appointment.date + 'T00:00:00'), 'dd/MM/yyyy');
+                  
+                  return (
+                    <div
+                      key={appointment.id}
+                      className="flex items-center justify-between p-3 bg-muted rounded-lg border hover:border-primary transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{patient?.fullName || 'Paciente desconhecido'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointmentDate} às {appointment.time}
+                        </p>
+                        {appointment.price && (
+                          <p className="text-sm font-semibold text-orange-600 mt-1">
+                            Valor: R$ {appointment.price.toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => onSendMessage(appointment.id, 'payment')}
+                        size="sm"
+                        variant="outline"
+                        className="ml-2 shrink-0"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button 
+                onClick={() => handleBulkSendClick(filteredPendingPayments.map((a: any) => a.id), 'payment')} 
+                className="w-full"
+                variant="default"
+              >
+                Enviar Todas as Cobranças
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Diálogo de Confirmação para Envio em Massa */}
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
@@ -444,6 +545,15 @@ export function WhatsAppMessages({
                   Você está prestes a enviar <strong>{bulkSendAction?.ids.length} mensagens de lembrete</strong> via WhatsApp.
                   {reminderDateFilter && (
                     <> para a data <strong>{formatDateFromInput(reminderDateFilter)}</strong></>
+                  )}
+                  <br /><br />
+                  Deseja continuar com o envio?
+                </>
+              ) : bulkSendAction?.type === 'payment' ? (
+                <>
+                  Você está prestes a enviar <strong>{bulkSendAction?.ids.length} mensagens de cobrança</strong> via WhatsApp para agendamentos com pagamento pendente.
+                  {paymentDateFilter && (
+                    <> para a data <strong>{formatDateFromInput(paymentDateFilter)}</strong></>
                   )}
                   <br /><br />
                   Deseja continuar com o envio?

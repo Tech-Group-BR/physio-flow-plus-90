@@ -9,7 +9,7 @@ const corsHeaders = {
 
 interface SendMessageRequest {
   appointmentId: string;
-  messageType: 'confirmation' | 'reminder' | 'followup' | 'notification';
+  messageType: 'confirmation' | 'reminder' | 'followup' | 'notification' | 'payment';
   recipientType: 'patient' | 'Professional';
 }
 
@@ -153,6 +153,8 @@ console.log('✅ Professional found:', {
         templateToUse = settings.reminder_template;
       } else if (messageType === 'followup') {
         templateToUse = settings.followup_template;
+      } else if (messageType === 'payment') {
+        templateToUse = settings.charge_template || 'Olá {nome}! Identificamos que o pagamento da sua consulta do dia {data} às {horario} no valor de R$ {valor} ainda está pendente. Por favor, regularize sua situação.';
       } else {
         templateToUse = settings.reminder_template;
       }
@@ -183,7 +185,8 @@ console.log('✅ Professional found:', {
         .replace(/{data}/g, appointmentDate)
         .replace(/{horario}/g, appointment.time.slice(0, 5))
         .replace(/{title}/g, title)
-        .replace(/{fisioterapeuta}/g, professional.full_name);
+        .replace(/{fisioterapeuta}/g, professional.full_name)
+        .replace(/{valor}/g, appointment.price ? appointment.price.toFixed(2) : '0,00');
     } else {
       // Para fisioterapeuta - detectar título Dr/Dra
       const firstName = professional?.full_name?.split(' ')[0]?.toLowerCase() || '';
