@@ -29,7 +29,7 @@ export function PaymentPage() {
   // Carregar período selecionado do localStorage
   const [selectedPeriod, setSelectedPeriod] = useState<string>(() => {
     const saved = localStorage.getItem('physioflow_selected_period')
-    return saved || 'monthly'
+    return saved || 'quarterly'
   })
   
   // Debug: verificar user.profile

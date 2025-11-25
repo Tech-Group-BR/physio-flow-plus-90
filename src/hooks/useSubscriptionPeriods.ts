@@ -30,19 +30,9 @@ export function useSubscriptionPeriods(productId?: string) {
       setLoading(true)
       setError(null)
 
-      // Períodos padrão com descontos progressivos
-      // TODO: Buscar do banco quando os types forem atualizados
+      // Períodos disponíveis com valores totais fixos
+      // Baseado nos planos em subscription_plans
       const defaultPeriods: BillingPeriod[] = [
-        {
-          period: 'monthly',
-          displayName: 'Mensal',
-          description: 'Renovação mensal sem desconto',
-          months: 1,
-          discountPercent: 0,
-          monthlyPrice: 0,
-          totalPrice: 0,
-          savings: 0
-        },
         {
           period: 'quarterly',
           displayName: 'Trimestral',
@@ -50,7 +40,7 @@ export function useSubscriptionPeriods(productId?: string) {
           months: 3,
           discountPercent: 10,
           monthlyPrice: 0,
-          totalPrice: 0,
+          totalPrice: 262, // Valor total fixo
           savings: 0
         },
         {
@@ -60,8 +50,9 @@ export function useSubscriptionPeriods(productId?: string) {
           months: 6,
           discountPercent: 20,
           monthlyPrice: 0,
-          totalPrice: 0,
-          savings: 0
+          totalPrice: 495, // Valor total fixo
+          savings: 0,
+          popular: true
         },
         {
           period: 'annual',
@@ -70,8 +61,9 @@ export function useSubscriptionPeriods(productId?: string) {
           months: 12,
           discountPercent: 30,
           monthlyPrice: 0,
-          totalPrice: 0,
-          savings: 0
+          totalPrice: 930, // Valor total fixo
+          savings: 0,
+          bestDeal: true
         }
       ]
 
@@ -84,22 +76,24 @@ export function useSubscriptionPeriods(productId?: string) {
     }
   }
 
-  // Função para calcular preço de um período específico
+  // Função para calcular preço de um período específico com valores fixos
   const calculatePeriodPrice = (basePrice: number, period: 'monthly' | 'quarterly' | 'semiannual' | 'annual') => {
     const periodData = periods.find(p => p.period === period)
     if (!periodData) return null
 
-    const discountPercent = periodData.discountPercent
+    // Usar valores totais fixos
+    const totalPrice = periodData.totalPrice
     const months = periodData.months
-    const monthlyPrice = basePrice * (1 - discountPercent / 100)
-    const totalPrice = monthlyPrice * months
-    const savings = (basePrice * months) - totalPrice
+    const monthlyPrice = totalPrice / months
+    // Calcular economia baseado no preço base R$ 97/mês
+    const originalTotal = 97 * months
+    const savings = originalTotal - totalPrice
 
     return {
       monthlyPrice: Number(monthlyPrice.toFixed(2)),
       totalPrice: Number(totalPrice.toFixed(2)),
       savings: Number(savings.toFixed(2)),
-      discountPercent,
+      discountPercent: periodData.discountPercent,
       months
     }
   }

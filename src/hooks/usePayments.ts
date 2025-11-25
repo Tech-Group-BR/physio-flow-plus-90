@@ -38,6 +38,7 @@ interface CreatePaymentRequest {
   clinicId?: string
   productId?: string
   billingPeriod?: string // Período de cobrança: monthly, quarterly, semiannual, annual
+  installments?: number // Número de parcelas (1-12, apenas para planos anuais no cartão)
   creditCard?: CreditCardData
   creditCardHolderInfo?: CreditCardHolderInfo
 }
@@ -81,23 +82,63 @@ export function usePayments() {
       console.log('📥 Resposta create-asaas-customer:', { data, error })
 
       if (error) {
-        // Tentar ler o erro do response body
-        if (error.context?.body) {
-          try {
-            const errorBody = await error.context.body.text()
-            console.error('❌ Erro detalhado do Edge Function:', errorBody)
-            throw new Error(errorBody)
-          } catch (e) {
-            console.error('❌ Erro ao ler body:', e)
+        console.error('❌ Erro da Edge Function:', error)
+        
+        // Tentar ler o corpo da resposta de erro
+        let errorMessage = 'Erro ao criar cliente no Asaas'
+        
+        try {
+          // O erro tem um context.Response que podemos ler
+          if (error.context && error.context instanceof Response) {
+            const errorBody = await error.context.json()
+            console.error('❌ Body do erro:', errorBody)
+            
+            if (errorBody.error) {
+              errorMessage = errorBody.error
+              
+              if (errorBody.details) {
+                console.error('❌ Detalhes do Asaas:', errorBody.details)
+                
+                // Se details tem erros específicos do Asaas
+                if (typeof errorBody.details === 'object') {
+                  if (errorBody.details.errors) {
+                    const asaasErrors = errorBody.details.errors
+                    const errorMessages = Object.entries(asaasErrors)
+                      .map(([field, msgs]: [string, any]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+                      .join('; ')
+                    errorMessage += ` - ${errorMessages}`
+                  } else if (typeof errorBody.details === 'string') {
+                    errorMessage += ` - ${errorBody.details}`
+                  }
+                }
+              }
+            }
           }
+        } catch (parseError) {
+          console.error('❌ Erro ao parsear resposta:', parseError)
         }
-        throw error
+        
+        // Se data também tem erro (fallback)
+        if (data?.error) {
+          errorMessage = data.error
+        } else if (!errorMessage.includes('Erro ao criar cliente')) {
+          errorMessage = error.message || errorMessage
+        }
+        
+        toast.error(errorMessage)
+        throw new Error(errorMessage)
+      }
+
+      if (!data?.customer) {
+        throw new Error('Resposta inválida do servidor')
       }
 
       return data
     } catch (error: any) {
       console.error('Erro ao criar cliente:', error)
-      toast.error('Erro ao criar cliente: ' + error.message)
+      if (!error.message.includes('Erro ao criar cliente')) {
+        toast.error('Erro ao criar cliente: ' + error.message)
+      }
       throw error
     } finally {
       setLoading(false)
@@ -126,16 +167,59 @@ export function usePayments() {
           description: paymentData.description,
           clinicId: paymentData.clinicId,
           productId: paymentData.productId,
-          billingPeriod: paymentData.billingPeriod || 'monthly', // 🔥 ADICIONAR BILLING PERIOD
+          billingPeriod: paymentData.billingPeriod || 'monthly',
+          installments: paymentData.installments || 1, // Parcelamento
           creditCard: paymentData.creditCard,
           creditCardHolderInfo: paymentData.creditCardHolderInfo
         }
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Erro ao criar pagamento:', error)
+        
+        let errorMessage = 'Erro ao criar pagamento'
+        
+        try {
+          // Tentar ler o corpo da resposta de erro
+          if (error.context && error.context instanceof Response) {
+            const errorBody = await error.context.json()
+            console.error('❌ Body do erro:', errorBody)
+            
+            if (errorBody.error) {
+              errorMessage = errorBody.error
+              
+              if (errorBody.details) {
+                console.error('❌ Detalhes do Asaas:', errorBody.details)
+                
+                if (typeof errorBody.details === 'object' && errorBody.details.errors) {
+                  const asaasErrors = errorBody.details.errors
+                  const errorMessages = Object.entries(asaasErrors)
+                    .map(([field, msgs]: [string, any]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+                    .join('; ')
+                  errorMessage += ` - ${errorMessages}`
+                }
+              }
+            }
+          }
+        } catch (parseError) {
+          console.error('❌ Erro ao parsear resposta:', parseError)
+        }
+        
+        // Fallback para data.error
+        if (data?.error) {
+          errorMessage = data.error
+        } else if (!errorMessage.includes('Erro ao criar')) {
+          errorMessage = error.message || errorMessage
+        }
+        
+        toast.error(errorMessage)
+        throw new Error(errorMessage)
+      }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao criar pagamento')
+      if (!data?.success) {
+        const errorMsg = data?.error || 'Erro ao criar pagamento'
+        toast.error(errorMsg)
+        throw new Error(errorMsg)
       }
 
       toast.success('Pagamento criado com sucesso!')
@@ -143,13 +227,9 @@ export function usePayments() {
 
     } catch (error: any) {
       console.error('Erro ao criar pagamento:', error)
-      
-      // Tentar extrair detalhes do erro
-      if (error.context?.body) {
-        console.error('Detalhes do erro:', error.context.body)
+      if (!error.message?.includes('Erro ao criar')) {
+        toast.error('Erro: ' + error.message)
       }
-      
-      toast.error('Erro ao criar pagamento: ' + error.message)
       throw error
     } finally {
       setLoading(false)

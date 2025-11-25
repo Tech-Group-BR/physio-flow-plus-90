@@ -84,7 +84,8 @@ serve(async (req: any) => {
       creditCardHolderInfo,
       clinicId,
       productId,
-      billingPeriod
+      billingPeriod,
+      installments
     } = requestData
 
     // Mapear período para o cycle do Asaas
@@ -95,9 +96,12 @@ serve(async (req: any) => {
       'annual': 'YEARLY'
     }
     const asaasCycle = cycleMap[billingPeriod || 'monthly'] || 'MONTHLY'
+    
+    // Número de parcelas (padrão 1 se não informado)
+    const installmentCount = installments || 1
 
     console.log('[HYBRID] REQUEST COMPLETO:', JSON.stringify(requestData, null, 2))
-    console.log('[HYBRID] Creating payment for:', { customerId, value, billingType, clinicId, productId, billingPeriod })
+    console.log('[HYBRID] Creating payment for:', { customerId, value, billingType, clinicId, productId, billingPeriod, installments: installmentCount })
     
     // VALIDAR SE CLINICID E PRODUCTID ESTÃO PRESENTES
     if (!clinicId || !productId) {
@@ -164,24 +168,32 @@ serve(async (req: any) => {
         }
       }
 
-      // Criar pagamento apenas da 1ª parcela (valor total / 12)
-      const monthlyValue = Number((value / 12).toFixed(2))
+      // Criar pagamento com parcelamento (usa installmentCount da request ou 12 por padrão)
+      const finalInstallments = installmentCount || 12
+      const installmentValue = Number((value / finalInstallments).toFixed(2))
+      
       const paymentData: any = {
         customer: customerId,
         billingType: billingType,
-        value: monthlyValue, // Apenas 1ª parcela
+        value: value, // Valor total
         dueDate: dueDate,
-        description: description || 'Assinatura Anual PhysioFlow Plus - Parcela 1/12',
+        description: description || `Assinatura Anual PhysioFlow Plus - ${finalInstallments}x`,
         externalReference: externalReference
       }
-
-      // Se tiver token, usar ele (mais seguro)
-      if (cardToken && billingType === 'CREDIT_CARD') {
-        paymentData.creditCardToken = cardToken
-      } else if (billingType === 'CREDIT_CARD' && creditCard) {
-        // Fallback: enviar dados do cartão diretamente
-        paymentData.creditCard = creditCard
-        paymentData.creditCardHolderInfo = creditCardHolderInfo
+      
+      // Adicionar parcelamento se cartão de crédito
+      if (billingType === 'CREDIT_CARD') {
+        paymentData.installmentCount = finalInstallments
+        paymentData.installmentValue = installmentValue
+        
+        // Se tiver token, usar ele (mais seguro)
+        if (cardToken) {
+          paymentData.creditCardToken = cardToken
+        } else if (creditCard) {
+          // Fallback: enviar dados do cartão diretamente
+          paymentData.creditCard = creditCard
+          paymentData.creditCardHolderInfo = creditCardHolderInfo
+        }
       }
 
       // Chamar API de PAYMENTS do Asaas (apenas 1ª parcela!)
@@ -201,12 +213,14 @@ serve(async (req: any) => {
       }
 
       payment = await paymentResponse.json()
-      console.log('[SUCCESS] 1ª parcela criada no Asaas:', payment.id)
+      console.log('[SUCCESS] Pagamento parcelado criado no Asaas:', payment.id, `(${finalInstallments}x de R$ ${installmentValue})`)
       
-      // Guardar token para cobranças futuras
+      // Guardar informações de parcelamento
+      payment.installmentCount = finalInstallments
+      payment.installmentValue = installmentValue
       if (cardToken) {
         payment.cardToken = cardToken
-        console.log('[INFO] Token será guardado para cobranças mensais automáticas')
+        console.log('[INFO] Token guardado para as parcelas')
       }
       
     } else {
@@ -328,8 +342,11 @@ serve(async (req: any) => {
     }
 
     // Salvar pagamento no Supabase com todos os campos corretos
-    const monthlyValue = isAnnualPlan ? Number((value / 12).toFixed(2)) : value
-    const nextChargeDate = isAnnualPlan ? new Date(new Date(dueDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null
+    const finalInstallmentCount = isAnnualPlan ? (installmentCount || 12) : 1
+    const installmentValue = isAnnualPlan ? Number((value / finalInstallmentCount).toFixed(2)) : value
+    const nextChargeDate = isAnnualPlan && finalInstallmentCount > 1 
+      ? new Date(new Date(dueDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
+      : null
     
     console.log('[DB] Salvando pagamento com:', {
       asaas_payment_id: payment.id,
@@ -339,9 +356,10 @@ serve(async (req: any) => {
       customer_id: customerId,
       plan_id: productId,
       is_installment_plan: isAnnualPlan,
-      installment_count: isAnnualPlan ? 12 : 1,
+      installment_count: finalInstallmentCount,
+      installment_value: installmentValue,
       asaas_card_token: payment.cardToken || null,
-      auto_charge_enabled: isAnnualPlan && !!payment.cardToken,
+      auto_charge_enabled: isAnnualPlan && finalInstallmentCount > 1 && !!payment.cardToken,
       next_charge_date: nextChargeDate
     })
     
@@ -354,14 +372,14 @@ serve(async (req: any) => {
         clinic_id: resolvedClinicId,
         customer_id: customerId,
         plan_id: productId,
-        value: monthlyValue, // Valor mensal para planos anuais
+        value: installmentValue, // Valor da parcela
         status: payment.status,
         billing_type: billingType.toLowerCase(),
         due_date: dueDate,
-        description: description || (isAnnualPlan ? 'Assinatura Anual PhysioFlow Plus - Parcela 1/12' : 'Assinatura PhysioFlow Plus'),
+        description: description || (isAnnualPlan ? `Assinatura Anual PhysioFlow Plus - ${finalInstallmentCount}x de R$ ${installmentValue}` : 'Assinatura PhysioFlow Plus'),
         pix_payload: null, // Será preenchido depois se for PIX
         is_installment_plan: isAnnualPlan, // True se for plano anual
-        installment_count: isAnnualPlan ? 12 : 1, // 12 parcelas se anual, 1 se não
+        installment_count: finalInstallmentCount, // Número de parcelas escolhido
         current_installment: 1, // Primeira parcela
         asaas_card_token: payment.cardToken || null, // TOKEN do cartão (NÃO dados reais)
         auto_charge_enabled: isAnnualPlan && !!payment.cardToken, // Auto-charge habilitado se tiver token
@@ -478,7 +496,8 @@ serve(async (req: any) => {
       pixQrCode: pixQrCodeInfo,
       success: true,
       isAnnual: isAnnualPlan,
-      installments: isAnnualPlan ? 12 : 1
+      installments: finalInstallmentCount,
+      installmentValue: installmentValue
     }
 
     console.log('[SUCCESS] Pagamento criado com sucesso:', payment.id)

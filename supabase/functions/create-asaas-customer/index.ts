@@ -2,8 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { corsHeaders } from "../_shared/cors.ts"
 
-const ASAAS_BASE_URL = "https://sandbox.asaas.com/api/v3"
 const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
+const ASAAS_BASE_URL = Deno.env.get('ASAAS_BASE_URL') || "https://sandbox.asaas.com/api/v3"
 
 interface CreateCustomerData {
   name: string
@@ -23,6 +23,18 @@ serve(async (req) => {
   }
 
   try {
+    // Validar API Key
+    if (!ASAAS_API_KEY) {
+      console.error('❌ ASAAS_API_KEY não configurada')
+      return new Response(
+        JSON.stringify({ error: 'API Key do Asaas não configurada. Configure ASAAS_API_KEY nas variáveis de ambiente.' }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -31,6 +43,7 @@ serve(async (req) => {
     const { name, cpfCnpj, email, phone, profileId, clinicId } = await req.json()
 
     console.log('📥 Dados recebidos:', { name, cpfCnpj, email, phone, profileId, clinicId })
+    console.log('🔑 ASAAS_BASE_URL:', ASAAS_BASE_URL)
 
     if (!name || !cpfCnpj || !email) {
       return new Response(
@@ -53,15 +66,33 @@ serve(async (req) => {
     }
 
     // Verificar se cliente já existe
+    console.log('🔍 Buscando cliente existente no Asaas...')
     const searchResponse = await fetch(
       `${ASAAS_BASE_URL}/customers?cpfCnpj=${cpfCnpj}`,
       {
         headers: {
-          'access_token': ASAAS_API_KEY!,
+          'access_token': ASAAS_API_KEY,
           'Content-Type': 'application/json'
         }
       }
     )
+
+    if (!searchResponse.ok) {
+      console.error('❌ Erro ao buscar cliente no Asaas')
+      const errorText = await searchResponse.text()
+      console.error('❌ Response:', errorText)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Erro ao buscar cliente no Asaas',
+          details: errorText,
+          status: searchResponse.status
+        }),
+        { 
+          status: searchResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     const searchData = await searchResponse.json()
     
@@ -129,10 +160,12 @@ serve(async (req) => {
       }
     }
 
+    console.log('📤 Criando cliente no Asaas:', customerData)
+    
     const createResponse = await fetch(`${ASAAS_BASE_URL}/customers`, {
       method: 'POST',
       headers: {
-        'access_token': ASAAS_API_KEY!,
+        'access_token': ASAAS_API_KEY,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(customerData)
@@ -141,14 +174,17 @@ serve(async (req) => {
     const responseData = await createResponse.json()
 
     if (!createResponse.ok) {
-      console.error('Erro ao criar cliente no Asaas:', responseData)
+      console.error('❌ Erro ao criar cliente no Asaas:', responseData)
+      console.error('❌ Status:', createResponse.status)
+      console.error('❌ Headers:', createResponse.headers)
       return new Response(
         JSON.stringify({ 
           error: 'Erro ao criar cliente no Asaas',
-          details: responseData
+          details: responseData,
+          status: createResponse.status
         }),
         { 
-          status: 400,
+          status: createResponse.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )

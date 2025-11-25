@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePayments } from '@/hooks/usePayments'
 import { usePaymentPersistence } from '@/hooks/usePaymentPersistence'
 import { CreditCard, Lock, CheckCircle } from 'lucide-react'
@@ -26,7 +27,10 @@ const creditCardSchema = z.object({
   cpfCnpj: z.string().min(11, 'CPF/CNPJ é obrigatório'),
   postalCode: z.string().min(8, 'CEP é obrigatório'),
   addressNumber: z.string().min(1, 'Número do endereço é obrigatório'),
-  phone: z.string().min(10, 'Telefone é obrigatório')
+  phone: z.string().min(10, 'Telefone é obrigatório'),
+  
+  // Parcelamento (opcional - apenas para planos anuais)
+  installments: z.string().optional()
 })
 
 type CreditCardFormData = z.infer<typeof creditCardSchema>
@@ -56,6 +60,14 @@ export function CreditCardPayment({
   const { persistedData, persistData, clearCardData } = usePaymentPersistence()
   const [processing, setProcessing] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [selectedInstallments, setSelectedInstallments] = useState<string>('1')
+  
+  // Verificar se é plano anual (permite parcelamento)
+  const isAnnualPlan = billingPeriod === 'annual'
+  const maxInstallments = isAnnualPlan ? 12 : 1
+  const installmentValue = isAnnualPlan && selectedInstallments 
+    ? paymentValue / parseInt(selectedInstallments) 
+    : paymentValue
 
   const {
     register,
@@ -88,7 +100,13 @@ export function CreditCardPayment({
         postalCode: persistedData.holderPostalCode || '',
         addressNumber: persistedData.holderAddressNumber || '',
         phone: persistedData.holderPhone || '',
+        installments: persistedData.installments || '1',
       }, { keepDefaultValues: false });
+      
+      // Restaurar parcelas selecionadas
+      if (persistedData.installments) {
+        setSelectedInstallments(persistedData.installments);
+      }
     }
   }, [persistedData, reset]);
 
@@ -109,11 +127,12 @@ export function CreditCardPayment({
           holderPostalCode: values.postalCode,
           holderAddressNumber: values.addressNumber,
           holderPhone: values.phone,
+          installments: selectedInstallments,
         });
       }
     })
     return () => subscription.unsubscribe()
-  }, [watch, persistData])
+  }, [watch, persistData, selectedInstallments])
 
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCreditCard(e.target.value)
@@ -156,6 +175,7 @@ export function CreditCardPayment({
         clinicId,
         productId,
         billingPeriod, // Período de cobrança
+        installments: isAnnualPlan ? parseInt(selectedInstallments) : 1, // Número de parcelas
         creditCard: {
           holderName: data.holderName,
           number: data.number.replace(/\s/g, ''),
@@ -238,6 +258,52 @@ export function CreditCardPayment({
 
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Opções de Parcelamento (apenas para planos anuais) */}
+          {isAnnualPlan && (
+            <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-semibold">Parcelamento</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Parcele em até 12x sem juros
+                  </p>
+                </div>
+              </div>
+              
+              <Select 
+                value={selectedInstallments} 
+                onValueChange={setSelectedInstallments}
+              >
+                <SelectTrigger className="bg-white dark:bg-gray-950">
+                  <SelectValue placeholder="Selecione as parcelas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => {
+                    const installmentAmount = paymentValue / num
+                    return (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num}x de R$ {installmentAmount.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })} {num === 1 ? '(à vista)' : 'sem juros'}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-blue-200 dark:border-blue-800">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-semibold">
+                  R$ {paymentValue.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
+          
           {/* Dados do Cartão */}
           <div className="space-y-4">
             <h3 className="font-medium flex items-center gap-2">
@@ -419,6 +485,11 @@ export function CreditCardPayment({
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 Processando...
               </div>
+            ) : isAnnualPlan && selectedInstallments !== '1' ? (
+              `Pagar ${selectedInstallments}x de R$ ${installmentValue.toLocaleString('pt-BR', { 
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}`
             ) : (
               `Pagar R$ ${paymentValue.toLocaleString('pt-BR', { 
                 minimumFractionDigits: 2,

@@ -6,12 +6,15 @@ export interface Product {
   id: string;
   name: string;
   description: string | null;
-  price: number;
+  price: number; // Preço base mensal
+  billing_period?: string; // QUARTERLY, SEMIANNUAL, ANNUAL
   is_active: boolean;
   created_at: string;
   period?: string;
   features?: string[];
   popular?: boolean;
+  totalPrice?: number; // Preço total do período
+  monthlyPrice?: number; // Preço mensal calculado com desconto
 }
 
 interface ProductsCacheContextType {
@@ -59,7 +62,7 @@ export function ProductsCacheProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       const { data, error } = await supabase
-        .from('products')
+        .from('subscription_plans')
         .select('*')
         .eq('is_active', true)
         .order('price', { ascending: true });
@@ -78,13 +81,17 @@ export function ProductsCacheProvider({ children }: { children: ReactNode }) {
 
       console.log('📦 Produtos recebidos do banco:', data.length);
 
-      // Transformar os dados para incluir campos adicionais da UI
-      const transformedProducts: Product[] = data.map((product) => ({
-        ...product,
-        period: '/mês',
-        features: getFeaturesForProduct(product.name),
-        popular: product.name.toLowerCase() === 'professional'
-      }));
+      // Transformar os dados - price já é o valor base mensal
+      const transformedProducts: Product[] = data.map((product) => {
+        return {
+          ...product,
+          period: '/período',
+          features: Array.isArray(product.features) ? product.features : getFeaturesForProduct(product.name),
+          popular: product.popular || false,
+          totalPrice: product.price, // Para exibição na landing, será calculado dinamicamente
+          monthlyPrice: product.price
+        };
+      });
 
       // Salvar no cache global
       globalCache.set(CACHE_KEYS.PRODUCTS, transformedProducts, null, CACHE_TTL.STATIC);

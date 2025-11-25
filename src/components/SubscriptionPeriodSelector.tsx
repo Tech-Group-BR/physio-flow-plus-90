@@ -13,6 +13,8 @@ export interface BillingPeriod {
   monthlyPrice: number
   totalPrice: number
   savings: number
+  popular?: boolean
+  bestDeal?: boolean
 }
 
 interface SubscriptionPeriodSelectorProps {
@@ -35,16 +37,6 @@ export function SubscriptionPeriodSelector({
     }).format(value)
   }
 
-  const getMostPopular = () => {
-    // Semestral é o mais popular (melhor custo-benefício)
-    return periods.find(p => p.period === 'semiannual')?.period || periods[1]?.period
-  }
-
-  const getBestValue = () => {
-    // Anual tem o maior desconto
-    return periods.find(p => p.period === 'annual')?.period || periods[periods.length - 1]?.period
-  }
-
   return (
     <div className="w-full space-y-4">
       <div className="text-center space-y-2">
@@ -54,11 +46,11 @@ export function SubscriptionPeriodSelector({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {periods.map((period) => {
           const isSelected = selectedPeriod === period.period
-          const isMostPopular = period.period === getMostPopular()
-          const isBestValue = period.period === getBestValue()
+          const isMostPopular = period.popular
+          const isBestValue = period.bestDeal
 
           return (
             <Card
@@ -121,32 +113,28 @@ export function SubscriptionPeriodSelector({
 
                 {/* Preços */}
                 <div className="space-y-2">
-                  {period.discountPercent > 0 ? (
-                    <>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-muted-foreground line-through">
-                          {formatCurrency(basePrice)}
-                        </span>
-                        <span className="text-2xl font-bold text-blue-600">
-                          {formatCurrency(period.monthlyPrice)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/mês</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Total: <span className="font-semibold text-gray-900">{formatCurrency(period.totalPrice)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold">
-                          {formatCurrency(period.monthlyPrice)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/mês</span>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {formatCurrency(period.monthlyPrice)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/mês</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total: <span className="font-semibold text-gray-900">{formatCurrency(period.totalPrice)}</span>
+                  </div>
                 </div>
+
+                {/* Economia */}
+                {period.savings > 0 && (
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Você economiza:</span>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(period.savings)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Descrição */}
                 <p className="text-xs text-muted-foreground pt-2 border-t">

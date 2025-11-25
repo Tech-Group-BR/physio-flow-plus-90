@@ -26,6 +26,31 @@ export function LandingPage() {
   const { products, loading } = useProductsCache();
   const { user, setRedirectTo } = useAuth();
 
+  // Valores totais fixos dos planos
+  const calculateTotalPrice = (basePrice: number, billingPeriod?: string) => {
+    // Valores totais pré-definidos conforme especificação
+    const totalPrices: Record<string, number> = {
+      'QUARTERLY': 262,   // 3 meses
+      'SEMIANNUAL': 495,  // 6 meses
+      'ANNUAL': 930       // 12 meses
+    };
+
+    const months: Record<string, number> = {
+      'QUARTERLY': 3,
+      'SEMIANNUAL': 6,
+      'ANNUAL': 12
+    };
+
+    const totalPrice = totalPrices[billingPeriod || ''] || basePrice;
+    const monthCount = months[billingPeriod || ''] || 1;
+    const monthlyPrice = totalPrice / monthCount;
+    // Calcular economia baseado no preço base R$ 97/mês
+    const originalTotal = 97 * monthCount;
+    const savings = originalTotal - totalPrice;
+
+    return { monthlyPrice, totalPrice, savings };
+  };
+
   const handleLogin = () => {
     navigate('/login');
   };
@@ -236,7 +261,10 @@ export function LandingPage() {
                 </Card>
               ))
             ) : (
-              products.map((plan, index) => (
+              products.map((plan, index) => {
+                const { monthlyPrice, totalPrice } = calculateTotalPrice(plan.price, plan.billing_period);
+                
+                return (
                 <Card key={plan.id} className={`relative hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 ${plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''} border-0 shadow-lg`}>
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -249,9 +277,13 @@ export function LandingPage() {
                     <div className="text-center mb-8">
                       <h4 className="text-2xl font-bold text-slate-800 mb-2">{plan.name}</h4>
                       <p className="text-gray-600 mb-4">{plan.description}</p>
-                      <div className="flex items-baseline justify-center mb-6">
-                        <span className="text-5xl font-bold text-slate-800">R$ {plan.price}</span>
-                        <span className="text-gray-500 ml-1">{plan.period}</span>
+                      <div className="flex flex-col items-center mb-6">
+                        <div className="flex items-baseline justify-center">
+                          <span className="text-5xl font-bold text-slate-800">R$ {totalPrice.toFixed(0)}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          {monthlyPrice.toFixed(2).replace('.', ',')} /mês
+                        </p>
                       </div>
                       <Button 
                       className={`w-full py-3 text-lg transition-all duration-200 ${
@@ -275,7 +307,8 @@ export function LandingPage() {
                   </ul>
                 </CardContent>
               </Card>
-              ))
+              );
+              })
             )}
           </div>
         </div>
