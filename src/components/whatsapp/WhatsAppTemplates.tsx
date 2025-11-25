@@ -101,7 +101,10 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
               className="mb-2"
             />
             <p className="text-xs text-muted-foreground">
-              Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{fisioterapeuta}'}
+              {template.id === 'welcome' 
+                ? `Variáveis disponíveis: {'{nome}'}, {'{clinica}'}`
+                : `Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{fisioterapeuta}'}`
+              }
             </p>
           </div>
         ))}

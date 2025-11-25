@@ -74,6 +74,31 @@ export function WhatsAppPage() {
     !apt.whatsappConfirmed && apt.status === 'marcado'
   );
 
+  // Consultas concluídas (realizado) de ontem para follow-up
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  
+  const completedAppointments = appointments.filter(apt => 
+    apt.status === 'realizado' && apt.date === yesterdayStr
+  );
+
+  // Pacientes novos nas últimas 24h
+  const newPatients = patients.filter(p => {
+    if (!p.createdAt) {
+      console.log('⚠️ Paciente sem createdAt:', p.id, p.fullName);
+      return false;
+    }
+    const createdDate = new Date(p.createdAt);
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    const isNew = createdDate >= oneDayAgo;
+    console.log('📋 Paciente:', p.fullName, 'criado em:', createdDate, 'é novo?', isNew);
+    return isNew;
+  });
+  
+  console.log('👥 Total de pacientes novos:', newPatients.length);
+
   // Estatísticas calculadas
   const todayMessages = todayAppointments.filter(a => a.whatsappSentAt).length;
   const confirmations = appointments.filter(a => a.whatsappConfirmed).length;
@@ -113,7 +138,7 @@ export function WhatsAppPage() {
     }
   };
 
-  const sendWhatsAppMessage = async (appointmentId: string, type: 'confirmation' | 'reminder') => {
+  const sendWhatsAppMessage = async (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup') => {
     console.log('🔄 Sending WhatsApp message:', { appointmentId, type });
     const appointment = appointments.find(a => a.id === appointmentId);
     const patient = patients.find(p => p.id === appointment?.patientId);
@@ -155,7 +180,15 @@ export function WhatsAppPage() {
 
       if (error) {
         console.error('❌ Edge function error:', error);
-        throw error;
+        toast.error(`Erro ao enviar mensagem: ${error.message || 'Erro desconhecido'}`);
+        return;
+      }
+
+      // Verificar se há erro no data
+      if (data?.error) {
+        console.error('❌ Erro retornado pela função:', data.error);
+        toast.error(`Erro ao enviar: ${data.error}`);
+        return;
       }
 
       await updateAppointment(appointmentId, {
@@ -165,7 +198,8 @@ export function WhatsAppPage() {
       toast.success(`Mensagem enviada para ${patient.fullName}`);
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
-      toast.error(`Erro ao enviar mensagem via WhatsApp: ${error.message || error}`);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(`Erro ao enviar mensagem via WhatsApp: ${errorMessage}`);
     }
   };
 
@@ -196,10 +230,55 @@ export function WhatsAppPage() {
     }
   };
 
-  const sendBulkMessages = async (appointmentIds: string[], type: 'confirmation' | 'reminder') => {
+  const sendBulkMessages = async (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => {
     for (const id of appointmentIds) {
       await sendWhatsAppMessage(id, type);
       await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  };
+
+  const sendIndividualWelcome = async (patientId: string) => {
+    try {
+      toast.loading('Enviando mensagem de boas-vindas...');
+      const { data, error } = await supabase.functions.invoke('send-welcome-message', {
+        body: { patientId }
+      });
+      
+      console.log('📤 Resposta da função:', { data, error });
+      
+      if (error) {
+        console.error('❌ Erro da função:', error);
+        throw error;
+      }
+      
+      if (data?.error) {
+        console.error('❌ Erro no data:', data.error);
+        throw new Error(data.error);
+      }
+      
+      toast.dismiss();
+      toast.success('Mensagem de boas-vindas enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro no envio de boas-vindas:', error);
+      toast.dismiss();
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem de boas-vindas';
+      toast.error(errorMessage);
+    }
+  };
+
+  const sendBulkWelcome = async () => {
+    try {
+      toast.loading('Enviando mensagens de boas-vindas...');
+      const { data, error } = await supabase.functions.invoke('send-welcome-messages');
+      
+      if (error) throw error;
+      
+      toast.dismiss();
+      toast.success(`Boas-vindas: ${data.successful} mensagens enviadas com sucesso`);
+    } catch (error) {
+      console.error('Erro no envio de boas-vindas:', error);
+      toast.dismiss();
+      toast.error('Erro no envio de boas-vindas');
     }
   };
 
@@ -251,9 +330,13 @@ export function WhatsAppPage() {
           <WhatsAppMessages 
             pendingConfirmations={pendingConfirmations}
             tomorrowAppointments={tomorrowAppointments}
+            completedAppointments={completedAppointments}
+            newPatients={newPatients}
             patients={patients}
             onSendMessage={sendWhatsAppMessage}
             onSendBulkMessages={sendBulkMessages}
+            onSendIndividualWelcome={sendIndividualWelcome}
+            onSendBulkWelcome={sendBulkWelcome}
           />
         </TabsContent>
 

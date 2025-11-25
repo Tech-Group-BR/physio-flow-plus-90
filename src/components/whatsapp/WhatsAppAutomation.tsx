@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Send, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,45 +121,102 @@ export function WhatsAppAutomation({ settings, onSettingsChange }: WhatsAppAutom
         <CardContent className="space-y-6">
           <div className="space-y-4">
             {/* Opção de Confirmação */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium text-lg">Confirmação 24h antes</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enviar mensagem de confirmação 24 horas antes da consulta
-                </p>
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-lg">Confirmação antes da consulta</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Enviar mensagem de confirmação automaticamente
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.auto_confirm_enabled}
+                  onCheckedChange={(checked) => onSettingsChange({ ...settings, auto_confirm_enabled: checked })}
+                />
               </div>
-              <Switch
-                checked={settings.welcome_enabled}
-                onCheckedChange={(checked) => onSettingsChange({ ...settings, welcome_enabled: checked })}
-              />
+              {settings.auto_confirm_enabled && (
+                <div className="flex items-center gap-2 ml-0 sm:ml-4">
+                  <Label htmlFor="confirmation_hours" className="text-sm whitespace-nowrap">
+                    Enviar
+                  </Label>
+                  <Input
+                    id="confirmation_hours"
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={settings.confirmation_hours_before || 24}
+                    onChange={(e) => onSettingsChange({ ...settings, confirmation_hours_before: parseInt(e.target.value) })}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-muted-foreground">horas antes</span>
+                </div>
+              )}
             </div>
 
             {/* Opção de Lembrete */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium text-lg">Lembrete 2h antes</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enviar lembrete 2 horas antes da consulta
-                </p>
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-lg">Lembrete antes da consulta</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Enviar lembrete automaticamente antes da consulta
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.reminder_enabled}
+                  onCheckedChange={(checked) => onSettingsChange({ ...settings, reminder_enabled: checked })}
+                />
               </div>
-              <Switch
-                checked={settings.reminder_enabled}
-                onCheckedChange={(checked) => onSettingsChange({ ...settings, reminder_enabled: checked })}
-              />
+              {settings.reminder_enabled && (
+                <div className="flex items-center gap-2 ml-0 sm:ml-4">
+                  <Label htmlFor="reminder_hours" className="text-sm whitespace-nowrap">
+                    Enviar
+                  </Label>
+                  <Input
+                    id="reminder_hours"
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={settings.reminder_hours_before || 2}
+                    onChange={(e) => onSettingsChange({ ...settings, reminder_hours_before: parseInt(e.target.value) })}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-muted-foreground">horas antes</span>
+                </div>
+              )}
             </div>
 
             {/* Opção de Follow-up */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg gap-4">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium text-lg">Follow-up pós consulta</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enviar mensagem de acompanhamento após a consulta
-                </p>
+            <div className="p-4 border rounded-lg space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-lg">Follow-up pós consulta</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Enviar mensagem de acompanhamento após a consulta
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.followup_enabled}
+                  onCheckedChange={(checked) => onSettingsChange({ ...settings, followup_enabled: checked })}
+                />
               </div>
-              <Switch
-                checked={settings.followup_enabled}
-                onCheckedChange={(checked) => onSettingsChange({ ...settings, followup_enabled: checked })}
-              />
+              {settings.followup_enabled && (
+                <div className="flex items-center gap-2 ml-0 sm:ml-4">
+                  <Label htmlFor="followup_hours" className="text-sm whitespace-nowrap">
+                    Enviar
+                  </Label>
+                  <Input
+                    id="followup_hours"
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={settings.followup_hours_after || 24}
+                    onChange={(e) => onSettingsChange({ ...settings, followup_hours_after: parseInt(e.target.value) })}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-muted-foreground">horas depois</span>
+                </div>
+              )}
             </div>
 
             {/* Opção de Boas-Vindas */}
@@ -172,62 +231,6 @@ export function WhatsAppAutomation({ settings, onSettingsChange }: WhatsAppAutom
                 checked={settings.welcome_enabled}
                 onCheckedChange={(checked) => onSettingsChange({ ...settings, welcome_enabled: checked })}
               />
-            </div>
-
-            <div className="pt-4 border-t space-y-3">
-              <h3 className="font-medium text-lg mb-3">Executar Envios Manualmente</h3>
-              
-              <Button
-                onClick={runAutoConfirmations}
-                disabled={isLoading}
-                className="w-full"
-                variant="default"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Confirmações (24h antes)
-              </Button>
-              <p className="text-xs text-muted-foreground text-center -mt-2">
-                Processa e envia confirmações para agendamentos de amanhã
-              </p>
-
-              <Button
-                onClick={runReminders}
-                disabled={isLoading || !settings.reminder_enabled}
-                className="w-full"
-                variant="outline"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Lembretes (2h antes)
-              </Button>
-              <p className="text-xs text-muted-foreground text-center -mt-2">
-                Envia lembretes para consultas confirmadas de hoje
-              </p>
-
-              <Button
-                onClick={runFollowups}
-                disabled={isLoading || !settings.followup_enabled}
-                className="w-full"
-                variant="outline"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Follow-ups Pós-Consulta
-              </Button>
-              <p className="text-xs text-muted-foreground text-center -mt-2">
-                Envia acompanhamento para consultas concluídas ontem
-              </p>
-
-              <Button
-                onClick={runWelcomeMessages}
-                disabled={isLoading || !settings.welcome_enabled}
-                className="w-full"
-                variant="outline"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Enviar Boas-vindas
-              </Button>
-              <p className="text-xs text-muted-foreground text-center -mt-2">
-                Envia mensagens de boas-vindas para pacientes novos (últimas 24h)
-              </p>
             </div>
           </div>
         </CardContent>

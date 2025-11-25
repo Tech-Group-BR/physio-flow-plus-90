@@ -52,7 +52,7 @@ serve(async (req) => {
         .eq('clinic_id', settings.clinic_id)
         .eq('is_active', true)
         .gte('created_at', oneDayAgo.toISOString())
-        .is('welcome_sent_at', null);
+        .eq('welcome_message', false);
 
       if (patientsError) {
         console.error(`Erro ao buscar pacientes da clínica ${settings.clinic_id}:`, patientsError);
@@ -67,9 +67,26 @@ serve(async (req) => {
 
       for (const patient of newPatients || []) {
         try {
+          // Verificar se paciente tem telefone
+          if (!patient.phone) {
+            console.log(`Paciente ${patient.id} sem telefone, pulando...`);
+            clinicErrorCount++;
+            continue;
+          }
+
+          // Buscar nome da clínica na tabela clinic_settings
+          const { data: clinicSettings } = await supabase
+            .from('clinic_settings')
+            .select('name')
+            .eq('id', settings.clinic_id)
+            .single();
+
+          const clinicName = clinicSettings?.name || 'nossa clínica';
+
           // Formatar mensagem de boas-vindas
           const message = settings.welcome_template
-            .replace(/{nome}/g, patient.full_name);
+            .replace(/{nome}/g, patient.full_name)
+            .replace(/{clinica}/g, clinicName);
 
           // Limpar e formatar telefone
           let cleanPhone = patient.phone.replace(/\D/g, '');
@@ -114,10 +131,10 @@ serve(async (req) => {
             clinic_id: settings.clinic_id
           });
 
-          // Atualizar paciente
+          // Atualizar paciente - marcar welcome_message como true
           await supabase
             .from('patients')
-            .update({ welcome_sent_at: new Date().toISOString() })
+            .update({ welcome_message: true })
             .eq('id', patient.id);
 
           clinicSuccessCount++;
@@ -151,8 +168,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in send-welcome-messages:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

@@ -17,6 +17,7 @@ import { PatientsService } from '@/services/database/patients.service';
 import { globalCache, CACHE_KEYS, CACHE_TTL } from '@/lib/globalCache';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { Patient } from '@/types';
 
 // ============================================================
@@ -183,6 +184,25 @@ export function PatientsProvider({ children }: { children: React.ReactNode }) {
       
       toast.success(`Paciente ${newPatient.fullName} adicionado com sucesso!`);
       console.log('✅ [PatientsContext] Patient added:', newPatient.id);
+      
+      // Enviar mensagem de boas-vindas se estiver habilitado
+      try {
+        const { data: settings } = await supabase
+          .from('whatsapp_settings')
+          .select('welcome_enabled, is_active')
+          .eq('clinic_id', clinicId)
+          .single();
+
+        if (settings?.welcome_enabled && settings?.is_active) {
+          console.log('👋 Enviando mensagem de boas-vindas para:', newPatient.fullName);
+          await supabase.functions.invoke('send-welcome-message', {
+            body: { patientId: newPatient.id }
+          });
+        }
+      } catch (welcomeError) {
+        console.error('⚠️ Erro ao enviar boas-vindas:', welcomeError);
+        // Não bloqueia o cadastro se falhar o envio de boas-vindas
+      }
       
       return newPatient;
     } catch (err) {

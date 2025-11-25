@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,22 +19,32 @@ import { format } from "date-fns";
 interface WhatsAppMessagesProps {
   pendingConfirmations: any[];
   tomorrowAppointments: any[];
+  completedAppointments: any[];
+  newPatients: any[];
   patients: any[];
-  onSendMessage: (appointmentId: string, type: 'confirmation' | 'reminder') => void;
-  onSendBulkMessages: (appointmentIds: string[], type: 'confirmation' | 'reminder') => void;
+  onSendMessage: (appointmentId: string, type: 'confirmation' | 'reminder' | 'followup') => void;
+  onSendBulkMessages: (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => void;
+  onSendIndividualWelcome: (patientId: string) => void;
+  onSendBulkWelcome: () => void;
 }
 
 export function WhatsAppMessages({ 
   pendingConfirmations, 
-  tomorrowAppointments, 
+  tomorrowAppointments,
+  completedAppointments,
+  newPatients, 
   patients, 
   onSendMessage, 
-  onSendBulkMessages 
+  onSendBulkMessages,
+  onSendIndividualWelcome,
+  onSendBulkWelcome
 }: WhatsAppMessagesProps) {
   const [confirmationDateFilter, setConfirmationDateFilter] = useState('');
   const [reminderDateFilter, setReminderDateFilter] = useState('');
+  const [followupDateFilter, setFollowupDateFilter] = useState('');
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [bulkSendAction, setBulkSendAction] = useState<{ ids: string[], type: 'confirmation' | 'reminder' } | null>(null);
+  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(false);
+  const [bulkSendAction, setBulkSendAction] = useState<{ ids: string[], type: 'confirmation' | 'reminder' | 'followup' } | null>(null);
   
   // Helper para formatar data sem problemas de timezone
   const formatDateFromInput = (dateString: string) => {
@@ -44,7 +54,7 @@ export function WhatsAppMessages({
   };
   
   // Função para abrir diálogo de confirmação
-  const handleBulkSendClick = (appointmentIds: string[], type: 'confirmation' | 'reminder') => {
+  const handleBulkSendClick = (appointmentIds: string[], type: 'confirmation' | 'reminder' | 'followup') => {
     setBulkSendAction({ ids: appointmentIds, type });
     setIsConfirmDialogOpen(true);
   };
@@ -56,6 +66,17 @@ export function WhatsAppMessages({
     }
     setIsConfirmDialogOpen(false);
     setBulkSendAction(null);
+  };
+
+  // Função para abrir diálogo de boas-vindas
+  const handleWelcomeSendClick = () => {
+    setIsWelcomeDialogOpen(true);
+  };
+
+  // Função para confirmar envio de boas-vindas
+  const handleConfirmWelcomeSend = () => {
+    onSendBulkWelcome();
+    setIsWelcomeDialogOpen(false);
   };
   
   // Debug logs
@@ -71,6 +92,16 @@ export function WhatsAppMessages({
   const filteredTomorrowAppointments = reminderDateFilter
     ? tomorrowAppointments.filter(appointment => appointment.date === reminderDateFilter)
     : tomorrowAppointments;
+
+  // Buscar consultas concluídas para follow-up (ontem ou filtro personalizado)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  
+  // Filtrar por data se necessário
+  const filteredCompletedAppointments = followupDateFilter 
+    ? completedAppointments.filter(apt => apt.date === followupDateFilter)
+    : completedAppointments;
   
   return (
      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
@@ -242,6 +273,157 @@ export function WhatsAppMessages({
         </CardContent>
       </Card>
 
+      {/* Follow-up Pós-Consulta Card */}
+      <Card className="flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Follow-up Pós-Consulta
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-1 flex flex-col">
+          <div className="space-y-2">
+            <Label htmlFor="followup-date" className="text-sm font-medium flex items-center gap-1">
+              <Filter className="h-4 w-4" />
+              Filtrar por data:
+            </Label>
+            <Input
+              id="followup-date"
+              type="date"
+              value={followupDateFilter}
+              onChange={(e) => setFollowupDateFilter(e.target.value)}
+              className="text-sm"
+            />
+            {followupDateFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFollowupDateFilter('')}
+                className="text-xs h-6 px-2"
+              >
+                Limpar filtro
+              </Button>
+            )}
+          </div>
+          
+          {filteredCompletedAppointments.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4 flex-1 flex items-center justify-center">
+              {followupDateFilter 
+                ? `Nenhuma consulta concluída em ${formatDateFromInput(followupDateFilter)}`
+                : 'Nenhuma consulta concluída ontem'
+              }
+            </p>
+          ) : (
+            <>
+              <Button
+                onClick={() => handleBulkSendClick(filteredCompletedAppointments.map(a => a.id), 'followup')}
+                variant="outline"
+                className="w-full"
+                size="sm"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {followupDateFilter 
+                  ? `Enviar Follow-ups (${formatDateFromInput(followupDateFilter)})`
+                  : `Enviar Todos os Follow-ups (${filteredCompletedAppointments.length})`
+                }
+              </Button>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2 -mr-2">
+                {filteredCompletedAppointments.map((appointment) => {
+                  const patient = patients.find(p => p.id === appointment.patientId);
+                  return (
+                    <div key={appointment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{patient?.fullName}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {appointment.date.slice(0, 10).split('-').reverse().join('/')} às {appointment.time}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onSendMessage(appointment.id, 'followup')}
+                      >
+                        <Send className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Boas-vindas Card */}
+      <Card className="flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Send className="h-5 w-5" />
+            Boas-vindas
+          </CardTitle>
+          <CardDescription>
+            {newPatients.length} {newPatients.length === 1 ? 'paciente novo' : 'pacientes novos'} nas últimas 24h
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-1 flex flex-col">
+          {newPatients.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4 flex-1 flex items-center justify-center">
+              Nenhum paciente novo nas últimas 24 horas
+            </p>
+          ) : (
+            <>
+              <Button
+                onClick={handleWelcomeSendClick}
+                variant="outline"
+                className="w-full"
+                size="sm"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Enviar Todas as Boas-vindas ({newPatients.length})
+              </Button>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-2 -mr-2">
+                {newPatients.map((patient) => {
+                  const createdDate = patient.createdAt 
+                    ? new Date(patient.createdAt).toLocaleDateString('pt-BR', { 
+                        day: '2-digit', 
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : 'Data não disponível';
+                  
+                  return (
+                    <div key={patient.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{patient.fullName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Cadastrado em: {createdDate}
+                        </p>
+                        {patient.phone && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            📱 {patient.phone}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => onSendIndividualWelcome(patient.id)}
+                        size="sm"
+                        variant="outline"
+                        className="ml-2 shrink-0"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Diálogo de Confirmação para Envio em Massa */}
       <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <AlertDialogContent>
@@ -257,11 +439,20 @@ export function WhatsAppMessages({
                   <br /><br />
                   Deseja continuar com o envio?
                 </>
-              ) : (
+              ) : bulkSendAction?.type === 'reminder' ? (
                 <>
                   Você está prestes a enviar <strong>{bulkSendAction?.ids.length} mensagens de lembrete</strong> via WhatsApp.
                   {reminderDateFilter && (
                     <> para a data <strong>{formatDateFromInput(reminderDateFilter)}</strong></>
+                  )}
+                  <br /><br />
+                  Deseja continuar com o envio?
+                </>
+              ) : (
+                <>
+                  Você está prestes a enviar <strong>{bulkSendAction?.ids.length} mensagens de follow-up</strong> via WhatsApp.
+                  {followupDateFilter && (
+                    <> para a data <strong>{formatDateFromInput(followupDateFilter)}</strong></>
                   )}
                   <br /><br />
                   Deseja continuar com o envio?
@@ -272,6 +463,26 @@ export function WhatsAppMessages({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmBulkSend}>
+              Confirmar Envio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de Confirmação para Boas-vindas */}
+      <AlertDialog open={isWelcomeDialogOpen} onOpenChange={setIsWelcomeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Envio de Boas-vindas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a enviar <strong>mensagens de boas-vindas</strong> para todos os pacientes novos (últimas 24h) que ainda não receberam via WhatsApp.
+              <br /><br />
+              Deseja continuar com o envio?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmWelcomeSend}>
               Confirmar Envio
             </AlertDialogAction>
           </AlertDialogFooter>

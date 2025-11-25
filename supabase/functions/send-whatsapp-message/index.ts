@@ -9,7 +9,7 @@ const corsHeaders = {
 
 interface SendMessageRequest {
   appointmentId: string;
-  messageType: 'confirmation' | 'reminder' | 'notification';
+  messageType: 'confirmation' | 'reminder' | 'followup' | 'notification';
   recipientType: 'patient' | 'Professional';
 }
 
@@ -151,6 +151,8 @@ console.log('✅ Professional found:', {
         templateToUse = settings.confirmation_template;
       } else if (messageType === 'reminder') {
         templateToUse = settings.reminder_template;
+      } else if (messageType === 'followup') {
+        templateToUse = settings.followup_template;
       } else {
         templateToUse = settings.reminder_template;
       }
@@ -338,21 +340,17 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
       messageId = `error-${Date.now()}`;
       deliveryStatus = 'failed';
 
-      // Retornar erro específico para debugar
+      // Retornar erro com status 500 para o frontend capturar
       return new Response(
         JSON.stringify({
-          success: false,
-          messageId,
-          message: `Erro no envio da mensagem: ${apiError.message}`,
-          status: 'failed',
-          debug: {
+          error: `Erro no envio: ${apiError.message}`,
+          details: {
             url: `${settings.base_url}message/sendText/${settings.instance_name}`,
             phone: formattedPhone,
-            apiKeyExists: !!settings.api_key,
-            error: apiError.message
+            apiKeyExists: !!settings.api_key
           }
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -376,22 +374,43 @@ if (!formattedPhone.startsWith('55') && formattedPhone.length >= 10) { // mínim
       console.log('✅ Message log saved');
     }
 
-    // Atualizar agendamento
-    const updateField = recipientType === 'patient' ? 'confirmation_message_id' : 'physio_message_id';
-    const timestampField = recipientType === 'patient' ? 'confirmation_sent_at' : 'physio_notified_at';
+    // Atualizar agendamento baseado no tipo de mensagem e destinatário
+    let updateData: any = {};
+
+    if (recipientType === 'patient') {
+      if (messageType === 'confirmation') {
+        updateData = {
+          confirmation_message_id: messageId,
+          confirmation_sent_at: new Date().toISOString(),
+          whatsapp_sent_at: new Date().toISOString(),
+          whatsapp_status: 'pending'
+        };
+      } else if (messageType === 'reminder') {
+        updateData = {
+          reminder_sent_at: new Date().toISOString()
+        };
+      } else if (messageType === 'followup') {
+        updateData = {
+          followup_sent_at: new Date().toISOString()
+        };
+      }
+    } else {
+      // Para fisioterapeuta (notificação)
+      updateData = {
+        physio_message_id: messageId,
+        physio_notified_at: new Date().toISOString()
+      };
+    }
 
     const { error: updateError } = await supabase
       .from('appointments')
-      .update({
-        [updateField]: messageId,
-        [timestampField]: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', appointmentId);
 
     if (updateError) {
       console.error('❌ Error updating appointment:', updateError);
     } else {
-      console.log('✅ Appointment updated');
+      console.log('✅ Appointment updated with fields:', Object.keys(updateData));
     }
 
     console.log('🎉 Mensagem processada com sucesso');
