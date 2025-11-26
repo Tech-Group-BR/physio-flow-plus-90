@@ -9,6 +9,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Eye, EyeOff, LogIn, ArrowLeft, Building2, Mail, Lock, Hash } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export function LoginPage() {
   const { signIn, user, loading: authLoading, redirectTo, clearRedirectTo } = useAuth();
@@ -16,6 +17,10 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetClinicCode, setResetClinicCode] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -67,6 +72,58 @@ export function LoginPage() {
     password: '',
     clinicCode: ''
   });
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setError('');
+
+    try {
+      // Validar campos
+      if (!resetEmail.trim() || !resetClinicCode.trim()) {
+        throw new Error('Preencha todos os campos');
+      }
+
+      // 1. Verificar se o usuário existe nesta clínica
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('clinic_code')
+        .eq('email', resetEmail.trim())
+        .eq('clinic_code', resetClinicCode.trim())
+        .single();
+
+      if (profileError || !profileData) {
+        throw new Error('Email não encontrado nesta clínica. Verifique o email e o código da clínica.');
+      }
+
+      // 2. Construir o email sintético
+      const [name, domain] = resetEmail.trim().split('@');
+      const syntheticEmail = `${name}+${profileData.clinic_code}@${domain}`;
+
+      console.log('📧 Enviando email de recuperação:', {
+        emailReal: resetEmail,
+        emailSintetico: syntheticEmail,
+        clinicCode: profileData.clinic_code
+      });
+
+      // 3. Enviar email de recuperação com o email sintético
+      const { error } = await supabase.auth.resetPasswordForEmail(syntheticEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Email de recuperação enviado! Verifique sua caixa de entrada.');
+      setShowForgotPassword(false);
+      setResetEmail('');
+      setResetClinicCode('');
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar email de recuperação:', error);
+      toast.error(error.message || 'Erro ao enviar email de recuperação');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,16 +328,86 @@ export function LoginPage() {
 
               {/* Forgot Password */}
               <div className="text-center">
-                <Link 
-                  to="#" 
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
                   className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                 >
                   Esqueceu sua senha?
-                </Link>
+                </button>
               </div>
             </form>
           </CardContent>
         </Card>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md bg-white">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-center">
+                  Recuperar Senha
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <p className="text-sm text-gray-600 text-center">
+                    Digite seu email e código da clínica para receber um link de recuperação.
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="resetEmail">Email</Label>
+                    <Input
+                      id="resetEmail"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      className="h-12"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="resetClinicCode">Código da Clínica</Label>
+                    <Input
+                      id="resetClinicCode"
+                      type="text"
+                      placeholder="123456"
+                      value={resetClinicCode}
+                      onChange={(e) => setResetClinicCode(e.target.value)}
+                      required
+                      maxLength={6}
+                      className="h-12"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setResetEmail('');
+                        setResetClinicCode('');
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="flex-1"
+                    >
+                      {resetLoading ? 'Enviando...' : 'Enviar Link'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8 space-y-4">
