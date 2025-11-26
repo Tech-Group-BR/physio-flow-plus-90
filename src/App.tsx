@@ -22,6 +22,7 @@ import {
   AdminPage,
   RootRoute
 } from "@/utils/lazyComponents";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { useState, useEffect } from "react";
 import "./App.css";
 
@@ -225,6 +226,12 @@ function App() {
                     path="/accept-invite/:token" 
                     element={
                       <AcceptInvitePage />
+                    } 
+                  />
+                  <Route 
+                    path="/reset-password" 
+                    element={
+                      <ResetPasswordPage />
                     } 
                   />
                   <Route 
