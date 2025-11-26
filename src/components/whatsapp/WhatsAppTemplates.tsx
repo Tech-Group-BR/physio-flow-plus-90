@@ -86,7 +86,6 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
           <div key={template.id} className="border rounded-lg p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
               <h3 className="font-medium text-base sm:text-lg">{template.name}</h3>
-              <Badge variant="outline" className="w-fit">{template.id}</Badge>
             </div>
             <Textarea
               value={template.message}
@@ -109,10 +108,10 @@ export function WhatsAppTemplates({ settings, onSettingsChange }: WhatsAppTempla
             />
             <p className="text-xs text-muted-foreground">
               {template.id === 'welcome' 
-                ? `Variáveis disponíveis: {'{nome}'}, {'{clinica}'}`
+                ? 'Variáveis disponíveis: {nome}, {clinica}'
                 : template.id === 'charge'
-                ? `Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{valor}'}, {'{fisioterapeuta}'}`
-                : `Variáveis disponíveis: {'{nome}'}, {'{data}'}, {'{horario}'}, {'{fisioterapeuta}'}`
+                ? 'Variáveis disponíveis: {nome}, {data}, {horario}, {valor}, {fisioterapeuta}'
+                : 'Variáveis disponíveis: {nome}, {data}, {horario}, {fisioterapeuta}'
               }
             </p>
           </div>
