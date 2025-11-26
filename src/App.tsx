@@ -77,6 +77,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, redirectTo, clearRedirectTo } = useAuth();
   
+  // EXCEÇÃO: Se há um hash de recovery na URL (reset de senha), permitir acesso mesmo logado
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  const isRecoveryLink = hashParams.get('type') === 'recovery';
+  
+  if (isRecoveryLink) {
+    console.log('🔑 PublicRoute: Link de recovery detectado, permitindo acesso');
+    return <>{children}</>;
+  }
+  
   // Se está loading, mostrar loading
   if (loading) {
     return (

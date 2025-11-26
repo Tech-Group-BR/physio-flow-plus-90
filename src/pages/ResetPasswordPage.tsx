@@ -18,11 +18,26 @@ export function ResetPasswordPage() {
   const [isValidSession, setIsValidSession] = useState(false);
 
   useEffect(() => {
-    // Verifica se há uma sessão de recuperação válida
+    // Verifica se há um hash de recovery na URL (indica link de reset válido)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    const accessToken = hashParams.get('access_token');
+
+    console.log('🔑 Reset Password - Hash params:', { type, hasToken: !!accessToken });
+
+    // Se tem type=recovery e access_token, é um link válido
+    if (type === 'recovery' && accessToken) {
+      setIsValidSession(true);
+      return;
+    }
+
+    // Caso contrário, verifica se há sessão ativa (usuário já estava logado)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        console.log('✅ Sessão ativa encontrada');
         setIsValidSession(true);
       } else {
+        console.log('❌ Nenhuma sessão válida');
         toast.error('Link inválido ou expirado');
         setTimeout(() => navigate('/login'), 2000);
       }
@@ -52,6 +67,9 @@ export function ResetPasswordPage() {
       if (error) throw error;
 
       toast.success('Senha redefinida com sucesso!');
+      
+      // Faz logout para limpar a sessão de recovery
+      await supabase.auth.signOut();
       
       // Aguarda 2 segundos e redireciona para o login
       setTimeout(() => {
