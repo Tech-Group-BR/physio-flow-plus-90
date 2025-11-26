@@ -205,11 +205,12 @@ export function DragDropAgendaWeekView({
                               zIndex: 10,
                               background: backgroundColor,
                               boxShadow: "0 1px 4px 0 rgba(0,0,0,0.03)",
-                              borderRadius: '24px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(0,0,0,0.15)',
                             }}
                             onClick={() => handleAppointmentClick(appointment)}
                           >
-                            <div className="w-full h-full" style={{ background: backgroundColor, borderRadius: '24px' }}>
+                            <div className="w-full h-full" style={{ background: backgroundColor, borderRadius: '4px' }}>
                               <AppointmentCard
                                 appointment={appointment}
                                 patients={patients}

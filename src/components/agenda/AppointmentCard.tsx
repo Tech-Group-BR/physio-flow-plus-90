@@ -148,7 +148,7 @@ export function AppointmentCard({
         <div
           className="h-full cursor-pointer hover:shadow-md transition-all duration-200 flex flex-col justify-center p-1"
           style={{ 
-            borderRadius: '8px', 
+            borderRadius: '4px', 
             overflow: 'hidden'
           }}
           onClick={onClick}
@@ -186,7 +186,7 @@ export function AppointmentCard({
         <div
           className="h-full cursor-pointer hover:shadow-md transition-all duration-200 p-1"
           style={{ 
-            borderRadius: '8px', 
+            borderRadius: '4px', 
             overflow: 'hidden'
           }}
           onClick={onClick}
@@ -336,10 +336,10 @@ export function AppointmentCard({
     <Card 
       className="cursor-pointer hover:shadow-xl transition-all duration-300 border-none h-full overflow-hidden" 
       style={{ 
-        borderRadius: '8px'
+        borderRadius: '4px'
       }}
     >
-      <CardContent className="p-1 h-full flex flex-col" style={{ borderRadius: '8px' }}>
+      <CardContent className="p-1 h-full flex flex-col" style={{ borderRadius: '4px' }}>
         <div className="flex-1 overflow-hidden">
           <div className="flex items-start justify-between mb-1 gap-1">
             <Badge 

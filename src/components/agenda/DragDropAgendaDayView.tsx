@@ -349,7 +349,8 @@ export function DragDropAgendaDayView({
                         zIndex: 10,
                         background: backgroundColor,
                         boxShadow: "0 1px 3px 0 rgba(0,0,0,0.1)",
-                        borderRadius: '8px', // Aumentado de 6px para 8px
+                        borderRadius: '4px',
+                        border: '1px solid rgba(0,0,0,0.15)',
                       }}
                       className="cursor-pointer hover:shadow-lg transition-shadow"
                       onClick={() => handleAppointmentClick(appointment)}

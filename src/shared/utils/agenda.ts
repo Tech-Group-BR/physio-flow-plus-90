@@ -13,17 +13,17 @@ import { isSameDay } from 'date-fns';
 export const getStatusColor = (status: string): string => {
   switch (status) {
     case 'confirmado': 
-      return 'bg-green-100 text-green-800 border-green-300';
+      return 'bg-green-100 text-green-800 border-green-300 rounded-sm';
     case 'marcado': 
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-blue-50 text-blue-700 border-blue-200 rounded-sm';
     case 'faltante': 
-      return 'bg-red-50 text-red-700 border-red-200';
+      return 'bg-red-50 text-red-700 border-red-200 rounded-sm';
     case 'cancelado': 
-      return 'bg-red-100 text-red-800 border-red-300';
+      return 'bg-red-100 text-red-800 border-red-300 rounded-sm';
     case 'realizado': 
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 rounded-sm';
     default: 
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-blue-50 text-blue-700 border-blue-200 rounded-sm';
   }
 };
 
