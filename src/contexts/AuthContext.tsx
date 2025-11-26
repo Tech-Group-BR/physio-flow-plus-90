@@ -650,6 +650,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchInitialSession = async () => {
       try {
         console.log('🔄 AuthContext: Iniciando carregamento de sessão...');
+        
+        // ✅ PROTEÇÃO: Se é link de recovery, não carregar nada pesado
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const isRecoveryLink = hashParams.get('type') === 'recovery';
+        
+        if (isRecoveryLink) {
+          console.log('🔑 Link de recovery detectado - pulando carregamento inicial de perfil');
+          setLoading(false);
+          isInitialized.current = true;
+          return;
+        }
+        
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -697,6 +709,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isLoggingOut: isLoggingOut.current,
           currentLoading: loading
         });
+        
+        // ✅ PROTEÇÃO ESPECIAL: Se é um link de recovery, não carregar perfil pesado
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const isRecoveryLink = hashParams.get('type') === 'recovery';
+        
+        if (isRecoveryLink && _event === 'SIGNED_IN') {
+          console.log('🔑 Link de recovery detectado - não carregando perfil completo');
+          // Apenas setar loading = false e deixar a página de reset lidar
+          setLoading(false);
+          return;
+        }
         
         // ✅ PROTEÇÃO: Ignorar eventos durante logout
         if (isLoggingOut.current) {
